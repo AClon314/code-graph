@@ -17,7 +17,8 @@ Default mode is `MockSource`, so the UI runs before a daemon exists. Switch to
 ```bash
 bun install
 bun run dev
-# http://127.0.0.1:5173
+# local: http://127.0.0.1:5173
+# remote/LAN: http://<host-ip>:5173 (Vite binds 0.0.0.0)
 ```
 
 For a real graph:
