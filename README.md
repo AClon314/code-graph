@@ -51,9 +51,9 @@ is **`graph-ui-svelte/`** (cbm-facing name).
 | Call Graph | Svelte (`code-graph`) |
 | Explore / Galaxy / Architecture / ADR / Agents / Coverage / System | React graph-ui |
 
-`src/lib/navigation.ts` builds `/?workspace=<id>` links. `VITE_REACT_UI`
-selects the React origin (`http://127.0.0.1:9749` in dev, `same-origin` when
-served by cbm).
+`src/lib/navigation.ts` builds `/?workspace=<id>` links. `VITE_REACT_UI` selects the React origin (`same-origin` when served by cbm,
+or a full URL/path when behind a proxy). By default it uses the current
+hostname plus `VITE_REACT_PORT` (9749), never a hard-coded host.
 
 ## Contract
 

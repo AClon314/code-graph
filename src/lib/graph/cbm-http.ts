@@ -180,7 +180,8 @@ export class CbmHttpSource implements GraphSource {
   }
 
   private async get<T>(path: string, params: Record<string, string>): Promise<T> {
-    const base = this.baseUrl || (typeof location === "undefined" ? "http://127.0.0.1:9749" : location.origin);
+    const base = this.baseUrl || (typeof location === "undefined" ? "" : location.origin);
+    if (!base) throw new Error("CbmHttpSource requires baseUrl outside a browser");
     const url = new URL(path, base);
     for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
     const response = await this.fetchImpl(url.toString(), { headers: { accept: "application/json" } });
