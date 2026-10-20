@@ -27,7 +27,7 @@ For a real graph:
 # 1. write a cbm DB from a .scip index (inside the cbm fork)
 (cd ../tools/scip-cbm-writer && bun run src/cli.ts /path/to/index.scip \
   --project fixture-hard-scip \
-  --root ../../peers/fixtures/callgraph-ts-hard \
+  --root ../peers/fixtures/callgraph-ts-hard \
   --cache-dir /tmp/cbm-cache-scip)
 
 # 2. start cbm's HTTP API against that cache (keep stdin open)
