@@ -4,6 +4,9 @@ Svelte 5 shell for the generic code navigator. **B0** of `../tmp/TODO.md`:
 the graph source contract + a demo shell; CodeMirror reader and 2D graph are
 B1/B2.
 
+> cbm's React UI is **not replaced** yet. This is a separate, opt-in shell
+> mounted at `rules/graph-ui-svelte/`; the repository is `code-graph`.
+
 Default mode is `MockSource`, so the UI runs before a daemon exists. Switch to
 `cbm HTTP` to read a DB written by `scip-cbm-writer` through codebase-memory-mcp.
 
