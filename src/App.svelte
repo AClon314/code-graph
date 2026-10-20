@@ -4,6 +4,7 @@
   import { CbmHttpSource } from "./lib/graph/cbm-http";
   import { MockSource } from "./lib/graph/mock";
   import type { GraphSource, SymbolBundle, TreeEntry } from "./lib/graph/types";
+  import { REACT_WORKSPACES, reactWorkspaceUrl } from "./lib/navigation";
 
   type SourceKind = "mock" | "cbm";
 
@@ -89,6 +90,18 @@
       </button>
     </div>
   </header>
+
+  <nav class="workspace-nav" aria-label="Workspaces">
+    <span class="active" aria-current="page">Call Graph</span>
+    {#each REACT_WORKSPACES as workspace (workspace.id)}
+      <a
+        href={reactWorkspaceUrl(workspace.id)}
+        title={`Open the stable React graph-ui: ${workspace.label}`}
+      >
+        {workspace.label} ↗
+      </a>
+    {/each}
+  </nav>
 
   <section class="controls" aria-label="Query">
     <label>
@@ -190,5 +203,8 @@
     </section>
   </div>
 
-  <footer>B0 shell · B1 CodeMirror reader · B2 2D graph/trace/impact</footer>
+  <footer>
+    Call Graph is the Svelte surface; other workspaces open the React graph-ui
+    (set <code>VITE_REACT_UI</code> to override the origin).
+  </footer>
 </main>

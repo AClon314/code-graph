@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 
 import { CbmHttpSource } from "../src/lib/graph/cbm-http";
 import { MockSource } from "../src/lib/graph/mock";
+import { REACT_WORKSPACES, reactWorkspaceUrl } from "../src/lib/navigation";
 
 test("MockSource satisfies the GraphSource contract", async () => {
   const source = new MockSource();
@@ -98,3 +99,15 @@ function json(value: unknown): Response {
     headers: { "content-type": "application/json" },
   });
 }
+
+
+test("reactWorkspaceUrl keeps non-call-graph modules on the React UI", () => {
+  expect(REACT_WORKSPACES.map((workspace) => workspace.id)).toContain("architecture");
+  expect(reactWorkspaceUrl("architecture", "http://cbm.test")).toBe(
+    "http://cbm.test/?workspace=architecture"
+  );
+  expect(reactWorkspaceUrl("system", "http://cbm.test/")).toBe(
+    "http://cbm.test/?workspace=system"
+  );
+  expect(reactWorkspaceUrl("coverage", "same-origin")).toBe("/?workspace=coverage");
+});

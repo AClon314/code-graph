@@ -95,6 +95,34 @@ h3 {
   color: var(--bg);
 }
 
+.workspace-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4ch;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 0.6lh;
+}
+
+.workspace-nav a,
+.workspace-nav .active {
+  border-radius: 999px;
+  padding: 0.25lh 1ch;
+  font-size: 0.8rem;
+  text-decoration: none;
+  color: var(--muted);
+}
+
+.workspace-nav a:hover {
+  background: light-dark(#ecece6, #2a2a2a);
+  color: var(--text);
+}
+
+.workspace-nav .active {
+  background: var(--accent);
+  color: var(--bg);
+}
+
 .controls {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) auto;
