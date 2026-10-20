@@ -5,7 +5,9 @@ the graph source contract + a demo shell; CodeMirror reader and 2D graph are
 B1/B2.
 
 > cbm's React UI is **not replaced** yet. This is a separate, opt-in shell
-> mounted at `rules/graph-ui-svelte/`; the repository is `code-graph`.
+> mounted inside the cbm fork at `rules/cbm/graph-ui-svelte/`; the repository
+> is `code-graph`. Only **Call Graph** is Svelte; the other workspace tabs link
+> back to the stable React graph-ui (`?workspace=…`).
 
 Default mode is `MockSource`, so the UI runs before a daemon exists. Switch to
 `cbm HTTP` to read a DB written by `scip-cbm-writer` through codebase-memory-mcp.
@@ -21,15 +23,14 @@ bun run dev
 For a real graph:
 
 ```bash
-# 1. write a cbm DB from a .scip index (see ../scip-cbm-writer)
-(cd ../scip-cbm-writer && bun run src/cli.ts /path/to/index.scip \
+# 1. write a cbm DB from a .scip index (inside the cbm fork)
+(cd ../tools/scip-cbm-writer && bun run src/cli.ts /path/to/index.scip \
   --project fixture-hard-scip \
-  --root ../peers/fixtures/callgraph-ts-hard \
+  --root ../../peers/fixtures/callgraph-ts-hard \
   --cache-dir /tmp/cbm-cache-scip)
 
 # 2. start cbm's HTTP API against that cache (keep stdin open)
-# (in the parent checkout; cbm lives at rules/cbm/)
-CBM_CACHE_DIR=/tmp/cbm-cache-scip ../cbm/node_modules/.bin/codebase-memory-mcp \
+CBM_CACHE_DIR=/tmp/cbm-cache-scip ../../cbm-runtime/node_modules/.bin/codebase-memory-mcp \
   --ui=true --port=9751
 
 # 3. point Vite's /api proxy at it
@@ -39,8 +40,19 @@ CBM_HTTP=http://127.0.0.1:9751 bun run dev
 Then click **cbm HTTP**; project `fixture-hard-scip`, symbol
 `fixture-hard-scip.src.features.useAlias`.
 
-The repository is named **`code-graph`** but the mount path in the parent repo
-is **`rules/graph-ui-svelte/`** (cbm-facing name).
+The repository is named **`code-graph`** but the mount path inside the cbm fork
+is **`graph-ui-svelte/`** (cbm-facing name).
+
+## Hybrid rollout
+
+| Surface | Owner |
+|---|---|
+| Call Graph | Svelte (`code-graph`) |
+| Explore / Galaxy / Architecture / ADR / Agents / Coverage / System | React graph-ui |
+
+`src/lib/navigation.ts` builds `/?workspace=<id>` links. `VITE_REACT_UI`
+selects the React origin (`http://127.0.0.1:9749` in dev, `same-origin` when
+served by cbm).
 
 ## Contract
 
