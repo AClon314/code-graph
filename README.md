@@ -28,7 +28,9 @@ For a real graph:
   --cache-dir /tmp/cbm-cache-scip)
 
 # 2. start cbm's HTTP API against that cache (keep stdin open)
-CBM_CACHE_DIR=/tmp/cbm-cache-scip codebase-memory-mcp --ui=true --port=9751
+# (in the parent checkout; cbm lives at rules/cbm/)
+CBM_CACHE_DIR=/tmp/cbm-cache-scip ../cbm/node_modules/.bin/codebase-memory-mcp \
+  --ui=true --port=9751
 
 # 3. point Vite's /api proxy at it
 CBM_HTTP=http://127.0.0.1:9751 bun run dev
