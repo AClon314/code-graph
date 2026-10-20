@@ -1,6 +1,6 @@
 # code-graph
 
-Svelte 5 shell for the generic code navigator. **B0** of `../tmp/TODO.md`:
+Svelte 5 shell for the generic code navigator. **B0** of `../../tmp/TODO.md`:
 the graph source contract + a demo shell; CodeMirror reader and 2D graph are
 B1/B2.
 
