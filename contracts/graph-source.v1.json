@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "types": "../src/lib/graph/types.ts",
+  "methods": [
+    { "name": "projects", "params": [], "returns": "Project[]" },
+    { "name": "tree", "params": ["project", "path?"], "returns": "TreeEntry[]" },
+    { "name": "symbol", "params": ["project", "qnOrId"], "returns": "SymbolBundle" },
+    { "name": "trace", "params": ["project", "from", "to", "mode?"], "returns": "TraceResult" },
+    { "name": "impact", "params": ["project", "node"], "returns": "ImpactResult" },
+    { "name": "source", "params": ["project", "path", "start?", "end?"], "returns": "SourceSlice" },
+    { "name": "search", "params": ["project", "query", "limit?"], "returns": "SearchHit[]" }
+  ]
+}
