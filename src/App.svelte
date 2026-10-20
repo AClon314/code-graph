@@ -77,7 +77,7 @@
 <main class="app">
   <header>
     <div>
-      <h1>code-nav</h1>
+      <h1>code-graph</h1>
       <div class="sub">SCIP → cbm → Svelte shell (B0)</div>
     </div>
     <div class="switcher" aria-label="Graph source">

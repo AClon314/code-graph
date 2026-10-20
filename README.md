@@ -1,4 +1,4 @@
-# code-nav-ui
+# code-graph
 
 Svelte 5 shell for the generic code navigator. **B0** of `../tmp/TODO.md`:
 the graph source contract + a demo shell; CodeMirror reader and 2D graph are
@@ -19,10 +19,10 @@ For a real graph:
 
 ```bash
 # 1. write a cbm DB from a .scip index (see ../scip-cbm-writer)
-bun --cwd ../scip-cbm-writer run src/cli.ts /path/to/index.scip \
+(cd ../scip-cbm-writer && bun run src/cli.ts /path/to/index.scip \
   --project fixture-hard-scip \
   --root ../peers/fixtures/callgraph-ts-hard \
-  --cache-dir /tmp/cbm-cache-scip
+  --cache-dir /tmp/cbm-cache-scip)
 
 # 2. start cbm's HTTP API against that cache (keep stdin open)
 CBM_CACHE_DIR=/tmp/cbm-cache-scip codebase-memory-mcp --ui=true --port=9751
@@ -33,6 +33,9 @@ CBM_HTTP=http://127.0.0.1:9751 bun run dev
 
 Then click **cbm HTTP**; project `fixture-hard-scip`, symbol
 `fixture-hard-scip.src.features.useAlias`.
+
+The repository is named **`code-graph`** but the mount path in the parent repo
+is **`rules/graph-ui-svelte/`** (cbm-facing name).
 
 ## Contract
 
