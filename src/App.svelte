@@ -4,7 +4,7 @@
   import { CbmHttpSource } from "./lib/graph/cbm-http";
   import { MockSource } from "./lib/graph/mock";
   import type { GraphSource, SymbolBundle, TreeEntry } from "./lib/graph/types";
-  import { REACT_WORKSPACES, reactWorkspaceUrl } from "./lib/navigation";
+  import { reactWorkspaceUrl } from "./lib/navigation";
 
   type SourceKind = "mock" | "cbm";
 
@@ -77,31 +77,23 @@
 
 <main class="app">
   <header>
-    <div>
-      <h1>code-graph</h1>
-      <div class="sub">SCIP → cbm → Svelte shell (B0)</div>
-    </div>
-    <div class="switcher" aria-label="Graph source">
-      <button class:active={kind === "mock"} type="button" onclick={() => setKind("mock")}>
-        Mock
-      </button>
-      <button class:active={kind === "cbm"} type="button" onclick={() => setKind("cbm")}>
-        cbm HTTP
-      </button>
+    <h1>code-graph</h1>
+    <div class="header-actions">
+      <div class="switcher" aria-label="Graph source">
+        <button class:active={kind === "mock"} type="button" onclick={() => setKind("mock")}>
+          Mock
+        </button>
+        <button class:active={kind === "cbm"} type="button" onclick={() => setKind("cbm")}>
+          cbm HTTP
+        </button>
+      </div>
+      <a
+        class="external"
+        href={reactWorkspaceUrl("galaxy")}
+        title="Open CBM Lens (React)"
+      >CBM-LENS(react)↗</a>
     </div>
   </header>
-
-  <nav class="workspace-nav" aria-label="Workspaces">
-    <span class="active" aria-current="page">Call Graph</span>
-    {#each REACT_WORKSPACES as workspace (workspace.id)}
-      <a
-        href={reactWorkspaceUrl(workspace.id)}
-        title={`Open the stable React graph-ui: ${workspace.label}`}
-      >
-        {workspace.label} ↗
-      </a>
-    {/each}
-  </nav>
 
   <section class="controls" aria-label="Query">
     <label>
@@ -203,8 +195,4 @@
     </section>
   </div>
 
-  <footer>
-    Call Graph is the Svelte surface; other workspaces open the React graph-ui
-    (set <code>VITE_REACT_UI</code> to override the origin).
-  </footer>
 </main>

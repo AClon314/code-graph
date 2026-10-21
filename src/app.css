@@ -34,24 +34,40 @@ input {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  gap: 1lh;
-  padding: 1.5ch;
+  gap: 0.65lh;
+  padding: 0.8lh 1.5ch;
   max-width: 1200px;
   margin: 0 auto;
 }
 
 header {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 1ch;
 }
 
 h1 {
   margin: 0;
-  font-size: 1.35rem;
+  font-size: 1.05rem;
   letter-spacing: -0.02em;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1ch;
+}
+
+.external {
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.external:hover {
+  color: var(--accent);
 }
 
 h2,
@@ -91,34 +107,6 @@ h3 {
 }
 
 .switcher button.active {
-  background: var(--accent);
-  color: var(--bg);
-}
-
-.workspace-nav {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.4ch;
-  border-bottom: 1px solid var(--line);
-  padding-bottom: 0.6lh;
-}
-
-.workspace-nav a,
-.workspace-nav .active {
-  border-radius: 999px;
-  padding: 0.25lh 1ch;
-  font-size: 0.8rem;
-  text-decoration: none;
-  color: var(--muted);
-}
-
-.workspace-nav a:hover {
-  background: light-dark(#ecece6, #2a2a2a);
-  color: var(--text);
-}
-
-.workspace-nav .active {
   background: var(--accent);
   color: var(--bg);
 }
@@ -240,10 +228,6 @@ input {
   padding-top: 0.4lh;
 }
 
-footer {
-  color: var(--muted);
-  font-size: 0.75rem;
-}
 
 @media (max-width: 700px) {
   .app {
