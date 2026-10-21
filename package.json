@@ -8,14 +8,26 @@
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
-    "test": "bun test"
+    "test": "bun test",
+    "jump:bridge": "bun run tools/jump-bridge.ts"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^6.0.0",
     "@types/bun": "latest",
+    "@types/d3-drag": "^3.0.7",
+    "@types/d3-selection": "^3.0.12",
+    "@types/d3-zoom": "^3.0.9",
+    "@types/vscode": "^1.85.0",
     "svelte": "^5.56.10",
     "svelte-check": "^4.0.0",
     "typescript": "^6.0.3",
     "vite": "^7.0.0"
+  },
+  "dependencies": {
+    "d3-drag": "^3.0.0",
+    "d3-selection": "^3.0.0",
+    "d3-zoom": "^3.0.0",
+    "elkjs": "0.10.2",
+    "orchgraph": "^0.2.4"
   }
 }

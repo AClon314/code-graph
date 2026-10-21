@@ -1,0 +1,46 @@
+{
+  "name": "code-nav",
+  "displayName": "Code Nav",
+  "description": "Open code-graph jump targets in VSCode",
+  "version": "0.1.0",
+  "publisher": "code-nav",
+  "private": true,
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished", "onUri", "onCommand:codeNav.open"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "codeNav.open",
+        "title": "Code Nav: Open Jump Target"
+      }
+    ],
+    "configuration": {
+      "title": "Code Nav",
+      "properties": {
+        "codeNav.bridgeUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:9752",
+          "description": "code-nav jump bridge base URL"
+        },
+        "codeNav.pollMs": {
+          "type": "number",
+          "default": 500,
+          "minimum": 100,
+          "description": "How often to poll the jump bridge"
+        },
+        "codeNav.token": {
+          "type": "string",
+          "default": "",
+          "description": "Optional bearer token when the bridge is exposed beyond loopback"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  }
+}

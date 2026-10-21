@@ -1,8 +1,9 @@
 # code-graph
 
-Svelte 5 shell for the generic code navigator. **B0** of `../../tmp/TODO.md`:
-the graph source contract + a demo shell; CodeMirror reader and 2D graph are
-B1/B2.
+Svelte 5 shell for the generic code navigator. **B2** of `../../tmp/TODO.md`:
+the graph source contract, a demo shell, and a local call-graph navigator
+(tree → symbol bundle → 1–3 hop graph → jump to Fresh/VSCode). The CodeMirror
+reader (B1) is cancelled; this GUI navigates but does not edit code.
 
 > cbm's React UI is **not replaced** yet. This is a separate, opt-in shell
 > mounted inside the cbm fork at `rules/cbm/graph-ui-svelte/`; the repository
@@ -11,6 +12,15 @@ B1/B2.
 
 Default mode is `MockSource`, so the UI runs before a daemon exists. Switch to
 `cbm HTTP` to read a DB written by `scip-cbm-writer` through codebase-memory-mcp.
+
+The GUI does not embed an editor. **Jump** sends a target to the small HTTP
+bridge; start it in another terminal:
+
+```bash
+bun run jump:bridge
+# Fresh adapter: fresh-plugin/ (poll /jump/next?client=fresh)
+# VSCode adapter: extensions/vscode/ (poll /jump/next?client=vscode)
+```
 
 ## Run
 
@@ -90,7 +100,7 @@ same-named "file"; `CbmHttpSource` merges those with directory priority.
 ## Commands
 
 ```bash
-bun test          # GraphSource contract + HTTP mapping
+bun test          # GraphSource, neighborhood BFS, ELK layout
 bun run check     # svelte-check
 bun run build     # production bundle
 ```
@@ -98,6 +108,7 @@ bun run build     # production bundle
 ## Scope
 
 - B0: shell, contract, Mock/Cbm sources, tree/symbol panel, mobile layout.
-- B1: CodeMirror 6 reader (`EditorPort`).
-- B2: 2D call graph + trace/impact panels.
-- B3: LSP/VSCode/fresh adapters (shared contract).
+- B1: cancelled (no CodeMirror / editor surface).
+- B2: ELK-layered local call graph (depth/direction/search), symbol details,
+  SVG export, and jump-to-editor via the shared bridge.
+- B3: VSCode/Fresh jump adapters (shared bridge); optional LSP later.

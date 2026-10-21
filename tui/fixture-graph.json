@@ -1,0 +1,105 @@
+{
+  "root": "demo.src.features.useAlias",
+  "truncated": false,
+  "nodes": [
+    {
+      "id": "demo.src.features.useAlias",
+      "label": "Function",
+      "name": "useAlias",
+      "qualifiedName": "demo.src.features.useAlias",
+      "filePath": "src/features.ts",
+      "startLine": 5,
+      "endLine": 9,
+      "isEntry": true
+    },
+    {
+      "id": "demo.src.main.main",
+      "label": "Function",
+      "name": "main",
+      "qualifiedName": "demo.src.main.main",
+      "filePath": "src/main.ts",
+      "startLine": 3,
+      "endLine": 12
+    },
+    {
+      "id": "demo.src.lib.base.BaseRepo.get",
+      "label": "Method",
+      "name": "get",
+      "qualifiedName": "demo.src.lib.base.BaseRepo.get",
+      "filePath": "src/lib/base.ts",
+      "startLine": 4,
+      "endLine": 8
+    },
+    {
+      "id": "demo.src.lib.user-repo.UserRepo",
+      "label": "Class",
+      "name": "UserRepo",
+      "qualifiedName": "demo.src.lib.user-repo.UserRepo",
+      "filePath": "src/lib/user-repo.ts",
+      "startLine": 2,
+      "endLine": 16
+    },
+    {
+      "id": "demo.src.lib.loader.loadUser",
+      "label": "Function",
+      "name": "loadUser",
+      "qualifiedName": "demo.src.lib.loader.loadUser",
+      "filePath": "src/lib/loader.ts",
+      "startLine": 12,
+      "endLine": 20
+    },
+    {
+      "id": "demo.src.lib.format.formatUser",
+      "label": "Function",
+      "name": "formatUser",
+      "qualifiedName": "demo.src.lib.format.formatUser",
+      "filePath": "src/lib/format.ts",
+      "startLine": 30,
+      "endLine": 38
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-main-usealias",
+      "source": "demo.src.main.main",
+      "target": "demo.src.features.useAlias",
+      "type": "CALLS",
+      "label": "calls"
+    },
+    {
+      "id": "e-usealias-get",
+      "source": "demo.src.features.useAlias",
+      "target": "demo.src.lib.base.BaseRepo.get",
+      "type": "CALLS",
+      "label": "calls"
+    },
+    {
+      "id": "e-usealias-userrepo",
+      "source": "demo.src.features.useAlias",
+      "target": "demo.src.lib.user-repo.UserRepo",
+      "type": "INSTANTIATES",
+      "label": "new"
+    },
+    {
+      "id": "e-main-loaduser",
+      "source": "demo.src.main.main",
+      "target": "demo.src.lib.loader.loadUser",
+      "type": "CALLS",
+      "label": "calls"
+    },
+    {
+      "id": "e-loaduser-formatuser",
+      "source": "demo.src.lib.loader.loadUser",
+      "target": "demo.src.lib.format.formatUser",
+      "type": "CALLS",
+      "label": "calls"
+    },
+    {
+      "id": "e-formatuser-get",
+      "source": "demo.src.lib.format.formatUser",
+      "target": "demo.src.lib.base.BaseRepo.get",
+      "type": "CALLS",
+      "label": "calls"
+    }
+  ]
+}

@@ -120,3 +120,27 @@ export interface GraphSource {
   source(project: string, path: string, start?: number, end?: number): Promise<SourceSlice>;
   search(project: string, query: string, limit?: number): Promise<SearchHit[]>;
 }
+
+export interface GraphViewNode extends Omit<SymbolNode, "id"> {
+  /** Stable graph id; normally the qualified name. */
+  id: string;
+  /** cbm numeric node id, when available. */
+  symbolId?: number;
+}
+
+export interface GraphViewEdge {
+  id: string;
+  source: string;
+  target: string;
+  type: string;
+  label?: string;
+}
+
+/** Local call graph rendered by the GUI and the TUI frame generator. */
+export interface GraphViewData {
+  root: string;
+  nodes: GraphViewNode[];
+  edges: GraphViewEdge[];
+  /** True when a depth/node budget stopped BFS early. */
+  truncated: boolean;
+}

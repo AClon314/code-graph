@@ -6,6 +6,11 @@
   --text: light-dark(#1d1d1b, #ecece8);
   --muted: light-dark(#6b6b64, #a3a39c);
   --accent: light-dark(#176b5a, #6dd3b8);
+  --graph-bg: light-dark(#fbfbf8, #111111);
+  --node-bg: light-dark(#ffffff, #1c1c1c);
+  --node-line: light-dark(#c8c8c0, #454545);
+  --edge: light-dark(#96968e, #71716b);
+  --hit: light-dark(#c98a00, #f0c75e);
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
@@ -26,7 +31,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -125,7 +131,8 @@ label {
   color: var(--muted);
 }
 
-input {
+input,
+select {
   width: 100%;
   min-width: 0;
   border: 1px solid var(--line);
@@ -153,6 +160,209 @@ input {
   color: light-dark(#8d2020, #ffb4b4);
   font-size: 0.85rem;
   white-space: pre-wrap;
+}
+
+.error.compact {
+  font-size: 0.78rem;
+  padding: 0.35lh 0.8ch;
+}
+
+.badge {
+  border: 1px solid light-dark(#d8bd7a, #6f5a24);
+  border-radius: 999px;
+  padding: 0.1lh 0.8ch;
+  background: light-dark(#fff7dc, #2b2411);
+  color: light-dark(#7a5a00, #f0c75e);
+  font-size: 0.7rem;
+}
+
+.status {
+  margin: 0;
+  color: var(--accent);
+  font-size: 0.8rem;
+}
+
+.graph-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1ch;
+  min-width: 0;
+}
+
+.graph-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6lh;
+  min-width: 0;
+}
+
+.graph-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.8ch;
+}
+
+.graph-toolbar label {
+  display: flex;
+  align-items: center;
+  gap: 0.5ch;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.graph-toolbar .search-field {
+  flex: 1 1 18ch;
+}
+
+.graph-toolbar .search-field input {
+  width: 100%;
+}
+
+.graph-toolbar select {
+  width: auto;
+  padding: 0.35lh 0.6ch;
+}
+
+.graph-toolbar .tool {
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  padding: 0.38lh 1ch;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.graph-toolbar .tool:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.graph-toolbar .tool:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.graph-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1ch;
+  font-size: 0.78rem;
+  color: var(--muted);
+  min-height: 1.2lh;
+}
+
+.graph-board {
+  position: relative;
+  width: 100%;
+  height: clamp(360px, 52vh, 760px);
+  min-height: 360px;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--graph-bg);
+  overflow: hidden;
+}
+
+.graph-board-empty {
+  display: grid;
+  place-items: center;
+}
+
+.graph-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.graph-svg:active {
+  cursor: grabbing;
+}
+
+.graph-svg.has-search-hits .orchgraph-node:not(.is-search-hit) {
+  opacity: 0.35;
+}
+
+.graph-overlay {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  padding: 0.5lh 1ch;
+  border-radius: 0.45rem;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 0.82rem;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.orchgraph-edge {
+  fill: none;
+  stroke: var(--edge);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.orchgraph-arrow {
+  fill: var(--edge);
+}
+
+.orchgraph-node {
+  cursor: pointer;
+  outline: none;
+}
+
+.orchgraph-node rect {
+  fill: var(--node-bg);
+  stroke: var(--node-line);
+  stroke-width: 1.25;
+  transition: stroke 80ms ease, stroke-width 80ms ease;
+}
+
+.orchgraph-node:hover rect {
+  stroke: var(--accent);
+}
+
+.orchgraph-node:focus-visible rect {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
+
+.orchgraph-node-label {
+  fill: var(--text);
+  font: 600 14px ui-sans-serif, system-ui, sans-serif;
+  pointer-events: none;
+}
+
+.orchgraph-node-detail {
+  fill: var(--muted);
+  font: 10px ui-monospace, SFMono-Regular, Menlo, monospace;
+  pointer-events: none;
+}
+
+.orchgraph-node-kind {
+  fill: var(--muted);
+  font: 600 9px ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.orchgraph-node.is-search-hit rect {
+  stroke: var(--hit);
+  stroke-width: 2;
+}
+
+.orchgraph-node.is-selected rect {
+  stroke: var(--accent);
+  stroke-width: 2.5;
 }
 
 .board {
@@ -209,6 +419,33 @@ input {
   overflow: auto;
 }
 
+.detail-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1ch;
+}
+
+.detail-actions {
+  display: flex;
+  gap: 0.5ch;
+  flex: 0 0 auto;
+}
+
+.detail-actions .jump {
+  border: 1px solid var(--accent);
+  border-radius: 0.45rem;
+  padding: 0.35lh 1ch;
+  background: var(--accent);
+  color: var(--bg);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.detail-actions .jump:hover {
+  filter: brightness(1.08);
+}
+
 .columns {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -242,5 +479,19 @@ input {
 
   .tree {
     max-height: 30dvh;
+  }
+
+  .graph-board {
+    height: 55vh;
+    min-height: 55vh;
+  }
+
+  .graph-toolbar .search-field {
+    flex-basis: 100%;
+  }
+
+  .detail-head {
+    align-items: stretch;
+    flex-direction: column;
   }
 }

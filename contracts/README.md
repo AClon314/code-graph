@@ -16,5 +16,6 @@ extensions, CLI, future LSP) and for pinning response shapes.
 | `source(...)` | A2 | not available in cbm 0.12.1 |
 | `search(...)` | A2/MCP | not available in cbm 0.12.1 |
 
-`contracts.test.ts` lives in `test/` and exercises both `MockSource` and
-`CbmHttpSource` against these shapes.
+The contract tests live in `test/` and exercise both `MockSource` and
+`CbmHttpSource` against these shapes. The editor jump contract is
+`jump.v1.json` (`../src/lib/jump/types.ts`).
