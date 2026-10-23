@@ -1,4 +1,9 @@
-# code-nav VSCode extension
+# code-nav VSCode extension (SHELVED)
+
+> **Shelved.** VSCode support is not part of the current implementation or
+> test matrix. This adapter still speaks the retired v1 REST endpoint; do not
+> install or test it until the TODO re-opens VSCode work and migrates it to
+> `POST /rpc` JSON-RPC.
 
 Thin adapter for the code-graph jump bridge. It does **not** embed an editor or
 a graph view; it only receives `{project,path,line,column?}` and calls

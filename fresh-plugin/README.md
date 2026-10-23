@@ -14,7 +14,8 @@ ANSI parsing happens outside, in `tui/render.ts`.
 - `o` or `Enter` opens the selected node with `editor.openFile(file, line, 1)`.
 - `r` runs the Bun renderer again, then re-reads the frame.
 - `q` closes the panel (`close_buffer` binding).
-- Polls the jump bridge every 500ms and opens incoming `JumpTarget`s.
+- Polls the jump bridge through `tools/jump-client.ts` and opens incoming
+  `JumpTarget`s.
 
 ## Install / symlink
 
@@ -54,7 +55,6 @@ Edit the constants at the top of `code-nav.ts`, or provide overrides on
 | `BUN` | `CODE_NAV_BUN` | `~/.bun/bin/bun` |
 | `FRAME_PATH` | `CODE_NAV_FRAME` | `<REPO>/tui/frame.json` |
 | `BRIDGE_URL` | `CODE_NAV_BRIDGE` | `http://127.0.0.1:9752` |
-| `BRIDGE_TOKEN` | `CODE_NAV_TOKEN` | empty |
 | `GUI_URL` | `CODE_NAV_GUI` | `http://127.0.0.1:5173` |
 | `PROJECT_ROOT` | `CODE_NAV_ROOT` | empty |
 | `JUMP_TMP` | `CODE_NAV_JUMP_TMP` | `/tmp/code-nav-jump.json` |
@@ -88,20 +88,28 @@ bun run jump:bridge
 CODE_NAV_PORT=9752 CODE_NAV_BIND=127.0.0.1 CODE_NAV_TOKEN=secret bun run jump:bridge
 ```
 
-The GUI POSTs to `/jump`. The plugin polls:
+The GUI and VSCode send **JSON-RPC 2.0** to `POST /rpc`:
 
-```
-GET /jump/next?client=fresh
-  -> 200 JumpTarget { project, path, line, column?, symbol?, source? }
-  -> 204 no pending jump
+```json
+{"jsonrpc":"2.0","id":1,"method":"jump.open","params":{"project":"p","path":"src/a.ts","line":3,"client":"fresh"}}
 ```
 
-`httpFetch` writes the response body to `JUMP_TMP`; the plugin reads that file
-only when `exit_code === 0`, so a 204 never reuses an old target. Repeated
-identical targets are suppressed. Transport/HTTP errors are reported once in
-the status line and then stay quiet until a successful poll. If a token is
-configured, the poll sends `Authorization: Bearer <token>` via `httpFetch`
-headers (never on a command line).
+Fresh cannot use `editor.httpFetch` for this because that API is GET-only
+(it streams a download to a file). The plugin instead spawns
+`tools/jump-client.ts`, which performs the JSON-RPC POST:
+
+```text
+bun tools/jump-client.ts next --client fresh --wait 25000 --out /tmp/code-nav-jump.json
+```
+
+The helper writes the target (or `null` when the long poll elapses) atomically.
+It reads the bearer token from `CODE_NAV_TOKEN` or `CODE_NAV_TOKEN_FILE`
+(default `~/.config/code-nav/token`); never put the token in argv. Fresh
+inherits its environment when spawning the helper, so exporting the token in
+the editor's shell is enough. Repeated identical targets are suppressed.
+
+Transport/HTTP errors are reported once in the status line and then stay quiet
+until a successful poll.
 
 ## Limitations
 

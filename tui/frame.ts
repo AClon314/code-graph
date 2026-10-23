@@ -16,13 +16,12 @@ import {
 import type {
   GraphDirection,
   GraphDocument,
-  GraphEdge,
-  GraphNode,
   NodeState,
   TerminalCanvas,
 } from "orchgraph";
 
-import type { GraphViewData, GraphViewEdge, GraphViewNode } from "../src/lib/graph/types.ts";
+import { toGraphDocument } from "../src/lib/graph/orchgraph.ts";
+import type { GraphViewData } from "../src/lib/graph/types.ts";
 
 /** A styled run of text. ANSI is already stripped; `fg` is `#rrggbb`. */
 export interface FrameRun {
@@ -230,69 +229,6 @@ export function parseAnsiLine(line: string): FrameRun[] {
   flush();
   trimTrailingBlank(runs);
   return runs;
-}
-
-function nodeDetail(node: GraphViewNode): string | undefined {
-  if (!node.filePath) return undefined;
-  return `${node.filePath}:${node.startLine ?? 1}`;
-}
-
-function toGraphNode(node: GraphViewNode): GraphNode {
-  const file = node.filePath ?? "";
-  const line = node.startLine ?? 0;
-  const qn = node.qualifiedName || node.id;
-  const result: GraphNode = {
-    id: node.id,
-    label: node.name || qn || node.id,
-    kind: node.label || "node",
-    metadata: { file, line, qn },
-  };
-  const detail = nodeDetail(node);
-  if (detail) result.detail = detail;
-  return result;
-}
-
-function stableEdgeId(edge: GraphViewEdge, seen: Map<string, number>): string {
-  const base = edge.id || `${edge.source}->${edge.target}:${edge.type || "EDGE"}`;
-  const count = seen.get(base) ?? 0;
-  seen.set(base, count + 1);
-  return count === 0 ? base : `${base}#${count + 1}`;
-}
-
-/** Convert the UI graph model into orchgraph's validated document model. */
-export function toGraphDocument(view: GraphViewData): GraphDocument {
-  const seenNodes = new Set<string>();
-  const nodes: GraphNode[] = [];
-  for (const node of view.nodes ?? []) {
-    if (!node || typeof node.id !== "string" || node.id.length === 0) continue;
-    if (seenNodes.has(node.id)) continue;
-    seenNodes.add(node.id);
-    nodes.push(toGraphNode(node));
-  }
-
-  const nodeIds = new Set(nodes.map((node) => node.id));
-  const edgeIds = new Map<string, number>();
-  const edges: GraphEdge[] = [];
-  for (const edge of view.edges ?? []) {
-    if (!edge || !nodeIds.has(edge.source) || !nodeIds.has(edge.target)) continue;
-    const kind = edge.type || "EDGE";
-    edges.push({
-      id: stableEdgeId(edge, edgeIds),
-      source: edge.source,
-      target: edge.target,
-      label: edge.label ?? kind,
-      kind,
-      direction: "forward",
-    });
-  }
-
-  return {
-    id: "code-graph",
-    direction: "DOWN",
-    nodes,
-    edges,
-    metadata: { root: view.root, truncated: view.truncated },
-  };
 }
 
 function canvasNodeBoxes(canvas: TerminalCanvas): FrameNodeBox[] {

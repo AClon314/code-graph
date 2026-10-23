@@ -17,5 +17,24 @@ extensions, CLI, future LSP) and for pinning response shapes.
 | `search(...)` | A2/MCP | not available in cbm 0.12.1 |
 
 The contract tests live in `test/` and exercise both `MockSource` and
-`CbmHttpSource` against these shapes. The editor jump contract is
-`jump.v1.json` (`../src/lib/jump/types.ts`).
+`CbmHttpSource` against these shapes.
+
+## Jump protocol
+
+The active jump contract is **v2 JSON-RPC 2.0** (`jump.v2.json`):
+
+```text
+POST /rpc  { "jsonrpc": "2.0", "id": 1, "method": "jump.open", "params": {...} }
+GET  /health
+```
+
+`jump.v1.json` is the retired REST shape, kept for migration history. The
+TypeSpec source is `code-nav.tsp`; regenerate the bundled JSON Schema with:
+
+```bash
+bun run contracts:compile
+```
+
+`generated/code-nav.schema.json` is checked in so the bridge and editor
+extensions can validate params without running TypeSpec at runtime. Ajv turns
+schema failures into JSON-RPC `-32602` errors with `instancePath`/`message`.

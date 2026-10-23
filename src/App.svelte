@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
 
   import GraphView from "./lib/components/GraphView.svelte";
+  import OrchgraphView from "./lib/components/OrchgraphView.svelte";
   import { CbmHttpSource } from "./lib/graph/cbm-http";
   import { MockSource } from "./lib/graph/mock";
   import {
@@ -19,7 +20,13 @@
   import { reactWorkspaceUrl } from "./lib/navigation";
 
   type SourceKind = "mock" | "cbm";
+  type GraphRenderer = "d3" | "orchgraph";
   type Depth = 1 | 2 | 3;
+  interface GraphViewHandle {
+    fit(): void;
+    triggerExport?(): void;
+    copy?(): Promise<void>;
+  }
   type JumpRow = {
     filePath?: string;
     startLine?: number;
@@ -53,7 +60,9 @@
   let jumpStatus = $state("");
   let jumpError = $state("");
   let exportStatus = $state("");
-  let graphView = $state<GraphView>();
+  let renderer = $state<GraphRenderer>("d3");
+  let graphView = $state<GraphViewHandle>();
+  let pendingLocation: { file: string; line: number } | null = null;
 
   const searchHits = $derived.by(() => {
     const query = search.trim().toLowerCase();
@@ -121,6 +130,7 @@
       graphData = null;
       graphError = "";
     }
+    syncUrl();
   }
 
   async function loadGraph(source: GraphSource, root: string, request: number): Promise<void> {
@@ -138,6 +148,7 @@
         selectedId = rootNode?.id ?? next.root;
         focusNode = null;
       }
+      applyPendingLocation(next);
     } catch (cause) {
       if (id !== graphRequestId || request !== requestId) return;
       graphError = message(cause);
@@ -172,8 +183,77 @@
   }
 
   onMount(() => {
+    applyUrl();
     void load();
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
   });
+
+  function applyUrl(): void {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const source = params.get("source");
+    if (source === "mock" || source === "cbm") kind = source;
+    if (source === "cbm") {
+      project = params.get("project") ?? "fixture-hard-scip";
+      ref = params.get("symbol") ?? "fixture-hard-scip.src.features.useAlias";
+    } else if (source === "mock") {
+      project = params.get("project") ?? "demo";
+      ref = params.get("symbol") ?? "demo.src.features.useAlias";
+    } else {
+      if (params.get("project")) project = params.get("project")!;
+      if (params.get("symbol")) ref = params.get("symbol")!;
+    }
+    const nextRenderer = params.get("renderer");
+    if (nextRenderer === "d3" || nextRenderer === "orchgraph") renderer = nextRenderer;
+    const nextDepth = Number(params.get("depth"));
+    if (nextDepth === 1 || nextDepth === 2 || nextDepth === 3) depth = nextDepth;
+    const nextDirection = params.get("direction");
+    if (nextDirection === "both" || nextDirection === "callers" || nextDirection === "callees") {
+      direction = nextDirection;
+    }
+    const file = params.get("file");
+    const line = Number(params.get("line"));
+    pendingLocation = file && Number.isFinite(line) && line > 0 ? { file, line } : null;
+  }
+
+  function onPopState(): void {
+    applyUrl();
+    void load();
+  }
+
+  function syncUrl(): void {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams();
+    params.set("source", kind);
+    params.set("project", project);
+    params.set("symbol", ref);
+    params.set("renderer", renderer);
+    params.set("depth", String(depth));
+    params.set("direction", direction);
+    const file = focusNode?.filePath ?? symbol?.node.filePath ?? selectedPath;
+    const line = focusNode?.startLine ?? symbol?.node.startLine;
+    if (file) params.set("file", file);
+    if (line) params.set("line", String(line));
+    const search = `?${params.toString()}`;
+    if (window.location.search !== search) {
+      window.history.replaceState(null, "", `${window.location.pathname}${search}${window.location.hash}`);
+    }
+  }
+
+  function applyPendingLocation(next: GraphViewData): void {
+    if (!pendingLocation) return;
+    const match = next.nodes.find(
+      (node) => node.filePath === pendingLocation?.file && node.startLine === pendingLocation?.line,
+    );
+    if (!match) return;
+    pendingLocation = null;
+    selectedId = match.id;
+    focusNode = match;
+    selectedPath = match.filePath ?? selectedPath;
+    ref = match.qualifiedName || match.id;
+    void selectGraphNode(match);
+  }
 
   function setKind(next: SourceKind): void {
     kind = next;
@@ -190,19 +270,28 @@
 
   function openConnection(qualifiedName: string): void {
     ref = qualifiedName;
+    syncUrl();
     void load();
+  }
+
+  function changeRenderer(value: string): void {
+    if (value !== "d3" && value !== "orchgraph") return;
+    renderer = value;
+    syncUrl();
   }
 
   function changeDepth(value: string): void {
     const next = Number(value);
     if (next !== 1 && next !== 2 && next !== 3) return;
     depth = next;
+    syncUrl();
     void reloadGraph();
   }
 
   function changeDirection(value: string): void {
     if (value !== "both" && value !== "callers" && value !== "callees") return;
     direction = value;
+    syncUrl();
     void reloadGraph();
   }
 
@@ -211,6 +300,7 @@
     focusNode = node;
     selectedPath = node.filePath ?? selectedPath;
     ref = node.qualifiedName || node.id;
+    syncUrl();
     detailError = "";
     jumpStatus = "";
     jumpError = "";
@@ -272,6 +362,15 @@
     void jump(node);
   }
 
+  async function copyTerminalArt(): Promise<void> {
+    try {
+      await graphView?.copy?.();
+      exportStatus = "Copied character art";
+    } catch (cause) {
+      exportStatus = `Copy failed: ${message(cause)}`;
+    }
+  }
+
   function exportSvg(svg: SVGSVGElement): void {
     try {
       const clone = svg.cloneNode(true) as SVGSVGElement;
@@ -312,6 +411,7 @@
       "--node-line",
       "--edge",
       "--hit",
+      "--font-code",
     ];
     const variables = computed
       ? names.map((name) => `${name}:${computed.getPropertyValue(name).trim()};`).join("")
@@ -324,9 +424,11 @@
 .orchgraph-edge { fill: none; stroke: var(--edge, #888888); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .orchgraph-arrow { fill: var(--edge, #888888); }
 .orchgraph-node rect { fill: var(--node-bg, #ffffff); stroke: var(--node-line, #999999); stroke-width: 1.25; }
-.orchgraph-node-kind { fill: var(--muted, #666666); font: 600 9px ui-sans-serif, system-ui, sans-serif; letter-spacing: .04em; text-transform: uppercase; }
-.orchgraph-node-label { fill: var(--text, #111111); font: 600 14px ui-sans-serif, system-ui, sans-serif; }
-.orchgraph-node-detail { fill: var(--muted, #666666); font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.orchgraph-node-kind { fill: var(--muted, #666666); font: 600 9px var(--font-code, ui-monospace, monospace); letter-spacing: .04em; text-transform: uppercase; }
+.orchgraph-node-label { fill: var(--text, #111111); font: 600 14px var(--font-code, ui-monospace, monospace); }
+.orchgraph-node-detail { fill: var(--muted, #666666); font: 10px var(--font-code, ui-monospace, monospace); }
+.orchgraph-node-state { fill: var(--muted, #666666); font: 700 12px var(--font-code, ui-monospace, monospace); }
+.orchgraph-edge-label { fill: var(--muted, #666666); font: 10px var(--font-code, ui-monospace, monospace); text-anchor: middle; }
 .orchgraph-node.is-search-hit rect { stroke: var(--hit, #c98a00); stroke-width: 2; }
 .orchgraph-node.is-selected rect { stroke: var(--accent, #176b5a); stroke-width: 2.5; }
 `.trim();
@@ -447,17 +549,46 @@
               <option value="callees">callees</option>
             </select>
           </label>
-          <button class="tool" type="button" onclick={() => graphView?.fit()} disabled={!graphData}>
-            Fit
-          </button>
-          <button
-            class="tool"
-            type="button"
-            onclick={() => graphView?.triggerExport()}
-            disabled={!graphData}
-          >
-            Export SVG
-          </button>
+          <label>
+            Renderer
+            <select
+              value={renderer}
+              onchange={(event) => changeRenderer(event.currentTarget.value)}
+            >
+              <option value="d3">D3</option>
+              <option value="orchgraph">orchgraph</option>
+            </select>
+          </label>
+          {#if renderer === "d3"}
+            <button
+              class="tool"
+              type="button"
+              onclick={() => graphView?.fit()}
+              disabled={!graphData}
+            >
+              Fit
+            </button>
+          {/if}
+          {#if renderer === "orchgraph"}
+            <button
+              class="tool"
+              type="button"
+              onclick={() => void copyTerminalArt()}
+              disabled={!graphData}
+              title="Copy the character-art graph"
+            >
+              Copy
+            </button>
+          {:else}
+            <button
+              class="tool"
+              type="button"
+              onclick={() => graphView?.triggerExport?.()}
+              disabled={!graphData}
+            >
+              Export SVG
+            </button>
+          {/if}
         </div>
 
         <div class="graph-summary">
@@ -487,15 +618,26 @@
         {/if}
 
         {#if graphData}
-          <GraphView
-            bind:this={graphView}
-            data={graphData}
-            {selectedId}
-            {searchHits}
-            onselect={(node) => void selectGraphNode(node)}
-            onexport={exportSvg}
-            onjump={jumpFromNode}
-          />
+          {#if renderer === "orchgraph"}
+            <OrchgraphView
+              bind:this={graphView}
+              data={graphData}
+              {selectedId}
+              {searchHits}
+              onselect={(node) => void selectGraphNode(node)}
+              onjump={jumpFromNode}
+            />
+          {:else}
+            <GraphView
+              bind:this={graphView}
+              data={graphData}
+              {selectedId}
+              {searchHits}
+              onselect={(node) => void selectGraphNode(node)}
+              onexport={exportSvg}
+              onjump={jumpFromNode}
+            />
+          {/if}
         {:else}
           <div class="graph-board graph-board-empty">
             <p class="graph-overlay">

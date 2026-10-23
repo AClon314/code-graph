@@ -10,7 +10,8 @@
 // Usage:
 //   Ctrl+P -> "Code Nav: Open Graph"
 //   panel: click node = select, o/Enter = open file:line, r = re-render, q = close
-//   jumps: the GUI POSTs to tools/jump-bridge.ts; this plugin polls it every 500ms.
+//   jumps: the GUI POSTs JSON-RPC to tools/jump-bridge.ts; this plugin spawns
+//   tools/jump-client.ts (Fresh httpFetch is GET-only, so it cannot POST).
 
 const editor = getEditor();
 
@@ -22,10 +23,10 @@ const BUN = (globalThis as any).CODE_NAV_BUN || "/home/n/.bun/bin/bun";
 const FRAME_PATH = (globalThis as any).CODE_NAV_FRAME || REPO + "/tui/frame.json";
 const RENDER_SCRIPT = REPO + "/tui/render.ts";
 const BRIDGE_URL = (globalThis as any).CODE_NAV_BRIDGE || "http://127.0.0.1:9752";
-const BRIDGE_TOKEN = (globalThis as any).CODE_NAV_TOKEN || "";
 const GUI_URL = (globalThis as any).CODE_NAV_GUI || "http://127.0.0.1:5173";
 const PROJECT_ROOT = (globalThis as any).CODE_NAV_ROOT || "";
 const JUMP_TMP = (globalThis as any).CODE_NAV_JUMP_TMP || "/tmp/code-nav-jump.json";
+const JUMP_CLIENT = REPO + "/tools/jump-client.ts";
 
 // Edit this (or set CODE_NAV_RENDER_ARGS) to use live cbm data instead of the
 // fixture. Example:
@@ -396,12 +397,12 @@ function onBufferClosed(event: { buffer_id?: number; bufferId?: number }): void 
   selectedNodeId = null;
 }
 
-// ── jump bridge polling (tools/jump-bridge.ts) ────────────────────────────
+// ── jump bridge (JSON-RPC via tools/jump-client.ts) ───────────────────────
 function bridgeError(result: { exit_code?: number; stderr?: string } | null): void {
   if (bridgeErrorShown) return;
   bridgeErrorShown = true;
   const detail = result
-    ? "HTTP " + result.exit_code + (result.stderr ? " " + result.stderr.split("\n")[0] : "")
+    ? "exit " + result.exit_code + (result.stderr ? " " + result.stderr.split("\n")[0] : "")
     : "transport error";
   editor.setStatus("Code Nav: jump bridge unavailable (" + detail + ")");
 }
@@ -410,15 +411,25 @@ async function pollBridge(): Promise<void> {
   if (bridgeInFlight) return;
   bridgeInFlight = true;
   try {
-    const url = BRIDGE_URL.replace(/\/+$/, "") + "/jump/next?client=fresh";
-    const headers = BRIDGE_TOKEN ? { Authorization: "Bearer " + BRIDGE_TOKEN } : null;
-    const result = (await editor.httpFetch(url, JUMP_TMP, headers)) as {
+    // Fresh's httpFetch is GET-only; a spawned helper performs the JSON-RPC
+    // POST and writes the target (or `null`) atomically to JUMP_TMP.
+    const args = [
+      JUMP_CLIENT,
+      "next",
+      "--client",
+      "fresh",
+      "--wait",
+      "25000",
+      "--base",
+      BRIDGE_URL,
+      "--out",
+      JUMP_TMP,
+    ];
+    const result = (await editor.spawnProcess(BUN, args, REPO)) as {
       exit_code?: number;
       stderr?: string;
     };
-
-    if (!result || result.exit_code === 204) return; // no pending jump
-    if (result.exit_code !== 0) {
+    if (!result || result.exit_code !== 0) {
       bridgeError(result);
       return;
     }
@@ -426,14 +437,15 @@ async function pollBridge(): Promise<void> {
 
     const raw = editor.readFile(JUMP_TMP);
     if (!raw) return;
-    let target: JumpTarget;
+    let parsed: JumpTarget | null;
     try {
-      target = JSON.parse(raw) as JumpTarget;
+      parsed = JSON.parse(raw) as JumpTarget | null;
     } catch {
       return;
     }
+    if (!parsed) return; // long-poll elapsed without a target
+    const target = parsed;
     if (
-      !target ||
       typeof target.path !== "string" ||
       target.path.length === 0 ||
       typeof target.line !== "number" ||

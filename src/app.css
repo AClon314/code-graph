@@ -11,6 +11,12 @@
   --node-line: light-dark(#c8c8c0, #454545);
   --edge: light-dark(#96968e, #71716b);
   --hit: light-dark(#c98a00, #f0c75e);
+  /* Terminal-like graph text. "Maple Mono NF CN" is first and is fetched from
+     the CDN by src/lib/fonts.ts only when the client machine does not have it;
+     the rest stays the local fallback order. The browser falls back per glyph
+     for CJK. */
+  --font-code: "Maple Mono NF CN", "UbuntuMono Nerd Font", "Victor Mono",
+    "Noto Sans Mono", "DejaVu Sans Mono", "Adwaita Mono", monospace;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
@@ -90,7 +96,7 @@ h3 {
 }
 
 .qn {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-code);
   overflow-wrap: anywhere;
 }
 
@@ -270,6 +276,71 @@ select {
   place-items: center;
 }
 
+.terminal-board {
+  height: clamp(380px, 68vh, 900px);
+}
+
+.terminal-art-shell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.terminal-art {
+  position: relative;
+  flex: none;
+  font-family: var(--font-code);
+  font-size: 14px;
+  line-height: 1;
+  transform-origin: center center;
+}
+
+.terminal-art-text {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--font-code);
+  font-size: 14px;
+  line-height: 1;
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "calt" 0;
+  white-space: pre;
+  user-select: text;
+}
+
+.terminal-node-hit {
+  position: absolute;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 0.2rem;
+  background: transparent;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+  outline: none;
+}
+
+.terminal-node-hit:hover,
+.terminal-node-hit:focus-visible {
+  border-color: var(--accent);
+}
+
+.terminal-node-hit.is-search-hit {
+  border-color: var(--hit);
+  background: color-mix(in srgb, var(--hit) 10%, transparent);
+}
+
+.terminal-node-hit.is-selected {
+  border-color: var(--accent);
+  border-width: 2px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
 .graph-svg {
   display: block;
   width: 100%;
@@ -337,21 +408,34 @@ select {
 
 .orchgraph-node-label {
   fill: var(--text);
-  font: 600 14px ui-sans-serif, system-ui, sans-serif;
+  font: 600 14px var(--font-code);
   pointer-events: none;
 }
 
 .orchgraph-node-detail {
   fill: var(--muted);
-  font: 10px ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 10px var(--font-code);
   pointer-events: none;
 }
 
 .orchgraph-node-kind {
   fill: var(--muted);
-  font: 600 9px ui-sans-serif, system-ui, sans-serif;
+  font: 600 9px var(--font-code);
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  pointer-events: none;
+}
+
+.orchgraph-node-state {
+  fill: var(--muted);
+  font: 700 12px var(--font-code);
+  pointer-events: none;
+}
+
+.orchgraph-edge-label {
+  fill: var(--muted);
+  font: 10px var(--font-code);
+  text-anchor: middle;
   pointer-events: none;
 }
 

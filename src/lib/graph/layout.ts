@@ -52,6 +52,24 @@ const LAYOUT_OPTIONS = {
 };
 
 /**
+ * Create the browser-safe ELK instance. elkjs' bundled fake worker exports its
+ * Worker constructor only when `self` is not visible (or when `document` is
+ * present). Node/Bun expose `self` without `document`, so briefly hide it while
+ * requiring the bundled worker. The returned fake worker uses setTimeout.
+ */
+export function createElk(): InstanceType<typeof ELK> {
+  const globalScope = globalThis as unknown as { self?: unknown };
+  const savedSelf = globalScope.self;
+  const hideSelf = typeof document === "undefined" && savedSelf !== undefined;
+  try {
+    if (hideSelf) globalScope.self = undefined;
+    return new ELK();
+  } finally {
+    if (hideSelf) globalScope.self = savedSelf;
+  }
+}
+
+/**
  * Layout a `GraphViewData` snapshot with ELK's layered algorithm.
  *
  * Self edges are routed by hand: ELK's layered router can drop or flatten
@@ -98,21 +116,7 @@ export async function layoutGraphView(
 
   let positioned: PositionedGraph | null = null;
   try {
-    // elkjs' bundled fake worker exports its Worker constructor only when
-    // `self` is not visible (or when `document` is present). Node/Bun expose
-    // `self` without `document`, so briefly hide it while requiring the
-    // bundled worker. The returned fake worker uses setTimeout, not self.
-    const globalScope = globalThis as unknown as { self?: unknown };
-    const savedSelf = globalScope.self;
-    const hideSelf = typeof document === "undefined" && savedSelf !== undefined;
-    let elk: InstanceType<typeof ELK>;
-    try {
-      if (hideSelf) globalScope.self = undefined;
-      elk = new ELK();
-    } finally {
-      if (hideSelf) globalScope.self = savedSelf;
-    }
-
+    const elk = createElk();
     const result = await elk.layout(graph);
     const elkNodes = (result.children ?? []).map((child) => ({
       id: child.id,
