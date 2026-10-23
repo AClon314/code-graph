@@ -20,7 +20,10 @@ import type {
   TerminalCanvas,
 } from "orchgraph";
 
-import { toGraphDocument } from "../src/lib/graph/orchgraph.ts";
+import {
+  RUNNING_FRAMES,
+  toGraphDocument,
+} from "../src/lib/graph/orchgraph.ts";
 import type { GraphViewData } from "../src/lib/graph/types.ts";
 
 /** A styled run of text. ANSI is already stripped; `fg` is `#rrggbb`. */
@@ -285,6 +288,8 @@ export async function buildFrame(
   const rendered = renderTerminalCanvas(canvas, {
     color: true,
     nodeStates,
+    // Braille stays one cell wide in Maple Mono NF CN; `◐` does not.
+    runningFrames: RUNNING_FRAMES,
     theme: { idle: style({ color: "gray" }) },
   });
 

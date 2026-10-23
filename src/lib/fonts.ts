@@ -37,7 +37,7 @@ export const FONT_CDN_STYLESHEET =
 export const FONT_LOAD_SAMPLE =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789" +
   "{}[]()<>=+-*/\\|&^%$#@!?.,:;'\"`~_ " +
-  "○●◆✓✕◌─│╭╮╰╯├┤┬┴┼┊┈▼▲▶◀";
+  "○◆✓✕◌─│╭╮╰╯├┤┬┴┼┊┈▼▲▶◀⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏";
 
 /** `data-font-maple` on `<html>`: `system`, `cdn`, or absent while trying. */
 export const FONT_STATUS_ATTRIBUTE = "fontMaple";

@@ -26,7 +26,7 @@ import type {
 } from "orchgraph";
 
 import { createElk } from "./layout";
-import { toGraphDocument } from "./orchgraph";
+import { RUNNING_FRAMES, toGraphDocument } from "./orchgraph";
 import type { GraphViewData } from "./types";
 
 const MIN_NODE_WIDTH = 14;
@@ -115,7 +115,7 @@ function layoutNodeText(
 function markerForState(state: NodeState | undefined): string {
   switch (state) {
     case "running":
-      return "●";
+      return RUNNING_FRAMES[0];
     case "blocked":
       return "◆";
     case "succeeded":
@@ -564,14 +564,13 @@ export async function buildTerminalCanvas(
       color: false,
       nodeStates,
       /*
-       * A static web snapshot has no animation loop, so orchgraph would keep
-       * its first running frame, `◐` (U+25D0). Maple Mono NF CN does not cover
-       * U+25D0: no `@font-face` block in the CDN stylesheet includes it, so the
-       * browser falls back to a proportional system glyph whose advance is not
-       * one cell and shifts the whole node label. `●` is in the Maple font and
-       * is exactly one cell, so keep the root highlight without the shift.
+       * Braille frames are exactly one cell wide in Maple Mono NF CN, so the
+       * static snapshot can keep the root highlight without shifting the node
+       * label. `◐` (U+25D0) is not covered by the CDN font and falls back to a
+       * proportional glyph; `●` was the old running marker but reads like a
+       * finished task next to `✓`.
        */
-      runningFrames: ["●"],
+      runningFrames: RUNNING_FRAMES,
     }),
   };
 }

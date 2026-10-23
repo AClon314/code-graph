@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 
+import { RUNNING_FRAMES } from "../src/lib/graph/orchgraph";
 import { buildTerminalCanvas } from "../src/lib/graph/terminal";
 import type { GraphViewData } from "../src/lib/graph/types";
 
@@ -20,8 +21,9 @@ test("terminal canvas renders orchgraph box-drawing character art", async () => 
   expect(art).toContain("╭");
   expect(art).toContain("╰");
   expect(art).toContain("▼");
-  expect(art).toContain("●");
+  expect(art).toContain(RUNNING_FRAMES[0]);
   expect(art).not.toContain("◐");
+  expect(art).not.toContain("●");
   expect(art).not.toContain("\u001b[");
 });
 

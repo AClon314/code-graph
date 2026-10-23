@@ -3,6 +3,27 @@ import type { GraphDocument, GraphEdge, GraphGeometry, GraphNode } from "orchgra
 import type { GraphViewData, GraphViewEdge, GraphViewNode } from "./types";
 import type { GraphLayout } from "./layout";
 
+/**
+ * Running-state spinner. Braille patterns are one cell wide in Maple Mono NF
+ * CN (verified against the CDN font), unlike `◐` (U+25D0), which the font does
+ * not cover and which therefore fell back to a proportional glyph.
+ *
+ * The frame sequence is shared by the browser canvas and the TUI frame builder;
+ * both currently render frame 0, but both accept the full sequence.
+ */
+export const RUNNING_FRAMES = [
+  "⠋",
+  "⠙",
+  "⠹",
+  "⠸",
+  "⠼",
+  "⠴",
+  "⠦",
+  "⠧",
+  "⠇",
+  "⠏",
+] as const;
+
 function nodeDetail(node: GraphViewNode): string | undefined {
   if (!node.filePath) return undefined;
   return `${node.filePath}:${node.startLine ?? 1}`;
