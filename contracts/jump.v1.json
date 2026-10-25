@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "description": "RETIRED: v1 REST jump bridge. Use jump.v2.json (JSON-RPC 2.0).",
+  "endpoints": {
+    "POST /jump": {
+      "body": "JumpRequest",
+      "response": "JumpReceipt"
+    },
+    "GET /jump/next?client=fresh|vscode": {
+      "response": "JumpRequest | 204"
+    },
+    "POST /jump/ack": {
+      "body": "JumpAck"
+    },
+    "GET /health": {
+      "response": "{ ok: true, pending: number }"
+    }
+  },
+  "types": "../src/lib/jump/types.ts",
+  "deprecated": true
+}

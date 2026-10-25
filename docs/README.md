@@ -1,8 +1,8 @@
 # code-graph docs
 
 This branch (`main`) is a fresh orphan branch. The previous Svelte-only GUI lives
-on `deprecated-svelteUI`. This directory records the new direction before the
-implementation is rebuilt.
+on `deprecated-svelteUI`. This directory records the new direction and the
+current implementation.
 
 ## Direction
 
@@ -16,6 +16,23 @@ implementation is rebuilt.
 - **UI framework**: Svelte 5 in the webview is supported. There is no official
   Microsoft Svelte template; the official scaffold is `yo code` **New Web
   Extension (TypeScript)**, then add Vite + Svelte.
+
+## Implemented on this branch
+
+- `codeGraph.open` command opens a VS Code editor tab (`WebviewPanel`) with the
+  migrated Svelte GUI. The custom file tree is gone; VS Code's Explorer is the
+  file tree.
+- `src/extension/api.ts` defines the shared `ExtensionApi`
+  (`getConfig`, `openLocation`, `setStatus`). Implementations live in
+  `src/extension/hosts/{vscode,fresh,webview,browser}.ts`.
+- `src/extension/host.ts` imports `#host`; Vite aliases it to the webview proxy,
+  esbuild aliases it to Fresh for the plugin bundle, and the extension entry
+  imports the VS Code host directly. The other hosts are tree-shaken out.
+- The webview uses VS Code theme tokens and `@vscode-elements/elements` for
+  text fields/dropdowns; buttons are native `<button>` elements styled with
+  `--vscode-button-*`. No archived Webview UI Toolkit.
+- `bun run gui` builds all three bundles and starts VS Code for the Web with the
+  extension loaded on `fixtures/workspace`.
 
 ## Documents
 
@@ -48,6 +65,8 @@ implementation is rebuilt.
    shared with the TUI.
 5. Use **`@vscode/test-web`** as the GUI launch/test harness.
 6. Do **not** add `@vscode/webview-ui-toolkit`; it is archived/deprecated.
+7. Reuse VS Code's theme tokens. Use `@vscode-elements/elements` for
+   text fields/dropdowns and native buttons with `--vscode-button-*`.
 
 ## Open questions
 

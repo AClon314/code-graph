@@ -7,6 +7,22 @@
 This document describes the shape that fits code-graph: a browser-safe VS Code
 extension (web extension) hosting one or more webviews built with Svelte 5.
 
+## Implemented in this repo
+
+- `src/App.svelte` is the migrated GUI minus the custom file tree.
+- `src/extension/api.ts` is the shared editor API; `src/extension/host.ts`
+  imports `#host`. Vite aliases `#host` to the webview proxy for production and
+  to the browser bridge for `vite dev`; esbuild aliases it to Fresh for
+  `fresh-plugin/dist/code-nav.js`.
+- `src/extension/vscode.ts` registers `codeGraph.open`; `src/extension/panel.ts`
+  creates the editor-tab webview and services `openLocation`/`getConfig`.
+- `@vscode-elements/elements` supplies `vscode-textfield`,
+  `vscode-single-select`, and `vscode-option`. Buttons are native `<button>`
+  elements styled with `--vscode-button-*`; this keeps keyboard/ARIA behaviour
+  native while matching the VS Code design.
+- The graph UI uses `--vscode-*` tokens throughout. The archived
+  `@vscode/webview-ui-toolkit` is not used.
+
 ## Architecture
 
 ```text
@@ -277,8 +293,8 @@ VS Code injects theme variables into every webview:
 }
 ```
 
-The existing `fonts.ts` detection/CDN fallback can be reused almost unchanged:
-canvas measurement runs in the webview's browser context. Add the CDN to CSP:
+The existing `fonts.ts` detection/CDN fallback is reused as-is: canvas
+measurement runs in the webview's browser context. Add the CDN to CSP:
 
 ```text
 style-src ${webview.cspSource} https://fontsapi.zeoseven.com;

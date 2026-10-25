@@ -115,6 +115,9 @@ release/CI layout, but it is not a webview or web-extension template.
 - **`@vscode-elements/elements`**: community Lit web components that follow VS Code styling.
   Framework-neutral, can be consumed from Svelte. Not an official Microsoft project:
   <https://github.com/vscode-elements/elements>
+  This repo uses it for `vscode-textfield` / `vscode-single-select`; buttons stay
+  native `<button>` with `--vscode-button-*` so keyboard and ARIA behavior is
+  browser-native.
 
 For a graph/canvas-heavy UI, hand-rolled SVG/canvas plus VS Code CSS variables is often
 better than a component kit anyway.

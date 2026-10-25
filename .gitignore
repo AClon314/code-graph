@@ -7,3 +7,4 @@ coverage/
 *.vsix
 *.tsbuildinfo
 .DS_Store
+.vscode-test-web/

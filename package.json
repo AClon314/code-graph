@@ -1,0 +1,99 @@
+{
+  "name": "code-graph",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "bun run build:webview && bun run build:extension && bun run build:fresh && bun run verify:runtime",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "test": "bun test",
+    "jump:bridge": "bun run tools/jump-bridge.ts",
+    "contracts:compile": "tsp compile contracts/code-nav.tsp",
+    "jump:client": "bun run tools/jump-client.ts",
+    "build:webview": "vite build",
+    "build:extension": "esbuild src/extension/vscode.ts --bundle --format=cjs --platform=browser --external:vscode --outfile=dist/extension.cjs --sourcemap",
+    "build:fresh": "esbuild fresh-plugin/code-nav.ts --bundle --format=iife --platform=browser --alias:#host=./src/extension/hosts/fresh.ts --outfile=fresh-plugin/dist/code-nav.js --sourcemap",
+    "gui": "bun run build && bunx @vscode/test-web --browser=chromium --quality=stable --extensionDevelopmentPath=. ./fixtures/workspace",
+    "gui:headless": "bun run build && bunx @vscode/test-web --browser=chromium --headless --quality=stable --extensionDevelopmentPath=. ./fixtures/workspace",
+    "vscode:prepublish": "bun run build",
+    "verify:runtime": "bash scripts/verify-runtime.sh"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^6.0.0",
+    "@types/bun": "latest",
+    "@types/d3-drag": "^3.0.7",
+    "@types/d3-selection": "^3.0.12",
+    "@types/d3-zoom": "^3.0.9",
+    "@types/vscode": "^1.85.0",
+    "@typespec/compiler": "1.17.0",
+    "@typespec/json-schema": "1.17.0",
+    "svelte": "^5.56.10",
+    "svelte-check": "^4.0.0",
+    "typescript": "^6.0.3",
+    "vite": "^7.0.0",
+    "esbuild": "^0.25.0",
+    "@vscode/test-web": "^0.0.81"
+  },
+  "dependencies": {
+    "@vscode-elements/elements": "^2.5.1",
+    "ajv": "^8.17.1",
+    "d3-drag": "^3.0.0",
+    "d3-selection": "^3.0.0",
+    "d3-zoom": "^3.0.0",
+    "elkjs": "0.10.2",
+    "orchgraph": "^0.2.4",
+    "string-width": "8.2.2"
+  },
+  "displayName": "Code Graph",
+  "description": "Call graph and code navigation inside VS Code, backed by codebase-memory-mcp.",
+  "publisher": "code-graph",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:codeGraph.open"
+  ],
+  "browser": "./dist/extension.cjs",
+  "contributes": {
+    "commands": [
+      {
+        "command": "codeGraph.open",
+        "title": "Code Graph: Open",
+        "category": "Code Graph"
+      }
+    ],
+    "configuration": {
+      "title": "Code Graph",
+      "properties": {
+        "codeGraph.source": {
+          "type": "string",
+          "enum": [
+            "mock",
+            "cbm"
+          ],
+          "default": "mock",
+          "description": "Graph source. Mock works without a running cbm server."
+        },
+        "codeGraph.cbmBaseUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:9749",
+          "description": "codebase-memory-mcp HTTP base URL."
+        },
+        "codeGraph.project": {
+          "type": "string",
+          "default": "demo",
+          "description": "Initial cbm project name."
+        },
+        "codeGraph.symbol": {
+          "type": "string",
+          "default": "demo.src.features.useAlias",
+          "description": "Initial root symbol (qualified name or #id)."
+        }
+      }
+    }
+  }
+}

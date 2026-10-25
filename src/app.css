@@ -1,0 +1,541 @@
+/*
+ * Theme with VS Code's own webview tokens instead of a parallel design system.
+ * Native controls and @vscode-elements components both consume --vscode-*;
+ * fallbacks keep `vite dev` usable outside an editor.
+ */
+:root {
+  color-scheme: light dark;
+
+  --bg: var(--vscode-editor-background, #1e1e1e);
+  --panel: var(--vscode-sideBar-background, var(--vscode-editorWidget-background, #252526));
+  --line: var(--vscode-widget-border, var(--vscode-panel-border, #3c3c3c));
+  --text: var(--vscode-foreground, #cccccc);
+  --muted: var(--vscode-descriptionForeground, #9d9d9d);
+  --accent: var(--vscode-button-background, #0e639c);
+  --accent-fg: var(--vscode-button-foreground, #ffffff);
+  --graph-bg: var(--vscode-editor-background, #1e1e1e);
+  --node-bg: var(--vscode-editorWidget-background, #252526);
+  --node-line: var(--vscode-input-border, #3c3c3c);
+  --edge: var(--vscode-editorLineNumber-foreground, #858585);
+  --hit: var(--vscode-editorWarning-foreground, #cca700);
+  --font-code: "Maple Mono NF CN", var(--vscode-editor-font-family, "UbuntuMono Nerd Font", monospace);
+
+  font-family: var(--vscode-font-family, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.app {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65lh;
+  padding: 0.8lh 1.5ch;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1ch;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1ch;
+}
+
+.runtime {
+  border: 1px solid var(--vscode-badge-background, var(--line));
+  border-radius: 999px;
+  padding: 0.1lh 0.8ch;
+  background: var(--vscode-badge-background, var(--panel));
+  color: var(--vscode-badge-foreground, var(--muted));
+  font-size: 0.7rem;
+}
+
+h2,
+h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.sub,
+.meta,
+.qn {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.qn {
+  font-family: var(--font-code);
+  overflow-wrap: anywhere;
+}
+
+.switcher {
+  display: inline-flex;
+  gap: 0.5ch;
+}
+
+/* Native buttons using VS Code's own button tokens; the web components below
+   cover text fields and dropdowns, where VS Code's interaction model matters. */
+.vscode-button {
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 0.4rem;
+  padding: 0.3lh 0.9ch;
+  background: var(--vscode-button-background, #0e639c);
+  color: var(--vscode-button-foreground, #ffffff);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.vscode-button:hover:not(:disabled) {
+  background: var(--vscode-button-hoverBackground, #1177bb);
+}
+
+.vscode-button.secondary {
+  background: var(--vscode-button-secondaryBackground, #3a3d41);
+  color: var(--vscode-button-secondaryForeground, #ffffff);
+}
+
+.vscode-button.secondary:hover:not(:disabled) {
+  background: var(--vscode-button-secondaryHoverBackground, #45494e);
+}
+
+.vscode-button:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, #007fd4);
+  outline-offset: 2px;
+}
+
+.vscode-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) auto;
+  gap: 1ch;
+  align-items: end;
+}
+
+label {
+  display: grid;
+  gap: 0.35lh;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.controls vscode-textfield,
+.graph-toolbar .search-field vscode-textfield {
+  display: block;
+  width: 100%;
+  --vscode-settings-textInputBorder: var(--vscode-input-border, var(--line));
+  --vscode-settings-textInputBackground: var(--vscode-input-background, var(--panel));
+  --vscode-settings-textInputForeground: var(--vscode-input-foreground, var(--text));
+}
+
+.controls > button {
+  align-self: end;
+}
+
+vscode-single-select {
+  min-width: 10ch;
+}
+
+.error {
+  margin: 0;
+  border: 1px solid var(--vscode-inputValidation-errorBorder, #be1100);
+  border-radius: 0.45rem;
+  padding: 0.5lh 1ch;
+  background: var(--vscode-inputValidation-errorBackground, #5a1d1d);
+  color: var(--vscode-inputValidation-errorForeground, #f48771);
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+}
+
+.error.compact {
+  font-size: 0.78rem;
+  padding: 0.35lh 0.8ch;
+}
+
+.badge {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 0.1lh 0.8ch;
+  background: var(--vscode-badge-background, #4d4d4d);
+  color: var(--vscode-badge-foreground, #ffffff);
+  font-size: 0.7rem;
+}
+
+.status {
+  margin: 0;
+  color: var(--vscode-descriptionForeground, var(--muted));
+  font-size: 0.8rem;
+}
+
+.graph-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1ch;
+  min-width: 0;
+}
+
+.graph-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6lh;
+  min-width: 0;
+}
+
+.graph-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.8ch;
+}
+
+.graph-toolbar label {
+  display: flex;
+  align-items: center;
+  gap: 0.5ch;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.graph-toolbar .search-field {
+  flex: 1 1 18ch;
+}
+
+.graph-toolbar vscode-single-select {
+  width: 16ch;
+  min-width: 16ch;
+}
+
+.graph-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1ch;
+  font-size: 0.78rem;
+  color: var(--muted);
+  min-height: 1.2lh;
+}
+
+.graph-board {
+  position: relative;
+  width: 100%;
+  height: clamp(360px, 52vh, 760px);
+  min-height: 360px;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--graph-bg);
+  overflow: hidden;
+}
+
+.graph-board-empty {
+  display: grid;
+  place-items: center;
+}
+
+.terminal-board {
+  height: clamp(380px, 68vh, 900px);
+}
+
+.terminal-art-shell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.terminal-art {
+  position: relative;
+  flex: none;
+  font-family: var(--font-code);
+  font-size: 14px;
+  line-height: 1;
+  transform-origin: center center;
+}
+
+.terminal-art-text {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--font-code);
+  font-size: 14px;
+  line-height: 1;
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "calt" 0;
+  white-space: pre;
+  user-select: text;
+}
+
+.terminal-node-hit {
+  position: absolute;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 0.2rem;
+  background: transparent;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+  outline: none;
+}
+
+.terminal-node-hit:hover,
+.terminal-node-hit:focus-visible {
+  border-color: var(--vscode-focusBorder, var(--accent));
+}
+
+.terminal-node-hit.is-search-hit {
+  border-color: var(--hit);
+  background: color-mix(in srgb, var(--hit) 10%, transparent);
+}
+
+.terminal-node-hit.is-selected {
+  border-color: var(--vscode-focusBorder, var(--accent));
+  border-width: 2px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.graph-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.graph-svg:active {
+  cursor: grabbing;
+}
+
+.graph-svg.has-search-hits .orchgraph-node:not(.is-search-hit) {
+  opacity: 0.35;
+}
+
+.graph-overlay {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  padding: 0.5lh 1ch;
+  border-radius: 0.45rem;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 0.82rem;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.orchgraph-edge {
+  fill: none;
+  stroke: var(--edge);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.orchgraph-arrow {
+  fill: var(--edge);
+}
+
+.orchgraph-node {
+  cursor: pointer;
+  outline: none;
+}
+
+.orchgraph-node rect {
+  fill: var(--node-bg);
+  stroke: var(--node-line);
+  stroke-width: 1.25;
+  transition: stroke 80ms ease, stroke-width 80ms ease;
+}
+
+.orchgraph-node:hover rect {
+  stroke: var(--vscode-focusBorder, var(--accent));
+}
+
+.orchgraph-node:focus-visible rect {
+  stroke: var(--vscode-focusBorder, var(--accent));
+  stroke-width: 2.5;
+}
+
+.orchgraph-node-label {
+  fill: var(--text);
+  font: 600 14px var(--font-code);
+  pointer-events: none;
+}
+
+.orchgraph-node-detail {
+  fill: var(--muted);
+  font: 10px var(--font-code);
+  pointer-events: none;
+}
+
+.orchgraph-node-kind {
+  fill: var(--muted);
+  font: 600 9px var(--font-code);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.orchgraph-node-state {
+  fill: var(--muted);
+  font: 700 12px var(--font-code);
+  pointer-events: none;
+}
+
+.orchgraph-edge-label {
+  fill: var(--muted);
+  font: 10px var(--font-code);
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+.orchgraph-node.is-search-hit rect {
+  stroke: var(--hit);
+  stroke-width: 2;
+}
+
+.orchgraph-node.is-selected rect {
+  stroke: var(--vscode-focusBorder, var(--accent));
+  stroke-width: 2.5;
+}
+
+.board {
+  flex: 1;
+  display: block;
+  min-height: 0;
+}
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  background: var(--panel);
+  padding: 1ch;
+  min-width: 0;
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6lh;
+  overflow: auto;
+}
+
+.detail-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1ch;
+}
+
+.detail-actions {
+  display: flex;
+  gap: 0.5ch;
+  flex: 0 0 auto;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1ch;
+}
+
+.columns ul {
+  margin: 0.4lh 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.4lh;
+}
+
+.columns li {
+  border-top: 1px solid var(--line);
+  padding-top: 0.4lh;
+}
+
+.link {
+  display: block;
+  border: 0;
+  border-radius: 0.35rem;
+  margin: 0;
+  padding: 0.15lh 0.3ch;
+  background: transparent;
+  color: var(--vscode-textLink-foreground, var(--accent));
+  text-align: left;
+  cursor: pointer;
+}
+
+.link:hover,
+.link:focus-visible {
+  color: var(--vscode-textLink-activeForeground, var(--accent));
+  text-decoration: underline;
+  outline: none;
+}
+
+@media (max-width: 700px) {
+  .app {
+    padding: 1ch;
+  }
+
+  .controls,
+  .columns {
+    grid-template-columns: 1fr;
+  }
+
+  .graph-board {
+    height: 55vh;
+    min-height: 55vh;
+  }
+
+  .graph-toolbar .search-field {
+    flex-basis: 100%;
+  }
+
+  .detail-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

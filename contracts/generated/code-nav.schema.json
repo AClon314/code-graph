@@ -1,0 +1,163 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "code-nav.schema.json",
+    "$defs": {
+        "JumpTarget": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "JumpTarget.json",
+            "type": "object",
+            "properties": {
+                "project": {
+                    "$ref": "NonEmptyString.json",
+                    "description": "cbm project name; the adapter uses it to choose a workspace root."
+                },
+                "path": {
+                    "$ref": "NonEmptyString.json",
+                    "description": "Repository-relative path, e.g. `src/lib/foo.ts`."
+                },
+                "line": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 2147483647,
+                    "description": "1-based line number."
+                },
+                "column": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 2147483647,
+                    "description": "1-based column number."
+                },
+                "symbol": {
+                    "type": "string",
+                    "description": "Optional symbol identity for highlighting/status."
+                },
+                "source": {
+                    "anyOf": [
+                        {
+                            "type": "string",
+                            "const": "gui"
+                        },
+                        {
+                            "type": "string",
+                            "const": "tui"
+                        }
+                    ],
+                    "description": "Source UI, when known."
+                }
+            },
+            "required": [
+                "project",
+                "path",
+                "line"
+            ]
+        },
+        "NonEmptyString": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "NonEmptyString.json",
+            "type": "string",
+            "minLength": 1
+        },
+        "JumpOpenParams": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "JumpOpenParams.json",
+            "type": "object",
+            "properties": {
+                "client": {
+                    "anyOf": [
+                        {
+                            "type": "string",
+                            "const": "fresh"
+                        },
+                        {
+                            "type": "string",
+                            "const": "vscode"
+                        },
+                        {
+                            "type": "string",
+                            "const": "any"
+                        }
+                    ],
+                    "description": "Preferred consumer; omitted/`any` lets the first poller win."
+                }
+            },
+            "allOf": [
+                {
+                    "$ref": "JumpTarget.json"
+                }
+            ]
+        },
+        "JumpNextParams": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "JumpNextParams.json",
+            "type": "object",
+            "properties": {
+                "client": {
+                    "anyOf": [
+                        {
+                            "type": "string",
+                            "const": "fresh"
+                        },
+                        {
+                            "type": "string",
+                            "const": "vscode"
+                        },
+                        {
+                            "type": "string",
+                            "const": "any"
+                        }
+                    ],
+                    "description": "Consumer identity; Fresh uses `fresh`."
+                },
+                "waitMs": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 30000,
+                    "description": "Long-poll budget in milliseconds."
+                }
+            },
+            "required": [
+                "client"
+            ]
+        },
+        "JumpAckParams": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "JumpAckParams.json",
+            "type": "object",
+            "properties": {
+                "id": {
+                    "$ref": "NonEmptyString.json"
+                },
+                "client": {
+                    "$ref": "NonEmptyString.json"
+                },
+                "ok": {
+                    "type": "boolean"
+                },
+                "error": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "id",
+                "client",
+                "ok"
+            ]
+        },
+        "JumpReceipt": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "JumpReceipt.json",
+            "type": "object",
+            "properties": {
+                "id": {
+                    "$ref": "NonEmptyString.json"
+                },
+                "client": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "id"
+            ]
+        }
+    }
+}

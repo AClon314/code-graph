@@ -60,7 +60,14 @@ Key options (from the package README and CLI):
 ```
 
 The first `gui` run downloads the VS Code web build into `.vscode-test-web/`
-(already ignored). Subsequent runs reuse it.
+(already ignored). Subsequent runs reuse it. The harness launches Chromium via
+Playwright; if the matching browser is missing, run
+`bunx playwright install chromium` once.
+
+Current branch verified with the same harness: `codeGraph.open` opens the
+**Code Graph** editor tab, the migrated Svelte UI renders in the webview, and
+**Jump** opens `src/features.ts:5` in the fixture workspace. The file tree is
+VS Code's Explorer, not a webview tree.
 
 If the extension should open the graph automatically for GUI testing, gate it:
 
