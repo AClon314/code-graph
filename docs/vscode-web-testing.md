@@ -1,21 +1,25 @@
 # Testing the GUI in VS Code for the Web
 
-> Target: `bun run gui` starts VS Code for the Web with the extension loaded, so the
-> webview can be exercised without a separate browser shell. TUI/Fresh remains a
-> separate path.
+> Target: `bun run gui` serves VS Code for the Web with the extension loaded, so
+> the webview can be exercised from this machine or remotely. It does not launch
+> a browser. TUI/Fresh remains a separate path.
 
 ## Official harness: `@vscode/test-web`
 
 [`microsoft/vscode-test-web`](https://github.com/microsoft/vscode-test-web) is the
 official Node module for running a web extension locally. It downloads a VS Code
-for the Web build, serves it, loads the extension under development, and launches
-a browser through Playwright.
+for the Web build, serves it, loads the extension under development, and can
+launch a browser through Playwright (or serve without one).
 
 CLI shape:
 
 ```bash
+# Serve without launching a browser; open http://localhost:3000 yourself.
 bunx @vscode/test-web \
-  --browser=chromium \
+  --browser=none \
+  --host=localhost \
+  --port=3000 \
+  --quality=stable \
   --extensionDevelopmentPath=. \
   ./fixtures/workspace
 ```
@@ -53,16 +57,46 @@ Key options (from the package README and CLI):
     "build:webview": "vite build --config vite.webview.config.ts",
     "build": "bun run build:extension && bun run build:webview",
     "watch:webview": "vite build --config vite.webview.config.ts --watch",
-    "gui": "bun run build && bunx @vscode/test-web --browser=chromium --quality=stable --extensionDevelopmentPath=. ./fixtures/workspace",
+    "gui": "bun run build && bunx @vscode/test-web --browser=none --host=${HOST:-localhost} --port=${PORT:-3000} --quality=stable --extensionDevelopmentPath=. ./fixtures/workspace",
+    "gui:open": "bun run build && bunx @vscode/test-web --browser=chromium --host=127.0.0.1 --port=3000 --quality=stable --extensionDevelopmentPath=. ./fixtures/workspace",
     "gui:headless": "bun run build && bunx @vscode/test-web --browser=chromium --headless --extensionDevelopmentPath=. ./fixtures/workspace"
   }
 }
 ```
 
+`gui` uses `--browser=none`, so it serves without launching a browser.
+`gui:open` is the local convenience variant and launches Chromium via Playwright;
+if that browser is missing, run `bunx playwright install chromium` once.
+
 The first `gui` run downloads the VS Code web build into `.vscode-test-web/`
-(already ignored). Subsequent runs reuse it. The harness launches Chromium via
-Playwright; if the matching browser is missing, run
-`bunx playwright install chromium` once.
+(already ignored). Subsequent runs reuse it.
+
+### Remote access: use an SSH tunnel, not `--host=0.0.0.0`
+
+`@vscode/test-web` builds the extension-host URL from `<uuid>.<host>`. An IP
+literal (`0.0.0.0`, `127.0.0.1`, `192.168.x.y`) makes the host part invalid,
+and the extension host fails with:
+
+```text
+TypeError: Failed to construct 'URL': Invalid URL
+```
+
+`--host=localhost` works because `*.localhost` resolves to loopback. For a
+remote machine:
+
+```bash
+ssh -L 3000:localhost:3000 <server>
+# client: http://localhost:3000
+```
+
+The subdomain requests (`v--<uuid>.localhost:3000`) also resolve to the client's
+loopback and go through the same tunnel. If you need direct LAN access, `HOST`
+must be a real hostname with a wildcard DNS record (`HOST=vscode.example.com`),
+not an IP; a plain `http://<lan-ip>:3000` will break the extension host.
+
+If you want direct remote access without a tunnel, use
+[`code-server.md`](./code-server.md): it serves a normal VS Code workbench on
+`0.0.0.0` and has no `<uuid>.<host>` problem.
 
 Current branch verified with the same harness: `codeGraph.open` opens the
 **Code Graph** editor tab, the migrated Svelte UI renders in the webview, and
@@ -114,12 +148,12 @@ const server = await open({
   folderPath: "fixtures/workspace",
   quality: "stable",
   port: 3000,
-  host: "127.0.0.1",
+  host: "localhost",
 });
 
 const browser = await chromium.launch();
 const page = await browser.newPage();
-await page.goto("http://127.0.0.1:3000");
+await page.goto("http://localhost:3000");
 // The workbench is the top page; the webview is an iframe.
 // await page.frameLocator("iframe.webview").locator("#app").waitFor();
 

@@ -48,7 +48,6 @@ const RENDER_ARGS: string[] = Array.isArray((globalThis as any).CODE_NAV_RENDER_
 
 const PANEL_NAME = " *Code Graph* ";
 const MODE = "code-nav";
-const PANEL_ID = "code-nav";
 const SELECT_NS = "code-nav-sel";
 const POLL_MS = 500;
 
@@ -276,17 +275,15 @@ async function openPanel(): Promise<void> {
   if (opening) return;
   opening = true;
   try {
-    // vertical = vertical divider = side-by-side; default before=false is right.
-    const result = await editor.createVirtualBufferInSplit({
+    // A new tab in the current split, not a split pane: the graph is a view
+    // the user asked for, and it should not shrink the file they were editing.
+    const result = await editor.createVirtualBuffer({
       name: PANEL_NAME,
       mode: MODE,
-      direction: "vertical",
-      ratio: 0.5,
       readOnly: true,
       editingDisabled: true,
       showCursors: false,
       showLineNumbers: false,
-      panelId: PANEL_ID,
     });
     bufferId = result && typeof result.bufferId === "number" ? result.bufferId : (result as any);
     renderSeq++;
@@ -504,7 +501,7 @@ registerHandler("code_nav_poll", pollBridge);
 
 editor.registerCommand(
   "Code Nav: Open Graph",
-  "Open the precomputed code graph in a right split",
+  "Open the precomputed code graph in a new tab",
   "code_nav_open_panel",
   null,
 );

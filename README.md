@@ -88,20 +88,61 @@ bun install
 # Build extension + webview + Fresh plugin
 bun run build
 
-# Start VS Code for the Web with the extension and fixture workspace
+# Serve VS Code for the Web with the extension and fixture workspace.
+# No browser is launched; open http://localhost:3000 yourself.
 bun run gui
+
+# Local convenience: launch Chromium against localhost instead.
+bun run gui:open
 ```
 
-`gui` uses `@vscode/test-web`; the first run downloads a VS Code web build into
-`.vscode-test-web/` (ignored). The browser is Playwright's Chromium; if it is
-missing, install it once:
+`gui` uses `@vscode/test-web --browser=none`, so it no longer launches a browser.
+The first run downloads a VS Code web build into `.vscode-test-web/` (ignored).
+Override the port with `PORT=3001 bun run gui`.
+
+`gui:open` launches Playwright's Chromium; if it is missing, install it once:
 
 ```bash
 bunx playwright install chromium
 ```
 
-The fixture workspace is `fixtures/workspace/`. Then run **Code Graph: Open**
-from the Command Palette.
+The fixture workspace is `fixtures/workspace/`. Open the URL and run **Code
+Graph: Open** from the Command Palette.
+
+### Remote access
+
+Use an SSH tunnel:
+
+```bash
+ssh -L 3000:localhost:3000 <server>
+# then open http://localhost:3000 on the client
+```
+
+Do **not** set `HOST=0.0.0.0` or an IP. `@vscode/test-web` puts the extension
+host on `<uuid>.<host>`, and an IP literal in that position is not a valid URL,
+so the extension host fails to start (`Failed to construct 'URL': Invalid URL`).
+`localhost` works because `*.localhost` resolves to loopback on the client, and
+the tunnel forwards the port. If you need direct LAN access, use a hostname with
+a wildcard DNS record (e.g. `HOST=vscode.example.com`), not an IP.
+
+`gui:open` is local-only for the same reason. Plain `http://<lan-ip>:3000` is
+not supported by the harness.
+
+### code-server alternative
+
+If you want direct remote access and a normal authenticated server, use
+code-server instead. The current `browser`-only extension loads there without a
+`main` entry:
+
+```bash
+bun run build
+ln -sfn "$PWD" "$HOME/.local/share/code-server/extensions/code-graph.code-graph-0.1.0"
+code-server --bind-addr 0.0.0.0:8080 --auth password
+```
+
+Reload the window after rebuilding. See [`docs/code-server.md`](docs/code-server.md)
+for the verified flow and caveats (the webview still fetches cbm from the
+browser, so a server-side `127.0.0.1` is not automatically reachable).
 
 Standalone webview development (no VS Code shell):
 

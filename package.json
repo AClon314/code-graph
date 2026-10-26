@@ -14,7 +14,8 @@
     "build:webview": "vite build",
     "build:extension": "esbuild src/extension/vscode.ts --bundle --format=cjs --platform=browser --external:vscode --outfile=dist/extension.cjs --sourcemap",
     "build:fresh": "esbuild fresh-plugin/code-nav.ts --bundle --format=iife --platform=browser --alias:#host=./src/extension/hosts/fresh.ts --outfile=fresh-plugin/dist/code-nav.js --sourcemap",
-    "gui": "bun run build && bunx @vscode/test-web --browser=chromium --quality=stable --extensionDevelopmentPath=. ./fixtures/workspace",
+    "gui": "bun run build && bunx @vscode/test-web --browser=none --host=${HOST:-localhost} --port=${PORT:-3000} --quality=stable --extensionDevelopmentPath=. ./fixtures/workspace",
+    "gui:open": "bun run build && bunx @vscode/test-web --browser=chromium --host=127.0.0.1 --port=3000 --quality=stable --extensionDevelopmentPath=. ./fixtures/workspace",
     "gui:headless": "bun run build && bunx @vscode/test-web --browser=chromium --headless --quality=stable --extensionDevelopmentPath=. ./fixtures/workspace",
     "vscode:prepublish": "bun run build",
     "verify:runtime": "bash scripts/verify-runtime.sh"
@@ -62,7 +63,7 @@
     "commands": [
       {
         "command": "codeGraph.open",
-        "title": "Code Graph: Open",
+        "title": "Open",
         "category": "Code Graph"
       }
     ],

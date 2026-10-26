@@ -542,12 +542,14 @@
               autocomplete="off"
             ></vscode-textfield>
           </label>
+          <!-- vscode-single-select dispatches a non-bubbling `change`; the
+               capture listener is required for Svelte's delegated events. -->
           <!-- svelte-ignore a11y_label_has_associated_control -->
           <label>
             Depth
             <vscode-single-select
               value={String(depth)}
-              onchange={(event: Event) => changeDepth(textValue(event))}
+              onchangecapture={(event: Event) => changeDepth(textValue(event))}
             >
               <vscode-option value="1">1 hop</vscode-option>
               <vscode-option value="2">2 hops</vscode-option>
@@ -559,7 +561,7 @@
             Direction
             <vscode-single-select
               value={direction}
-              onchange={(event: Event) => changeDirection(textValue(event))}
+              onchangecapture={(event: Event) => changeDirection(textValue(event))}
             >
               <vscode-option value="both">both</vscode-option>
               <vscode-option value="callers">callers</vscode-option>
@@ -571,7 +573,7 @@
             Renderer
             <vscode-single-select
               value={renderer}
-              onchange={(event: Event) => changeRenderer(textValue(event))}
+              onchangecapture={(event: Event) => changeRenderer(textValue(event))}
             >
               <vscode-option value="d3">D3</vscode-option>
               <vscode-option value="orchgraph">orchgraph</vscode-option>

@@ -11,8 +11,10 @@ current implementation.
   palette, and file tree. The webview no longer draws a file tree.
 - **TUI**: unchanged. It keeps using the Fresh API and the shared graph/frame
   code; it does not depend on VS Code APIs.
-- **Local GUI test**: `bun run gui` builds the extension + webview and starts
-  VS Code for the Web through `@vscode/test-web`.
+- **Local/remote GUI test**: `bun run gui` builds the extension + webview and
+  serves VS Code for the Web through `@vscode/test-web` on `localhost:3000`
+  without launching a browser; remote clients use an SSH tunnel.
+  `bun run gui:open` opens a local Chromium.
 - **UI framework**: Svelte 5 in the webview is supported. There is no official
   Microsoft Svelte template; the official scaffold is `yo code` **New Web
   Extension (TypeScript)**, then add Vite + Svelte.
@@ -31,8 +33,11 @@ current implementation.
 - The webview uses VS Code theme tokens and `@vscode-elements/elements` for
   text fields/dropdowns; buttons are native `<button>` elements styled with
   `--vscode-button-*`. No archived Webview UI Toolkit.
-- `bun run gui` builds all three bundles and starts VS Code for the Web with the
-  extension loaded on `fixtures/workspace`.
+- `bun run gui` builds all three bundles and serves VS Code for the Web with the
+  extension loaded on `fixtures/workspace`; it binds `localhost:3000` and does
+  not launch a browser. Remote access goes through an SSH tunnel because
+  `@vscode/test-web` cannot use IP literals for its extension-host subdomain.
+  `bun run gui:open` is the local auto-open variant.
 
 ## Documents
 
@@ -40,7 +45,9 @@ current implementation.
 |---|---|
 | [`official-templates.md`](./official-templates.md) | `yo code` template list, `vscode-extension-samples`, `vscode-test-web`, webview UI library status, recommendation. |
 | [`webview-svelte.md`](./webview-svelte.md) | How to build the webview with Svelte 5 + Vite, CSP, `asWebviewUri`, message passing, native Explorer/TreeView, theming, pitfalls. |
-| [`vscode-web-testing.md`](./vscode-web-testing.md) | `@vscode/test-web` usage, `bun run gui`, headless/Playwright, CORS, test split. |
+| [`vscode-web-testing.md`](./vscode-web-testing.md) | `@vscode/test-web` usage, `bun run gui`, remote/no-browser serving, headless/Playwright, CORS, test split. |
+| [`multi-workspace.md`](./multi-workspace.md) | Feasibility notes for multi-root VS Code and multi-window Fresh, and the shared workspace API. |
+| [`code-server.md`](./code-server.md) | code-server as the remote harness; symlink/VSIX install, verified flow, caveats. |
 
 ## Key official links
 

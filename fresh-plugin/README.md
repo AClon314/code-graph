@@ -8,8 +8,8 @@ adapter is bundled in; all graph layout and ANSI parsing happens outside, in
 ## What it does
 
 - Registers mode `code-nav` and command **Code Nav: Open Graph**.
-- Opens/creates a read-only virtual buffer named ` *Code Graph* ` in a right
-  split (vertical divider).
+- Opens/creates a read-only virtual buffer named ` *Code Graph* ` as a new
+  tab in the current split (no split pane).
 - Reads the precomputed frame JSON and paints its styled runs as spans.
 - Mouse click on a node box selects it (overlay + status `file:line`).
 - `o` or `Enter` opens the selected node through the shared `ExtensionApi`.
