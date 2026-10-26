@@ -9,3 +9,4 @@ coverage/
 .DS_Store
 .vscode-test-web/
 tui/frame.json
+.code-server/

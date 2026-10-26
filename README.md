@@ -63,6 +63,9 @@ directly. Build output contains only the selected runtime:
   direction, fit, SVG export / copy.
 - Details: symbol bundle, callers/callees, **Jump** opens the file at the
   symbol's 1-based line through `ExtensionApi.openLocation`.
+- Workspace Trust: declared supported for untrusted and virtual workspaces, so
+  the graph viewer is usable in Restricted Mode; cbm network access is still
+  browser-side.
 - Styling: VS Code `--vscode-*` theme tokens. `@vscode-elements/elements`
   provides `vscode-textfield` / `vscode-single-select`; buttons are native
   `<button>` elements using `--vscode-button-*`. The archived
@@ -84,65 +87,23 @@ directly; in vscode.dev that request is subject to CORS.
 
 ```bash
 bun install
-
-# Build extension + webview + Fresh plugin
-bun run build
-
-# Serve VS Code for the Web with the extension and fixture workspace.
-# No browser is launched; open http://localhost:3000 yourself.
 bun run gui
-
-# Local convenience: launch Chromium against localhost instead.
-bun run gui:open
 ```
 
-`gui` uses `@vscode/test-web --browser=none`, so it no longer launches a browser.
-The first run downloads a VS Code web build into `.vscode-test-web/` (ignored).
-Override the port with `PORT=3001 bun run gui`.
+`gui` builds all bundles, checks `code-server` is on `PATH` (it exits with an
+error if not), installs this extension into an isolated profile under
+`.code-server/`, and starts code-server on the fixture workspace. Open the URL
+printed by code-server (usually `https://127.0.0.1:8080`).
 
-`gui:open` launches Playwright's Chromium; if it is missing, install it once:
+Defaults: `HOST=127.0.0.1 PORT=8080 AUTH=none`. For remote access:
 
 ```bash
-bunx playwright install chromium
+HOST=0.0.0.0 AUTH=password PASSWORD=... bun run gui
 ```
 
-The fixture workspace is `fixtures/workspace/`. Open the URL and run **Code
-Graph: Open** from the Command Palette.
-
-### Remote access
-
-Use an SSH tunnel:
-
-```bash
-ssh -L 3000:localhost:3000 <server>
-# then open http://localhost:3000 on the client
-```
-
-Do **not** set `HOST=0.0.0.0` or an IP. `@vscode/test-web` puts the extension
-host on `<uuid>.<host>`, and an IP literal in that position is not a valid URL,
-so the extension host fails to start (`Failed to construct 'URL': Invalid URL`).
-`localhost` works because `*.localhost` resolves to loopback on the client, and
-the tunnel forwards the port. If you need direct LAN access, use a hostname with
-a wildcard DNS record (e.g. `HOST=vscode.example.com`), not an IP.
-
-`gui:open` is local-only for the same reason. Plain `http://<lan-ip>:3000` is
-not supported by the harness.
-
-### code-server alternative
-
-If you want direct remote access and a normal authenticated server, use
-code-server instead. The current `browser`-only extension loads there without a
-`main` entry:
-
-```bash
-bun run build
-ln -sfn "$PWD" "$HOME/.local/share/code-server/extensions/code-graph.code-graph-0.1.0"
-code-server --bind-addr 0.0.0.0:8080 --auth password
-```
-
-Reload the window after rebuilding. See [`docs/code-server.md`](docs/code-server.md)
-for the verified flow and caveats (the webview still fetches cbm from the
-browser, so a server-side `127.0.0.1` is not automatically reachable).
+The harness does not fall back to `@vscode/test-web`. See
+[`docs/code-server.md`](docs/code-server.md) for debugging, Workspace Trust, and
+the cbm network caveat.
 
 Standalone webview development (no VS Code shell):
 
@@ -213,6 +174,7 @@ bun run verify:runtime # assert each bundle contains only its host
 - No embedded code editor; navigation is `openLocation`.
 - The webview still talks to cbm directly. A web extension host proxy would
   avoid CORS for vscode.dev, but is not implemented yet.
-- `bun run gui` is a development harness, not a packaged VSIX workflow.
+- `bun run gui` is a code-server development harness, not a packaged VSIX
+  workflow. It requires `code-server` on `PATH`.
 - `deprecated-svelteUI` keeps the old shell for reference; do not add features
   there.

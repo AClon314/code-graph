@@ -38,6 +38,8 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: "dist/webview",
       emptyOutDir: true,
+      // The code-server harness debugs this bundle in Chrome DevTools.
+      sourcemap: true,
       rollupOptions: {
         input: fileURLToPath(new URL("./src/main.ts", import.meta.url)),
         output: {

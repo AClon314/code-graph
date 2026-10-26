@@ -1,3 +1,7 @@
+> **Historical.** `bun run gui` now starts code-server instead of
+> `@vscode/test-web`. This document is kept for vscode.dev/web-extension
+> background; it is not the current harness.
+
 # Testing the GUI in VS Code for the Web
 
 > Target: `bun run gui` serves VS Code for the Web with the extension loaded, so
