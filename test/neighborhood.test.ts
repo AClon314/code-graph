@@ -4,14 +4,8 @@ import { loadNeighborhood } from "../src/lib/graph/neighborhood";
 import { MockSource } from "../src/lib/graph/mock";
 import type {
   GraphSource,
-  ImpactResult,
-  Project,
-  SearchHit,
-  SourceSlice,
   SymbolBundle,
   SymbolConnection,
-  TraceResult,
-  TreeEntry,
 } from "../src/lib/graph/types";
 
 test("MockSource neighborhood renders root, callers and callees", async () => {
@@ -171,35 +165,11 @@ class FakeSource implements GraphSource {
     this.failures = failures;
   }
 
-  async projects(): Promise<Project[]> {
-    return [];
-  }
-
-  async tree(): Promise<TreeEntry[]> {
-    return [];
-  }
-
   async symbol(_project: string, ref: string): Promise<SymbolBundle> {
     this.calls.push(ref);
     if (this.failures.has(ref)) throw new Error(`boom: ${ref}`);
     const found = this.bundles[ref];
     if (!found) throw new Error(`not found: ${ref}`);
     return structuredClone(found);
-  }
-
-  async trace(): Promise<TraceResult> {
-    throw new Error("not used");
-  }
-
-  async impact(): Promise<ImpactResult> {
-    throw new Error("not used");
-  }
-
-  async source(): Promise<SourceSlice> {
-    throw new Error("not used");
-  }
-
-  async search(): Promise<SearchHit[]> {
-    throw new Error("not used");
   }
 }
