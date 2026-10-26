@@ -39,13 +39,20 @@ current implementation.
 
 ## Documents
 
+Current documents:
+
 | Document | Contents |
 |---|---|
-| [`official-templates.md`](./official-templates.md) | `yo code` template list, `vscode-extension-samples`, `vscode-test-web`, webview UI library status, recommendation. |
-| [`webview-svelte.md`](./webview-svelte.md) | How to build the webview with Svelte 5 + Vite, CSP, `asWebviewUri`, message passing, native Explorer/TreeView, theming, pitfalls. |
-| [`vscode-web-testing.md`](./vscode-web-testing.md) | Historical `@vscode/test-web` notes; no longer used by `bun run gui`. |
 | [`multi-workspace.md`](./multi-workspace.md) | Feasibility notes for multi-root VS Code and multi-window Fresh, and the shared workspace API. |
 | [`code-server.md`](./code-server.md) | code-server as the GUI harness; install, debugging, Workspace Trust, caveats. |
+
+Historical documents (archived, not current guidance):
+
+| Document | Contents |
+|---|---|
+| [`history/official-templates.md`](./history/official-templates.md) | Historical `yo code` template list, `vscode-extension-samples`, `vscode-test-web`, webview UI library status, recommendation. |
+| [`history/webview-svelte.md`](./history/webview-svelte.md) | Historical guide for building the webview with Svelte 5 + Vite, CSP, `asWebviewUri`, message passing, native Explorer/TreeView, theming, pitfalls. Its project layout is outdated. |
+| [`history/vscode-web-testing.md`](./history/vscode-web-testing.md) | Historical `@vscode/test-web` notes; no longer used by `bun run gui`. |
 
 ## Key official links
 
@@ -66,7 +73,7 @@ current implementation.
    `TreeDataProvider` / `TreeView`, not a webview tree.
 3. Use a **webview for the graph** (`createWebviewPanel` for an editor tab, or
    `WebviewViewProvider` for a sidebar/panel view).
-4. Use **Svelte 5 + Vite** for the webview; keep `src/graph/` framework-free and
+4. Use **Svelte 5 + Vite** for the webview; keep `src/lib/graph/` framework-free and
    shared with the TUI.
 5. Use **code-server** as the GUI launch/test harness; `@vscode/test-web`
    notes are historical. Keep the `browser` entry for vscode.dev.

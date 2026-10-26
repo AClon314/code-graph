@@ -57,7 +57,6 @@ Edit the constants at the top of `code-nav.ts`, or provide overrides on
 | `BUN` | `CODE_NAV_BUN` | `~/.bun/bin/bun` |
 | `FRAME_PATH` | `CODE_NAV_FRAME` | `<REPO>/tui/frame.json` |
 | `BRIDGE_URL` | `CODE_NAV_BRIDGE` | `http://127.0.0.1:9752` |
-| `GUI_URL` | `CODE_NAV_GUI` | `http://127.0.0.1:5173` |
 | `PROJECT_ROOT` | `CODE_NAV_ROOT` | empty |
 | `JUMP_TMP` | `CODE_NAV_JUMP_TMP` | `/tmp/code-nav-jump.json` |
 | `RENDER_ARGS` | `CODE_NAV_RENDER_ARGS` | fixture graph → `FRAME_PATH` |

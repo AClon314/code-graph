@@ -26,7 +26,6 @@ const BUN = (globalThis as any).CODE_NAV_BUN || "/home/n/.bun/bin/bun";
 const FRAME_PATH = (globalThis as any).CODE_NAV_FRAME || REPO + "/tui/frame.json";
 const RENDER_SCRIPT = REPO + "/tui/render.ts";
 const BRIDGE_URL = (globalThis as any).CODE_NAV_BRIDGE || "http://127.0.0.1:9752";
-const GUI_URL = (globalThis as any).CODE_NAV_GUI || "http://127.0.0.1:5173";
 const JUMP_TMP = (globalThis as any).CODE_NAV_JUMP_TMP || "/tmp/code-nav-jump.json";
 const JUMP_CLIENT = REPO + "/tools/jump-client.ts";
 
