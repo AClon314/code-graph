@@ -1,41 +1,44 @@
 import { expect, test } from "bun:test";
-import Ajv2020 from "ajv/dist/2020";
 
-import schema from "../contracts/generated/code-nav.schema.json";
 import { JumpClient, JumpRpcError } from "../src/lib/jump/client";
+import {
+  isJumpAck,
+  isJumpNextParams,
+  isJumpRequest,
+} from "../src/lib/jump/types";
 
-const ajv = new Ajv2020({ allErrors: true, strict: false });
-for (const [name, definition] of Object.entries((schema as { $defs: Record<string, unknown> }).$defs)) {
-  ajv.addSchema(definition as Record<string, unknown>, name);
-}
-ajv.addSchema(schema);
-
-function validator(name: string) {
-  const validate = ajv.getSchema(`code-nav.schema.json#/$defs/${name}`);
-  if (!validate) throw new Error(`missing ${name}`);
-  return validate;
-}
-
-test("generated jump params reject invalid line with an instance path", () => {
-  const validate = validator("JumpOpenParams");
+test("jump request guard accepts valid targets and rejects bad fields", () => {
+  expect(isJumpRequest({ project: "p", path: "src/a.ts", line: 1 })).toBe(true);
   expect(
-    validate({
+    isJumpRequest({
       project: "p",
       path: "src/a.ts",
-      line: 0,
-      client: "fresh",
-    }),
-  ).toBe(false);
-  expect(validate.errors?.some((error) => error.instancePath === "/line")).toBe(true);
-
-  expect(
-    validate({
-      project: "p",
-      path: "src/a.ts",
-      line: 1,
+      line: 3,
+      column: 2,
+      source: "gui",
       client: "fresh",
     }),
   ).toBe(true);
+
+  expect(isJumpRequest({ project: "p", path: "src/a.ts", line: 0 })).toBe(false);
+  expect(
+    isJumpRequest({ project: "p", path: "src/a.ts", line: 1, client: "bogus" }),
+  ).toBe(false);
+  expect(
+    isJumpRequest({ project: "p", path: "src/a.ts", line: 1, source: "web" }),
+  ).toBe(false);
+});
+
+test("jump.next and jump.ack guards accept valid params", () => {
+  expect(isJumpNextParams({ client: "fresh" })).toBe(true);
+  expect(isJumpNextParams({ client: "fresh", waitMs: 25_000 })).toBe(true);
+  expect(isJumpNextParams({ client: "bogus" })).toBe(false);
+  expect(isJumpNextParams({ client: "fresh", waitMs: -1 })).toBe(false);
+  expect(isJumpNextParams({ client: "fresh", waitMs: 30_001 })).toBe(false);
+
+  expect(isJumpAck({ id: "1", client: "fresh", ok: true })).toBe(true);
+  expect(isJumpAck({ id: "1", client: "fresh", ok: false, error: "closed" })).toBe(true);
+  expect(isJumpAck({ id: "1", client: "fresh", ok: "yes" })).toBe(false);
 });
 
 test("JumpClient sends a JSON-RPC jump.open request and returns the receipt", async () => {

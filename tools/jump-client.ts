@@ -16,21 +16,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { homedir } from "node:os";
 
-interface JumpTarget {
-  project: string;
-  path: string;
-  line: number;
-  column?: number;
-  symbol?: string;
-  source?: string;
-}
-
-interface RpcResponse {
-  jsonrpc?: string;
-  id?: string | number | null;
-  result?: { id?: string; target?: JumpTarget } | null;
-  error?: { code?: number; message?: string; data?: unknown };
-}
+import { JumpClient, JumpRpcError } from "../src/lib/jump/client";
 
 function argValue(args: string[], name: string): string | undefined {
   const index = args.indexOf(name);
@@ -66,6 +52,10 @@ async function main(): Promise<number> {
   }
 
   const client = argValue(args, "--client") ?? "fresh";
+  if (client !== "fresh" && client !== "vscode" && client !== "any") {
+    console.error(`jump-client: unknown --client "${client}" (expected fresh, vscode, or any)`);
+    return 2;
+  }
   const waitMs = Number(argValue(args, "--wait") ?? "25000");
   const out = argValue(args, "--out");
   const base = (
@@ -80,49 +70,26 @@ async function main(): Promise<number> {
   }
 
   const token = await readToken();
-  const request = {
-    jsonrpc: "2.0",
-    id: `fresh-${crypto.randomUUID()}`,
-    method: "jump.next",
-    params: { client, waitMs },
-  };
+  const jumpClient = new JumpClient({
+    baseUrl: base,
+    token,
+    nextId: () => `fresh-${crypto.randomUUID()}`,
+  });
 
-  let response: Response;
+  let result;
   try {
-    response = await fetch(`${base}/rpc`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        ...(token ? { authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify(request),
-    });
+    result = await jumpClient.next({ client, waitMs });
   } catch (cause) {
-    console.error(`jump-client: bridge transport failed: ${String(cause)}`);
+    if (cause instanceof JumpRpcError) {
+      console.error(`jump-client: RPC ${cause.code}: ${cause.message}`);
+    } else {
+      const detail = cause instanceof Error ? cause.message : String(cause);
+      console.error(`jump-client: bridge request failed at ${base}: ${detail}`);
+    }
     return 1;
   }
 
-  const text = await response.text();
-  if (!response.ok) {
-    console.error(`jump-client: bridge HTTP ${response.status}: ${text.slice(0, 300)}`);
-    return 1;
-  }
-
-  let payload: RpcResponse;
-  try {
-    payload = JSON.parse(text) as RpcResponse;
-  } catch {
-    console.error(`jump-client: invalid JSON from bridge: ${text.slice(0, 300)}`);
-    return 1;
-  }
-  if (payload.error) {
-    console.error(
-      `jump-client: RPC ${payload.error.code ?? "?"}: ${payload.error.message ?? "error"}`,
-    );
-    return 1;
-  }
-
-  const target = payload.result?.target ?? null;
+  const target = result?.target ?? null;
   const serialized = target ? JSON.stringify(target) : "null";
   if (out) {
     await writeAtomic(out, serialized);

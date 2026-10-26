@@ -2,12 +2,10 @@ import type {
   JsonRpcId,
   JsonRpcRequest,
   JsonRpcResponse,
-  JumpAck,
   JumpNextParams,
   JumpNextResult,
   JumpReceipt,
   JumpRequest,
-  JumpTarget,
 } from "./types";
 import { isJsonRpcFailure, JSON_RPC_VERSION, RPC_PATH } from "./types";
 
@@ -38,21 +36,6 @@ function defaultBaseUrl(): string {
   const configured = import.meta.env?.VITE_CODE_NAV_BRIDGE;
   if (configured) return String(configured).replace(/\/+$/, "");
   return `${window.location.protocol}//${window.location.hostname}:9752`;
-}
-
-export function jumpTargetFrom(
-  project: string,
-  row: { filePath?: string; startLine?: number; qualifiedName?: string; name?: string },
-  source: JumpTarget["source"] = "gui",
-): JumpTarget | null {
-  if (!row.filePath) return null;
-  return {
-    project,
-    path: row.filePath,
-    line: row.startLine ?? 1,
-    symbol: row.qualifiedName ?? row.name,
-    source,
-  };
 }
 
 /**
@@ -115,14 +98,4 @@ export class JumpClient {
   async next(params: JumpNextParams): Promise<JumpNextResult | null> {
     return this.call<JumpNextParams, JumpNextResult | null>("jump.next", params);
   }
-
-  async ack(ack: JumpAck): Promise<{ ok: true }> {
-    return this.call<JumpAck, { ok: true }>("jump.ack", ack);
-  }
-}
-
-/** Best-effort fallback for local development without a bridge. */
-export function emitJumpEvent(target: JumpTarget): void {
-  if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent<JumpTarget>("code-nav:jump", { detail: target }));
 }

@@ -12,9 +12,6 @@
  */
 import { randomUUID } from "node:crypto";
 
-import Ajv2020, { type ValidateFunction } from "ajv/dist/2020";
-
-import schema from "../contracts/generated/code-nav.schema.json";
 import type {
   JsonRpcFailure,
   JsonRpcId,
@@ -27,7 +24,13 @@ import type {
   JumpRequest,
   JumpTarget,
 } from "../src/lib/jump/types";
-import { JSON_RPC_VERSION, RPC_ERROR } from "../src/lib/jump/types";
+import {
+  isJumpAck,
+  isJumpNextParams,
+  isJumpRequest,
+  JSON_RPC_VERSION,
+  RPC_ERROR,
+} from "../src/lib/jump/types";
 
 const PORT = Number(process.env.CODE_NAV_PORT ?? 9752);
 const HOST = process.env.CODE_NAV_BIND ?? "127.0.0.1";
@@ -137,24 +140,11 @@ async function waitFor(client: string, waitMs: number): Promise<Pending | undefi
   });
 }
 
-const ajv = new Ajv2020({ allErrors: true, strict: false });
-const defs = (schema as { $defs?: Record<string, unknown> }).$defs ?? {};
-for (const [name, definition] of Object.entries(defs)) {
-  ajv.addSchema(definition as Record<string, unknown>, name);
-}
-ajv.addSchema(schema);
-
-function validator(name: string): ValidateFunction {
-  const found = ajv.getSchema(`code-nav.schema.json#/$defs/${name}`);
-  if (!found) throw new Error(`missing generated JSON Schema: ${name}`);
-  return found;
-}
-
 const validators = {
-  "jump.open": validator("JumpOpenParams"),
-  "jump.next": validator("JumpNextParams"),
-  "jump.ack": validator("JumpAckParams"),
-} as const;
+  "jump.open": isJumpRequest,
+  "jump.next": isJumpNextParams,
+  "jump.ack": isJumpAck,
+} satisfies Record<string, (value: unknown) => boolean>;
 
 type Method = keyof typeof validators;
 
@@ -163,13 +153,8 @@ function isMethod(value: string): value is Method {
 }
 
 function invalidParams(method: Method, params: unknown): JsonRpcFailure["error"] | null {
-  const validate = validators[method];
-  if (validate(params)) return null;
-  return {
-    code: RPC_ERROR.invalidParams,
-    message: "Invalid params",
-    data: validate.errors ?? [],
-  };
+  if (validators[method](params)) return null;
+  return { code: RPC_ERROR.invalidParams, message: "Invalid params" };
 }
 
 async function handleRpc(request: Request): Promise<Response> {

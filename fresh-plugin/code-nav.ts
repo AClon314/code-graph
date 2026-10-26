@@ -15,6 +15,7 @@
 //   tools/jump-client.ts (Fresh httpFetch is GET-only, so it cannot POST).
 
 import { extensionApi } from "../src/extension/host.ts";
+import type { JumpTarget } from "../src/lib/jump/types";
 
 const editor = getEditor();
 
@@ -77,14 +78,6 @@ interface Frame {
   lines: Run[][];
   nodes?: NodeBox[];
   meta?: Record<string, NodeMeta>;
-}
-interface JumpTarget {
-  project?: string;
-  path: string;
-  line: number;
-  column?: number;
-  symbol?: string;
-  source?: string;
 }
 
 // ── state ─────────────────────────────────────────────────────────────────

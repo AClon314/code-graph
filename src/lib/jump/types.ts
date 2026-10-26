@@ -80,7 +80,6 @@ export type JsonRpcResponse<R = unknown> = JsonRpcSuccess<R> | JsonRpcFailure;
 
 export const JSON_RPC_VERSION = "2.0";
 export const RPC_PATH = "/rpc";
-export const HEALTH_PATH = "/health";
 
 /** JSON-RPC 2.0 standard error codes. */
 export const RPC_ERROR = {
@@ -95,4 +94,55 @@ export function isJsonRpcFailure(value: unknown): value is JsonRpcFailure {
   if (!value || typeof value !== "object") return false;
   const candidate = value as { error?: unknown };
   return Boolean(candidate.error && typeof candidate.error === "object");
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
+function isIntegerBetween(value: unknown, min: number, max: number): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= min && value <= max;
+}
+
+function isJumpClientName(value: unknown): value is JumpClientName {
+  return value === "fresh" || value === "vscode" || value === "any";
+}
+
+/** Runtime guard shared by the bridge and tests. */
+export function isJumpTarget(value: unknown): value is JumpTarget {
+  if (!isRecord(value)) return false;
+  return (
+    isNonEmptyString(value.project) &&
+    isNonEmptyString(value.path) &&
+    isIntegerBetween(value.line, 1, Number.MAX_SAFE_INTEGER) &&
+    (value.column === undefined ||
+      isIntegerBetween(value.column, 1, Number.MAX_SAFE_INTEGER)) &&
+    (value.symbol === undefined || typeof value.symbol === "string") &&
+    (value.source === undefined || value.source === "gui" || value.source === "tui")
+  );
+}
+
+export function isJumpRequest(value: unknown): value is JumpRequest {
+  if (!isJumpTarget(value)) return false;
+  const client = (value as unknown as Record<string, unknown>).client;
+  return client === undefined || isJumpClientName(client);
+}
+
+export function isJumpNextParams(value: unknown): value is JumpNextParams {
+  if (!isRecord(value) || !isJumpClientName(value.client)) return false;
+  return value.waitMs === undefined || isIntegerBetween(value.waitMs, 0, 30_000);
+}
+
+export function isJumpAck(value: unknown): value is JumpAck {
+  if (!isRecord(value)) return false;
+  return (
+    isNonEmptyString(value.id) &&
+    isNonEmptyString(value.client) &&
+    typeof value.ok === "boolean" &&
+    (value.error === undefined || typeof value.error === "string")
+  );
 }
