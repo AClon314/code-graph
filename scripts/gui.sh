@@ -21,6 +21,16 @@ fi
 BUN="${BUN:-$HOME/.bun/bin/bun}"
 [ -x "$BUN" ] || BUN="$(command -v bun)"
 
+CERT="$REPO/out/certs/pub.pem"
+KEY="$REPO/out/certs/key.pem"
+if ! "$BUN" run lazy_mkcert; then
+  if [ -f "$CERT" ] && [ -f "$KEY" ]; then
+    echo "warning: lazy_mkcert failed; using existing certificate in out/certs" >&2
+  else
+    echo "warning: lazy_mkcert failed and out/certs is incomplete; code-server will use its own TLS settings" >&2
+  fi
+fi
+
 "$BUN" run build
 
 NAME="$("$BUN" -e 'const p = JSON.parse(await Bun.file("package.json").text()); console.log(`${p.publisher}.${p.name}-${p.version}`)')"
@@ -38,9 +48,17 @@ if [ "$AUTH" = "none" ] && [ "$HOST" != "127.0.0.1" ] && [ "$HOST" != "localhost
   echo "         set AUTH=password and PASSWORD=... for non-loopback access" >&2
 fi
 
+CERT_ARGS=()
+if [ -f "$CERT" ] && [ -f "$KEY" ]; then
+  CERT_ARGS=(--cert "$CERT" --cert-key "$KEY")
+else
+  echo "warning: no generated certificate in out/certs; code-server will use its own TLS settings" >&2
+fi
+
 exec code-server \
   --bind-addr "$HOST:$PORT" \
   --auth "$AUTH" \
+  "${CERT_ARGS[@]}" \
   --user-data-dir "$DATA_DIR" \
   --extensions-dir "$EXT_DIR" \
   --disable-telemetry \

@@ -18,12 +18,12 @@ export function createGraphPanel(
       enableScripts: true,
       retainContextWhenHidden: true,
       localResourceRoots: [
-        vscode.Uri.joinPath(context.extensionUri, "dist", "webview"),
+        vscode.Uri.joinPath(context.extensionUri, "out", "dist", "webview"),
       ],
     },
   );
 
-  const root = vscode.Uri.joinPath(context.extensionUri, "dist", "webview");
+  const root = vscode.Uri.joinPath(context.extensionUri, "out", "dist", "webview");
   const scriptUri = panel.webview.asWebviewUri(
     vscode.Uri.joinPath(root, "assets", "webview.js"),
   );

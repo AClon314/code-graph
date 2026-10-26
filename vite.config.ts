@@ -36,7 +36,7 @@ export default defineConfig(({ mode }) => {
       allowedHosts: true,
     },
     build: {
-      outDir: "dist/webview",
+      outDir: "out/dist/webview",
       emptyOutDir: true,
       // The code-server harness debugs this bundle in Chrome DevTools.
       sourcemap: true,

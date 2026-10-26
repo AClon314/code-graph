@@ -24,6 +24,7 @@ frame and paints styled spans.
 ```bash
 export PATH="$HOME/.bun/bin:$PATH"
 
+# The default --out is out/tui/frame.json.
 # Deterministic fixture render (the test used by B4)
 bun run tui/render.ts --graph tui/fixture-graph.json --out /tmp/code-graph-frame.json
 

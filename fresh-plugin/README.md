@@ -28,10 +28,10 @@ bash fresh-plugin/install.sh
 
 The script:
 
-1. builds `fresh-plugin/dist/code-nav.js` if missing;
+1. builds `out/fresh-plugin/code-nav.js` if missing;
 2. `mkdir -p "$HOME/.config/fresh/plugins"` (or `$FRESH_CONFIG/plugins`);
 3. symlinks the bundle there as `code-nav.ts` (plain JS, valid TS);
-4. renders a frame to `tui/frame.json` if it does not exist yet.
+4. renders a frame to `out/tui/frame.json` if it does not exist yet.
 
 It does not delete anything. Override paths with environment variables:
 
@@ -55,7 +55,7 @@ Edit the constants at the top of `code-nav.ts`, or provide overrides on
 | --- | --- | --- |
 | `REPO` | `CODE_NAV_REPO` | this repository |
 | `BUN` | `CODE_NAV_BUN` | `~/.bun/bin/bun` |
-| `FRAME_PATH` | `CODE_NAV_FRAME` | `<REPO>/tui/frame.json` |
+| `FRAME_PATH` | `CODE_NAV_FRAME` | `<REPO>/out/tui/frame.json` |
 | `BRIDGE_URL` | `CODE_NAV_BRIDGE` | `http://127.0.0.1:9752` |
 | `PROJECT_ROOT` | `CODE_NAV_ROOT` | empty |
 | `JUMP_TMP` | `CODE_NAV_JUMP_TMP` | `/tmp/code-nav-jump.json` |

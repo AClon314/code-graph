@@ -2,9 +2,9 @@
 # Guard the build-time runtime split: each bundle must contain only its host.
 set -euo pipefail
 
-WEBVIEW="dist/webview/assets/webview.js"
-EXTENSION="dist/extension.cjs"
-FRESH="fresh-plugin/dist/code-nav.js"
+WEBVIEW="out/dist/webview/assets/webview.js"
+EXTENSION="out/dist/extension.cjs"
+FRESH="out/fresh-plugin/code-nav.js"
 
 for file in "$WEBVIEW" "$EXTENSION" "$FRESH"; do
   [ -f "$file" ] || { echo "missing build output: $file" >&2; exit 1; }

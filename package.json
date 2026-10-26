@@ -11,13 +11,14 @@
     "jump:bridge": "bun run tools/jump-bridge.ts",
     "jump:client": "bun run tools/jump-client.ts",
     "build:webview": "vite build",
-    "build:extension": "esbuild src/extension/vscode.ts --bundle --format=cjs --platform=browser --external:vscode --outfile=dist/extension.cjs --sourcemap",
-    "build:fresh": "esbuild fresh-plugin/code-nav.ts --bundle --format=iife --platform=browser --alias:#host=./src/extension/hosts/fresh.ts --outfile=fresh-plugin/dist/code-nav.js --sourcemap",
+    "build:extension": "esbuild src/extension/vscode.ts --bundle --format=cjs --platform=browser --external:vscode --outfile=out/dist/extension.cjs --sourcemap",
+    "build:fresh": "esbuild fresh-plugin/code-nav.ts --bundle --format=iife --platform=browser --alias:#host=./src/extension/hosts/fresh.ts --outfile=out/fresh-plugin/code-nav.js --sourcemap",
     "gui": "bun run gui:private",
     "gui:private": "bash scripts/gui.sh",
     "gui:public": "HOST=0.0.0.0 AUTH=password PASSWORD=${PASSWORD:-cbm} bash scripts/gui.sh",
     "vscode:prepublish": "bun run build",
-    "verify:runtime": "bash scripts/verify-runtime.sh"
+    "verify:runtime": "bash scripts/verify-runtime.sh",
+    "lazy_mkcert": "bun run scripts/lazy-mkcert.ts"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^6.0.0",
@@ -51,7 +52,7 @@
   "activationEvents": [
     "onCommand:codeGraph.open"
   ],
-  "browser": "./dist/extension.cjs",
+  "browser": "./out/dist/extension.cjs",
   "contributes": {
     "commands": [
       {

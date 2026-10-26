@@ -24,7 +24,7 @@ const REPO =
   (globalThis as any).CODE_NAV_REPO ||
   "/home/n/document/code/gpen/gpen-js/rules/cbm/graph-ui-svelte";
 const BUN = (globalThis as any).CODE_NAV_BUN || "/home/n/.bun/bin/bun";
-const FRAME_PATH = (globalThis as any).CODE_NAV_FRAME || REPO + "/tui/frame.json";
+const FRAME_PATH = (globalThis as any).CODE_NAV_FRAME || REPO + "/out/tui/frame.json";
 const RENDER_SCRIPT = REPO + "/tui/render.ts";
 const BRIDGE_URL = (globalThis as any).CODE_NAV_BRIDGE || "http://127.0.0.1:9752";
 const JUMP_TMP = (globalThis as any).CODE_NAV_JUMP_TMP || "/tmp/code-nav-jump.json";

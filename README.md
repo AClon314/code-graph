@@ -42,7 +42,7 @@ Implementations:
 |---|---|---|
 | VS Code | `src/extension/hosts/vscode.ts` | extension host |
 | Webview | `src/extension/hosts/webview.ts` | Svelte app (postMessage proxy) |
-| Fresh | `src/extension/hosts/fresh.ts` | `fresh-plugin/dist/code-nav.js` |
+| Fresh | `src/extension/hosts/fresh.ts` | `out/fresh-plugin/code-nav.js` |
 | Browser dev | `src/extension/hosts/browser.ts` | `vite dev` / jump bridge |
 
 `src/extension/host.ts` imports `#host`. Vite aliases `#host` to the webview
@@ -50,9 +50,9 @@ proxy for `vite build` and to the browser bridge for `vite dev`; esbuild aliases
 it to Fresh for the plugin bundle. The VS Code extension entry imports its host
 directly. Build output contains only the selected runtime:
 
-- `dist/extension.cjs` — VS Code host, no `getEditor` / `acquireVsCodeApi`
-- `dist/webview/assets/webview.js` — webview host, no `vscode` / Fresh / bridge
-- `fresh-plugin/dist/code-nav.js` — Fresh host, no `vscode` / webview
+- `out/dist/extension.cjs` — VS Code host, no `getEditor` / `acquireVsCodeApi`
+- `out/dist/webview/assets/webview.js` — webview host, no `vscode` / Fresh / bridge
+- `out/fresh-plugin/code-nav.js` — Fresh host, no `vscode` / webview
 
 ## GUI
 
@@ -98,6 +98,31 @@ printed by code-server (usually `https://127.0.0.1:8080`).
 `bun run gui` is an alias for `bun run gui:private`:
 `HOST=127.0.0.1 PORT=8080 AUTH=none`.
 
+`gui` first runs `bun run lazy_mkcert`, which writes `out/certs/pub.pem` and
+`out/certs/key.pem` and gives code-server a browser-trusted certificate for
+`localhost`, the loopback addresses, and every address reported by
+`ip -j addr`. Existing certificates are kept; use `bun run lazy_mkcert --force`
+to regenerate after changing networks. If generation fails but both PEM files
+exist, the harness warns and continues with them; if they are missing it warns
+and lets code-server use its own TLS settings.
+
+Extra names can be supplied for hosts that are not local interfaces:
+
+```bash
+CERT_IP_URL="devbox.local 10.0.0.42" bun run lazy_mkcert --force
+bun run lazy_mkcert --force extra.example 192.0.2.10
+```
+
+All build and harness artifacts are under the git-ignored `out/` directory:
+
+```text
+out/dist/extension.cjs       VS Code web extension
+out/dist/webview/            Svelte webview bundle
+out/fresh-plugin/code-nav.js Fresh plugin bundle
+out/tui/frame.json           precomputed TUI frame
+out/certs/                   generated TLS certificate and key
+```
+
 Public/LAN mode:
 
 ```bash
@@ -127,10 +152,10 @@ bun run jump:bridge
 
 | Output | Purpose |
 |---|---|
-| `dist/extension.cjs` | VS Code web extension (`browser` entry) |
-| `dist/webview/assets/webview.js` | Svelte app bundle |
-| `dist/webview/assets/webview.css` | theme tokens + layout |
-| `fresh-plugin/dist/code-nav.js` | bundled Fresh plugin |
+| `out/dist/extension.cjs` | VS Code web extension (`browser` entry) |
+| `out/dist/webview/assets/webview.js` | Svelte app bundle |
+| `out/dist/webview/assets/webview.css` | theme tokens + layout |
+| `out/fresh-plugin/code-nav.js` | bundled Fresh plugin |
 
 The extension manifest is the root `package.json` (`browser`, command,
 settings). The extension host is bundled with esbuild; the webview with Vite;
@@ -156,14 +181,14 @@ the CDN font and falls back to a proportional glyph. Braille is exactly one cell
 The TUI path is independent of VS Code:
 
 ```bash
-bun run tui/render.ts --graph tui/fixture-graph.json --out tui/frame.json
+bun run tui/render.ts --graph tui/fixture-graph.json --out out/tui/frame.json
 bash fresh-plugin/install.sh
 ```
 
 - `tui/frame.ts` builds the orchgraph frame.
 - `fresh-plugin/code-nav.ts` paints it and uses the same `ExtensionApi` Fresh
   host for `openLocation` / `setStatus`.
-- `fresh-plugin/dist/code-nav.js` is the single-file QuickJS bundle.
+- `out/fresh-plugin/code-nav.js` is the single-file QuickJS bundle.
 
 ## Checks
 

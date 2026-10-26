@@ -91,7 +91,7 @@ function parseArgs(argv: string[]): CliArgs | null {
     depth: 2,
     direction: "both",
     maxNodes: 60,
-    out: resolve(import.meta.dir, "frame.json"),
+    out: resolve(import.meta.dir, "../out/tui/frame.json"),
   };
 
   for (let i = 0; i < argv.length; i++) {
