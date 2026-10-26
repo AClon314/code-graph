@@ -95,10 +95,15 @@ error if not), installs this extension into an isolated profile under
 `.code-server/`, and starts code-server on the fixture workspace. Open the URL
 printed by code-server (usually `https://127.0.0.1:8080`).
 
-Defaults: `HOST=127.0.0.1 PORT=8080 AUTH=none`. For remote access:
+`bun run gui` is an alias for `bun run gui:private`:
+`HOST=127.0.0.1 PORT=8080 AUTH=none`.
+
+Public/LAN mode:
 
 ```bash
-HOST=0.0.0.0 AUTH=password PASSWORD=... bun run gui
+bun run gui:public
+# HOST=0.0.0.0 PORT=8080 AUTH=password PASSWORD=cbm
+PASSWORD=... bun run gui:public   # override the default password
 ```
 
 The harness does not fall back to `@vscode/test-web`. See

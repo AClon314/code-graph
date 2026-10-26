@@ -25,14 +25,22 @@ The script:
 4. starts code-server with an isolated `.code-server/data` profile and opens
    `fixtures/workspace`.
 
-Defaults are `HOST=127.0.0.1 PORT=8080 AUTH=none`. Open the URL printed by
-code-server (usually `https://127.0.0.1:8080`).
+`bun run gui` is an alias for `bun run gui:private`: `HOST=127.0.0.1`,
+`PORT=8080`, `AUTH=none`. Open the URL printed by code-server (usually
+`https://127.0.0.1:8080`).
 
-Remote access:
+For LAN/public access:
 
 ```bash
-HOST=0.0.0.0 AUTH=password PASSWORD=... bun run gui
+bun run gui:public
+# equivalent to:
+HOST=0.0.0.0 AUTH=password PASSWORD=cbm bash scripts/gui.sh
+
+PASSWORD=... bun run gui:public   # override the default password
 ```
+
+The default password `cbm` is a convenience, not a secret. Change it before
+exposing the server beyond a trusted network.
 
 `AUTH=none` on a non-loopback host prints a warning. code-server uses its own
 config for TLS; a self-signed certificate is generated if none is configured.

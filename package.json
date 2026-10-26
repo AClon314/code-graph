@@ -14,7 +14,9 @@
     "build:webview": "vite build",
     "build:extension": "esbuild src/extension/vscode.ts --bundle --format=cjs --platform=browser --external:vscode --outfile=dist/extension.cjs --sourcemap",
     "build:fresh": "esbuild fresh-plugin/code-nav.ts --bundle --format=iife --platform=browser --alias:#host=./src/extension/hosts/fresh.ts --outfile=fresh-plugin/dist/code-nav.js --sourcemap",
-    "gui": "bash scripts/gui.sh",
+    "gui": "bun run gui:private",
+    "gui:private": "bash scripts/gui.sh",
+    "gui:public": "HOST=0.0.0.0 AUTH=password PASSWORD=${PASSWORD:-cbm} bash scripts/gui.sh",
     "vscode:prepublish": "bun run build",
     "verify:runtime": "bash scripts/verify-runtime.sh"
   },
