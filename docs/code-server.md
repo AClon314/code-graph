@@ -51,6 +51,10 @@ the same browser-trusted CA. Existing files are reused; `bun run lazy_mkcert
 --force` regenerates them. If generation fails and both PEM files are missing,
 the harness warns and lets code-server use its own TLS settings.
 
+Remote clients can optionally install the server's mkcert `rootCA.pem` to
+silence the warning. It is not required: current browsers still offer a
+"proceed anyway" path for an untrusted certificate.
+
 After changing `out/dist/extension.cjs` or `out/dist/webview/**`, run
 **Developer: Reload Window**. There is no hot reload of the extension bundle.
 

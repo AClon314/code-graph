@@ -106,6 +106,10 @@ to regenerate after changing networks. If generation fails but both PEM files
 exist, the harness warns and continues with them; if they are missing it warns
 and lets code-server use its own TLS settings.
 
+Clients on another machine may optionally install the server's mkcert
+`rootCA.pem` to remove the certificate warning. Browsers still allow visiting a
+site with an untrusted certificate after the interstitial, so this is optional.
+
 Extra names can be supplied for hosts that are not local interfaces:
 
 ```bash
