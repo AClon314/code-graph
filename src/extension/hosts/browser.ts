@@ -18,6 +18,7 @@ export function createExtensionApi(): ExtensionApi {
       const env = import.meta.env;
       const source = env.VITE_SOURCE === "cbm" ? "cbm" : DEFAULT_CONFIG.source;
       return {
+        backend: env.VITE_BACKEND === "scip" ? "scip" : DEFAULT_CONFIG.backend,
         source,
         cbmBaseUrl: env.VITE_CBM_BASE ?? DEFAULT_CONFIG.cbmBaseUrl,
         project: env.VITE_PROJECT ?? DEFAULT_CONFIG.project,

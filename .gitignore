@@ -10,3 +10,6 @@ coverage/
 .vscode-test-web/
 tui/frame.json
 .code-server/
+
+# Code Graph per-workspace frame cache (also cbm output dir)
+.codebase-memory/

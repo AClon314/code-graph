@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 
-import type { ExtensionApi } from "./api";
+import type { ExtensionApi, GraphBackend } from "./api";
 import type { HostRequest, HostResponse } from "./protocol";
 
 const FONT_CDN = "https://fontsapi.zeoseven.com";
@@ -9,10 +9,12 @@ const FONT_CDN = "https://fontsapi.zeoseven.com";
 export function createGraphPanel(
   context: vscode.ExtensionContext,
   api: ExtensionApi,
+  backend: GraphBackend = "cbm",
 ): vscode.WebviewPanel {
+  const title = backend === "scip" ? "Code Graph (SCIP)" : "Code Graph (cbm)";
   const panel = vscode.window.createWebviewPanel(
     "codeGraph.graph",
-    "Code Graph",
+    title,
     vscode.ViewColumn.Active,
     {
       enableScripts: true,
@@ -49,7 +51,7 @@ export function createGraphPanel(
     <meta http-equiv="Content-Security-Policy" content="${csp}" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="${styleUri}" />
-    <title>Code Graph</title>
+    <title>${title}</title>
   </head>
   <body>
     <div id="app"></div>

@@ -20,8 +20,8 @@ current implementation.
 
 ## Implemented on this branch
 
-- `codeGraph.open` command opens a VS Code editor tab (`WebviewPanel`) with the
-  migrated Svelte GUI. The custom file tree is gone; VS Code's Explorer is the
+- `codeGraph.openCbm` / `codeGraph.openScip` commands open separate VS Code
+  editor tabs (`WebviewPanel`) with the migrated Svelte GUI. The custom file tree is gone; VS Code's Explorer is the
   file tree.
 - `src/extension/api.ts` defines the shared `ExtensionApi`
   (`getConfig`, `openLocation`, `setStatus`). Implementations live in

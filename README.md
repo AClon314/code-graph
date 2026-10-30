@@ -2,8 +2,9 @@
 
 Call-graph UI for codebase-memory-mcp, delivered two ways from one graph core:
 
-- **GUI (HTML)**: a VS Code web extension. `Code Graph: Open` creates a new
-  editor tab and mounts the Svelte GUI in a webview.
+- **GUI (HTML)**: a VS Code web extension. `Code Graph: Open (cbm)` and
+  `Code Graph: Open (SCIP)` create separate editor tabs and mount the Svelte
+  GUI in a webview.
 - **TUI**: unchanged. Fresh consumes a precomputed orchgraph frame through the
   Fresh API.
 
@@ -56,8 +57,10 @@ directly. Build output contains only the selected runtime:
 
 ## GUI
 
-- Command: **Code Graph: Open** (`codeGraph.open`).
-- Opens one editor tab; invoking again reveals the existing tab.
+- Commands: **Code Graph: Open (cbm)** (`codeGraph.openCbm`) and
+  **Code Graph: Open (SCIP)** (`codeGraph.openScip`).
+- Each backend opens its own editor tab; invoking the same command again
+  reveals that tab. The two tabs can be compared side by side.
 - File tree: **VS Code Explorer**, not a webview. The old tree panel is removed.
 - Graph: D3/SVG or the orchgraph character canvas, with search, depth,
   direction, fit, SVG export / copy.
@@ -75,9 +78,11 @@ directly. Build output contains only the selected runtime:
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `codeGraph.source` | `mock` | `mock` or `cbm` |
+| `codeGraph.source` | `cbm` | `mock` or `cbm` |
 | `codeGraph.cbmBaseUrl` | `http://127.0.0.1:9749` | cbm HTTP base |
-| `codeGraph.project` | `demo` | initial project |
+| `codeGraph.project` | `demo` | fallback project for both backends |
+| `codeGraph.cbmProject` | `codeGraph.project` | cbm-native project for `(cbm)` |
+| `codeGraph.scipProject` | `codeGraph.project` | scip-cbm-writer project for `(SCIP)` |
 | `codeGraph.symbol` | `demo.src.features.useAlias` | initial root symbol |
 
 Mock works without a daemon. For `cbm`, the webview fetches `cbmBaseUrl`
@@ -185,9 +190,36 @@ the CDN font and falls back to a proportional glyph. Braille is exactly one cell
 The TUI path is independent of VS Code:
 
 ```bash
-bun run tui/render.ts --graph tui/fixture-graph.json --out out/tui/frame.json
 bash fresh-plugin/install.sh
 ```
+
+Fresh commands:
+
+- **Code Nav: Open Graph (cbm)**
+- **Code Nav: Open Graph (SCIP)**
+- **Code Nav: Toggle Sync On Workspace Change** (default OFF)
+
+Each window keeps one panel per backend. The frame cache lives in the active
+workspace:
+
+```text
+<workspace>/.codebase-memory/code-graph/cbm/frame.json
+<workspace>/.codebase-memory/code-graph/scip/frame.json
+```
+
+A convenience link is written to the user cache after a successful render:
+
+```text
+~/.cache/code-graph/frames/<root+backend hash>.json
+  -> <workspace>/.codebase-memory/code-graph/<backend>/frame.json
+```
+
+`CODE_NAV_FRAME_MODE=static` forces reading that cache and never renders;
+otherwise a missing cache is rendered once with `tui/render.ts --cbm`. The root
+entry must be explicit (`CODE_NAV_ENTRY` or `CODE_NAV_SYMBOL`); if absent the
+plugin lists cbm entry candidates in a prompt and uses the selection for the
+session. Module/folder views
+are not implemented yet; the default funcs view has no folder root.
 
 - `tui/frame.ts` builds the orchgraph frame.
 - `fresh-plugin/code-nav.ts` paints it and uses the same `ExtensionApi` Fresh

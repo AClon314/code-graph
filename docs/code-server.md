@@ -1,7 +1,7 @@
 # code-server as the GUI harness
 
 > Verified with code-server **4.141.0** (VS Code 1.141.0) and this extension's
-> current `browser`-only manifest: the extension loads, `Code Graph: Open`
+> current `browser`-only manifest: the extension loads, `Code Graph: Open (cbm)`
 > creates the webview tab, and switching Renderer from `D3` to `orchgraph`
 > replaces the SVG with the terminal-art canvas. No `main` entry is needed.
 

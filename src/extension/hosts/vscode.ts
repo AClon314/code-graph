@@ -4,6 +4,7 @@ import {
   DEFAULT_CONFIG,
   type ExtensionApi,
   type ExtensionConfig,
+  type GraphBackend,
   type SourceLocation,
 } from "../api";
 
@@ -11,21 +12,29 @@ import {
  * VS Code extension-host implementation. This module may import `vscode`; the
  * webview and Fresh bundles never include it.
  */
-export function createExtensionApi(): ExtensionApi {
+export function createExtensionApi(backend: GraphBackend = "cbm"): ExtensionApi {
   return {
     runtime: "vscode",
     async getConfig() {
       const configuration = vscode.workspace.getConfiguration("codeGraph");
+      const fallbackProject = configuration.get<string>(
+        "project",
+        DEFAULT_CONFIG.project,
+      );
       return {
+        backend,
         source: configuration.get<ExtensionConfig["source"]>(
           "source",
-          DEFAULT_CONFIG.source,
+          "cbm",
         ),
         cbmBaseUrl: configuration.get<string>(
           "cbmBaseUrl",
           DEFAULT_CONFIG.cbmBaseUrl,
         ),
-        project: configuration.get<string>("project", DEFAULT_CONFIG.project),
+        project: configuration.get<string>(
+          `${backend}Project`,
+          fallbackProject,
+        ),
         symbol: configuration.get<string>("symbol", DEFAULT_CONFIG.symbol),
       };
     },

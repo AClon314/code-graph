@@ -9,6 +9,7 @@
 export type Runtime = "vscode" | "fresh" | "webview" | "browser";
 
 export type GraphSourceKind = "mock" | "cbm";
+export type GraphBackend = "cbm" | "scip";
 
 /** A 1-based source location. Paths are workspace-relative when possible. */
 export interface SourceLocation {
@@ -20,6 +21,7 @@ export interface SourceLocation {
 }
 
 export interface ExtensionConfig {
+  backend: GraphBackend;
   source: GraphSourceKind;
   cbmBaseUrl: string;
   project: string;
@@ -34,6 +36,7 @@ export interface ExtensionApi {
 }
 
 export const DEFAULT_CONFIG: ExtensionConfig = {
+  backend: "cbm",
   source: "mock",
   cbmBaseUrl: "http://127.0.0.1:9749",
   project: "demo",

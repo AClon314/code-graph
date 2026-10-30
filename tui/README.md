@@ -22,6 +22,8 @@ static at paint time.
 | --- | --- |
 | `frame.ts` | GraphViewData → orchgraph `GraphDocument` → layout/render → `Frame` |
 | `render.ts` | CLI for fixture files and live cbm data |
+| `entries.ts` | List explicit entry-point candidates from a cbm project |
+| `cache-link.ts` | Link a workspace frame into `~/.cache/code-graph/frames/` |
 | `fixture-graph.json` | Deterministic 6-node fixture used by tests/install |
 | `../fresh-plugin/code-nav.ts` | QuickJS consumer of the frame |
 

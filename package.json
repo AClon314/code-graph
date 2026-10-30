@@ -50,14 +50,20 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:codeGraph.open"
+    "onCommand:codeGraph.openCbm",
+    "onCommand:codeGraph.openScip"
   ],
   "browser": "./out/dist/extension.cjs",
   "contributes": {
     "commands": [
       {
-        "command": "codeGraph.open",
-        "title": "Open",
+        "command": "codeGraph.openCbm",
+        "title": "Open (cbm)",
+        "category": "Code Graph"
+      },
+      {
+        "command": "codeGraph.openScip",
+        "title": "Open (SCIP)",
         "category": "Code Graph"
       }
     ],
@@ -70,7 +76,7 @@
             "mock",
             "cbm"
           ],
-          "default": "mock",
+          "default": "cbm",
           "description": "Graph source. Mock works without a running cbm server."
         },
         "codeGraph.cbmBaseUrl": {
@@ -87,6 +93,14 @@
           "type": "string",
           "default": "demo.src.features.useAlias",
           "description": "Initial root symbol (qualified name or #id)."
+        },
+        "codeGraph.cbmProject": {
+          "type": "string",
+          "description": "cbm-native project name for Code Graph (cbm). Falls back to codeGraph.project when omitted."
+        },
+        "codeGraph.scipProject": {
+          "type": "string",
+          "description": "scip-cbm-writer project name for Code Graph (SCIP). Falls back to codeGraph.project when omitted."
         }
       }
     }

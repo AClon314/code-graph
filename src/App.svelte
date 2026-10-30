@@ -16,6 +16,7 @@
     SymbolBundle,
   } from "./lib/graph/types";
   import { extensionApi } from "./extension/host";
+  import type { GraphBackend } from "./extension/api";
 
   type SourceKind = "mock" | "cbm";
   type GraphRenderer = "d3" | "orchgraph";
@@ -39,6 +40,7 @@
   let ref = $state("demo.src.features.useAlias");
   let cbmBaseUrl = $state("http://127.0.0.1:9749");
   let runtime = $state(extensionApi.runtime);
+  let backend = $state<GraphBackend>("cbm");
   let symbol = $state<SymbolBundle | null>(null);
   let error = $state("");
   let loading = $state(false);
@@ -183,6 +185,7 @@
         const config = await extensionApi.getConfig();
         if (disposed) return;
         runtime = extensionApi.runtime;
+        backend = config.backend;
         if (config.source === "mock" || config.source === "cbm") kind = config.source;
         cbmBaseUrl = config.cbmBaseUrl;
         if (config.project) project = config.project;
@@ -492,7 +495,7 @@
           onclick={() => setKind("cbm")}
         >cbm HTTP</button>
       </div>
-      <span class="runtime">{runtime}</span>
+      <span class="runtime">{runtime} · {backend}</span>
     </div>
   </header>
 

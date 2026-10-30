@@ -14,6 +14,7 @@ declare function getEditor(): FreshEditor;
 
 type FreshGlobals = {
   CODE_NAV_ROOT?: string;
+  CODE_NAV_BACKEND?: "cbm" | "scip";
   CODE_NAV_PROJECT?: string;
   CODE_NAV_SYMBOL?: string;
   CODE_NAV_CBM?: string;
@@ -30,6 +31,7 @@ export function createExtensionApi(): ExtensionApi {
     async getConfig() {
       const globals = globalThis as unknown as FreshGlobals;
       return {
+        backend: globals.CODE_NAV_BACKEND ?? DEFAULT_CONFIG.backend,
         source: globals.CODE_NAV_SOURCE ?? DEFAULT_CONFIG.source,
         cbmBaseUrl: globals.CODE_NAV_CBM ?? DEFAULT_CONFIG.cbmBaseUrl,
         project: globals.CODE_NAV_PROJECT ?? DEFAULT_CONFIG.project,

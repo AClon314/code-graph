@@ -7,14 +7,21 @@ adapter is bundled in; all graph layout and ANSI parsing happens outside, in
 
 ## What it does
 
-- Registers mode `code-nav` and command **Code Nav: Open Graph**.
-- Opens/creates a read-only virtual buffer named ` *Code Graph* ` as a new
-  tab in the current split (no split pane).
-- Reads the precomputed frame JSON and paints its styled runs as spans.
+- Registers mode `code-nav` and two commands:
+  **Code Nav: Open Graph (cbm)** and **Code Nav: Open Graph (SCIP)**.
+- Opens/creates a read-only virtual buffer per backend and per window
+  (` *Code Graph (cbm)* ` / ` *Code Graph (SCIP)* `) as a new tab in the
+  current split (no split pane).
+- Reads the precomputed frame JSON from the active workspace cache and paints
+  its styled runs as spans.
 - Mouse click on a node box selects it (overlay + status `file:line`).
 - `o` or `Enter` opens the selected node through the shared `ExtensionApi`.
-- `r` runs the Bun renderer again, then re-reads the frame.
+- `r` runs the Bun renderer again, then re-reads the frame (unless
+  `CODE_NAV_FRAME_MODE=static`).
 - `q` closes the panel (`close_buffer` binding).
+- **Code Nav: Toggle Sync On Workspace Change** is OFF by default. When ON,
+  switching Fresh windows opens the last-used backend panel in the new window
+  in the background (no focus steal).
 - Polls the jump bridge through `tools/jump-client.ts` and opens incoming
   `JumpTarget`s.
 
@@ -30,21 +37,16 @@ The script:
 
 1. builds `out/fresh-plugin/code-nav.js` if missing;
 2. `mkdir -p "$HOME/.config/fresh/plugins"` (or `$FRESH_CONFIG/plugins`);
-3. symlinks the bundle there as `code-nav.ts` (plain JS, valid TS);
-4. renders a frame to `out/tui/frame.json` if it does not exist yet.
+3. symlinks the bundle there as `code-nav.ts` (plain JS, valid TS).
 
-It does not delete anything. Override paths with environment variables:
+It does not delete anything and does not install a demo frame. To render the
+fixture explicitly:
 
 ```bash
-FRESH_CONFIG=/path/to/fresh-config \
-BUN="$HOME/.bun/bin/bun" \
-FRAME=/path/to/frame.json \
-FORCE=1 \
-bash fresh-plugin/install.sh
+FRAME=/tmp/frame.json bash fresh-plugin/install.sh
 ```
 
-`FORCE=1` re-renders the fixture frame even if one already exists. A real cbm
-frame should be generated with the commands in `../tui/README.md`.
+The plugin normally creates per-workspace frames itself in cbm mode.
 
 ## Configure paths
 
@@ -55,29 +57,42 @@ Edit the constants at the top of `code-nav.ts`, or provide overrides on
 | --- | --- | --- |
 | `REPO` | `CODE_NAV_REPO` | this repository |
 | `BUN` | `CODE_NAV_BUN` | `~/.bun/bin/bun` |
-| `FRAME_PATH` | `CODE_NAV_FRAME` | `<REPO>/out/tui/frame.json` |
+| `CBM_URL` | `CODE_NAV_CBM` | `http://127.0.0.1:9749` |
+| `CBM_PROJECT` | `CODE_NAV_CBM_PROJECT` / `CODE_NAV_PROJECT` | `demo` |
+| `SCIP_PROJECT` | `CODE_NAV_SCIP_PROJECT` | `<CBM_PROJECT>-scip` |
+| `ENTRY` | `CODE_NAV_ENTRY` / `CODE_NAV_SYMBOL` | empty (must be set) |
+| `FRAME_MODE` | `CODE_NAV_FRAME_MODE` | `cbm`; set `static` to force cache read |
+| `DEPTH` | `CODE_NAV_DEPTH` | `2` |
+| `DIRECTION` | `CODE_NAV_DIRECTION` | `both` |
+| `MAX_NODES` | `CODE_NAV_MAX_NODES` | `60` |
 | `BRIDGE_URL` | `CODE_NAV_BRIDGE` | `http://127.0.0.1:9752` |
-| `PROJECT_ROOT` | `CODE_NAV_ROOT` | empty |
+| `PROJECT_ROOT` | `CODE_NAV_ROOT` | active Fresh window root |
 | `JUMP_TMP` | `CODE_NAV_JUMP_TMP` | `/tmp/code-nav-jump.json` |
-| `RENDER_ARGS` | `CODE_NAV_RENDER_ARGS` | fixture graph → `FRAME_PATH` |
 
-`RENDER_ARGS` is what `r` executes. To use live cbm data, replace the fixture
-arguments with, for example:
+The frame cache is per workspace and backend:
 
-```ts
-const DEFAULT_RENDER_ARGS = [
-  RENDER_SCRIPT,
-  "--cbm", "http://127.0.0.1:9749",
-  "--project", "my-project",
-  "--symbol", "pkg.mod.fn",
-  "--depth", "2",
-  "--direction", "both",
-  "--out", FRAME_PATH,
-];
+```text
+<workspace>/.codebase-memory/code-graph/cbm/frame.json
+<workspace>/.codebase-memory/code-graph/scip/frame.json
 ```
 
+After a successful render the plugin also creates a user-cache link:
+
+```text
+~/.cache/code-graph/frames/<root+backend hash>.json
+  -> <workspace>/.codebase-memory/code-graph/<backend>/frame.json
+```
+
+`CODE_NAV_ENTRY` is intentionally explicit. cbm's `is_entry_point` is
+heuristic (`main`, exported JS/TS functions, Make targets), not a language-aware
+entry resolver. If it is missing, the plugin runs `tui/entries.ts`, lists the
+candidates in a prompt, and uses the selected qualified name for this session.
+You can also set `CODE_NAV_ENTRY` to skip the prompt. Do not assume a repository
+has a single unique entry: C/C++, Go and Rust can have multiple binaries; Java
+and Python commonly have multiple entry points.
+
 `PROJECT_ROOT` prefixes repository-relative jump paths when set. If Fresh is
-already running in the target repository root, leaving it empty is fine.
+already running in the target repository root, the active window root is used.
 
 ## Jump bridge
 
@@ -115,7 +130,10 @@ until a successful poll.
 ## Limitations
 
 - **No layout in the plugin.** QuickJS cannot import orchgraph/ELK; a frame must
-  be rendered by Bun first. Missing frame → status prompt, press `r`.
+  be rendered by Bun first. In `cbm` mode a missing frame is rendered once;
+  in `static` mode it is an error with the cache path.
+- **Module/folder view is not implemented.** The current view is funcs-only;
+  folder roots, containment edges and expand/collapse are future work.
 - **No embedded code editor.** Navigation is only `editor.openFile`; the GUI's
   jump protocol is the only coupling, by design.
 - Overlay math assumes one cell per Unicode scalar; wide CJK labels can shift
