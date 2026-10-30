@@ -10,6 +10,12 @@ Fresh plugins run in a QuickJS sandbox with **no npm imports**, so layout and
 ANSI parsing happen here under Bun. `fresh-plugin/code-nav.ts` only reads the
 frame and paints styled spans.
 
+A **frame** is a static snapshot: layout, styled runs, click boxes and metadata
+are already computed, so painting does not need cbm or ELK. `fixture-graph.json`
+is only a hand-written sample input used for deterministic tests and the
+installer; a frame generated from a real workspace with `--cbm` is just as
+static at paint time.
+
 ## Files
 
 | File | Purpose |

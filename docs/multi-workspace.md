@@ -20,11 +20,56 @@ but they are not identical:
 | List | `vscode.workspace.workspaceFolders` | `editor.listWindows()` / orchestrator `listWorkspaces()` |
 | Active | no per-folder "active" flag; the editor has one active file | `editor.activeWindow()`; `active_window_changed` event |
 | Switch focus | no API to "focus a folder"; reveal/open a file | `editor.setActiveWindow(id)`; orchestrator `focusWorkspace(id)` |
-| Relative paths | resolve against the workspace folder chosen by the caller | resolve against the window root; `editor.getCwd()` is the active root |
+| Relative paths | resolve against the workspace folder chosen by the caller | resolve against `WindowInfo.root`; `editor.getCwd()` is the editor/process cwd, not necessarily the active window |
 | Dormant workspaces | not represented | `discovered` / `pending` rows can have no window yet |
 
 So a shared API should talk about **workspace references**, not "windows" or
 "folders".
+
+## Orchestrator is not an analysis scope
+
+The Orchestrator is a **session switcher**, not a project selector. Its
+`listWorkspaces()` includes every workspace the user has opened before
+(`live`, `discovered`, `pending`), which is useful as a candidate list but is
+the wrong default for cross-workspace analysis: "all workspaces I have ever
+opened" is almost never the set the user wants to analyze together.
+
+VS Code is a little closer because its workspace folders are explicit, but a
+multi-root workspace is still an editing container, not a cbm project mapping.
+Neither runtime should be used directly as the analysis set.
+
+Keep the two concepts separate:
+
+```ts
+interface WorkspaceRef {          // an editor/session location
+  id: string;
+  name: string;
+  root: string;
+  active: boolean;
+}
+
+interface AnalysisScope {         // an explicit, persisted selection
+  id: string;
+  label: string;
+  roots: string[];                // workspace roots in this analysis
+  projects: string[];             // cbm project names for those roots
+}
+```
+
+`WorkspaceRef` answers "where can I open a file?"; `AnalysisScope` answers
+"which projects should the graph query?". The Orchestrator/VS Code APIs supply
+candidates for the former; the user (or a config file) chooses the latter.
+
+A minimal UI is a multi-select over workspace/project candidates plus "analyze
+selected". Persist the selection outside any one editor window (user config,
+workspace settings, or `.code-graph.json`) so switching workspaces does not
+silently change the analysis set. Default to the current workspace only when no
+scope has been chosen.
+
+For cross-repository relationships, prefer cbm's existing multi-project /
+cross-repo data (including `CROSS_*` edges) over a GUI-side BFS that merges
+independent indexes. The GUI should select cbm projects, not re-implement
+cross-repo linking.
 
 ## Fresh API that matters
 
