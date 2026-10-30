@@ -195,9 +195,9 @@ bash fresh-plugin/install.sh
 
 Fresh commands:
 
-- **Code Nav: Open Graph (cbm)**
-- **Code Nav: Open Graph (SCIP)**
-- **Code Nav: Toggle Sync On Workspace Change** (default OFF)
+- **Code Graph: Open (cbm)**
+- **Code Graph: Open (SCIP)**
+- **Code Graph: Toggle Sync On Workspace Change** (default OFF)
 
 Each window keeps one panel per backend. The frame cache lives in the active
 workspace:

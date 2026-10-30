@@ -7,8 +7,8 @@ adapter is bundled in; all graph layout and ANSI parsing happens outside, in
 
 ## What it does
 
-- Registers mode `code-nav` and two commands:
-  **Code Nav: Open Graph (cbm)** and **Code Nav: Open Graph (SCIP)**.
+- Registers mode `code-graph` and two commands:
+  **Code Graph: Open (cbm)** and **Code Graph: Open (SCIP)**.
 - Opens/creates a read-only virtual buffer per backend and per window
   (` *Code Graph (cbm)* ` / ` *Code Graph (SCIP)* `) as a new tab in the
   current split (no split pane).
@@ -19,7 +19,7 @@ adapter is bundled in; all graph layout and ANSI parsing happens outside, in
 - `r` runs the Bun renderer again, then re-reads the frame (unless
   `CODE_NAV_FRAME_MODE=static`).
 - `q` closes the panel (`close_buffer` binding).
-- **Code Nav: Toggle Sync On Workspace Change** is OFF by default. When ON,
+- **Code Graph: Toggle Sync On Workspace Change** is OFF by default. When ON,
   switching Fresh windows opens the last-used backend panel in the new window
   in the background (no focus steal).
 - Polls the jump bridge through `tools/jump-client.ts` and opens incoming
