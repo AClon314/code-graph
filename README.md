@@ -2,8 +2,8 @@
 
 Call-graph UI for codebase-memory-mcp, delivered two ways from one graph core:
 
-- **GUI (HTML)**: a VS Code web extension. `Code Graph: Open (cbm)` and
-  `Code Graph: Open (SCIP)` create separate editor tabs and mount the Svelte
+- **GUI (HTML)**: a VS Code web extension. `code-graph: Open (cbm)` and
+  `code-graph: Open (SCIP)` create separate editor tabs and mount the Svelte
   GUI in a webview.
 - **TUI**: unchanged. Fresh consumes a precomputed orchgraph frame through the
   Fresh API.
@@ -57,8 +57,8 @@ directly. Build output contains only the selected runtime:
 
 ## GUI
 
-- Commands: **Code Graph: Open (cbm)** (`codeGraph.openCbm`) and
-  **Code Graph: Open (SCIP)** (`codeGraph.openScip`).
+- Commands: **code-graph: Open (cbm)** (`codeGraph.openCbm`) and
+  **code-graph: Open (SCIP)** (`codeGraph.openScip`).
 - Each backend opens its own editor tab; invoking the same command again
   reveals that tab. The two tabs can be compared side by side.
 - File tree: **VS Code Explorer**, not a webview. The old tree panel is removed.
@@ -195,9 +195,9 @@ bash fresh-plugin/install.sh
 
 Fresh commands:
 
-- **Code Graph: Open (cbm)**
-- **Code Graph: Open (SCIP)**
-- **Code Graph: Toggle Sync On Workspace Change** (default OFF)
+- **code-graph: Open (cbm)**
+- **code-graph: Open (SCIP)**
+- **code-graph: Toggle Sync On Workspace Change** (default OFF)
 
 Each window keeps one panel per backend. The frame cache lives in the active
 workspace:

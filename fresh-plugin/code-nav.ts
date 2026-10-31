@@ -9,8 +9,8 @@
 // registerHandler-style helpers that Fresh exposes are available.
 //
 // Two backends are intentionally separate commands:
-//   Code Graph: Open (cbm)   → cbm-native project
-//   Code Graph: Open (SCIP)  → scip-cbm-writer project
+//   code-graph: Open (cbm)   → cbm-native project
+//   code-graph: Open (SCIP)  → scip-cbm-writer project
 // Each window owns one panel per backend, with its own cache file.
 
 import { extensionApi } from "../src/extension/host.ts";
@@ -318,7 +318,7 @@ function selectNode(panel: PanelState, id: string): void {
   if (meta && meta.file) {
     const line = meta.line > 0 ? meta.line : 1;
     extensionApi.setStatus(
-      "Code Graph (" +
+      "code-graph (" +
         panel.backend +
         "): " +
         meta.label +
@@ -332,7 +332,7 @@ function selectNode(panel: PanelState, id: string): void {
     );
   } else {
     extensionApi.setStatus(
-      "Code Graph (" +
+      "code-graph (" +
         panel.backend +
         "): " +
         (meta ? meta.label : id) +
@@ -348,7 +348,7 @@ function renderFrame(panel: PanelState): void {
   try {
     value = readFrame(panel.framePath);
   } catch (error) {
-    extensionApi.setStatus("Code Graph: cannot read frame — " + String(error));
+    extensionApi.setStatus("code-graph: cannot read frame — " + String(error));
     return;
   }
   if (!value) {
@@ -361,7 +361,7 @@ function renderFrame(panel: PanelState): void {
   editor.clearNamespace(panel.bufferId, SELECT_NS);
   editor.setVirtualBufferContent(panel.bufferId, frameToEntries(value));
   extensionApi.setStatus(
-    "Code Graph (" +
+    "code-graph (" +
       panel.backend +
       "): " +
       value.nodeCount +
@@ -376,13 +376,13 @@ function renderFrame(panel: PanelState): void {
 function missingFrameMessage(panel: PanelState): string {
   if (FRAME_MODE === "static") {
     return (
-      "Code Graph: no static frame at " +
+      "code-graph: no static frame at " +
       panel.framePath +
       " · generate it with tui/render.ts, or unset CODE_NAV_FRAME_MODE=static"
     );
   }
   return (
-    "Code Graph: no frame at " +
+    "code-graph: no frame at " +
     panel.framePath +
     " · press r to render (cbm mode)"
   );
@@ -416,7 +416,7 @@ async function ensureFrame(panel: PanelState): Promise<void> {
 async function openPanel(backend: Backend, focus: boolean): Promise<void> {
   const win = activeWindow();
   if (!win) {
-    extensionApi.setStatus("Code Graph: no active workspace window");
+    extensionApi.setStatus("code-graph: no active workspace window");
     return;
   }
   const panel = stateFor(win.id, backend, win.root);
@@ -452,7 +452,7 @@ async function openPanel(backend: Backend, focus: boolean): Promise<void> {
         : (result as any);
     panel.renderSeq++;
   } catch (error) {
-    extensionApi.setStatus("Code Graph: cannot open panel — " + String(error));
+    extensionApi.setStatus("code-graph: cannot open panel — " + String(error));
     return;
   } finally {
     panel.opening = false;
@@ -462,12 +462,12 @@ async function openPanel(backend: Backend, focus: boolean): Promise<void> {
 
 async function reloadFrame(panel: PanelState): Promise<void> {
   if (panel.bufferId === null) {
-    extensionApi.setStatus("Code Graph: open the graph panel first");
+    extensionApi.setStatus("code-graph: open the graph panel first");
     return;
   }
   if (FRAME_MODE === "static") {
     extensionApi.setStatus(
-      "Code Graph: static frame mode; regenerate " + panel.framePath + " externally",
+      "code-graph: static frame mode; regenerate " + panel.framePath + " externally",
     );
     return;
   }
@@ -477,7 +477,7 @@ async function reloadFrame(panel: PanelState): Promise<void> {
   }
 
   const mySeq = ++panel.renderSeq;
-  extensionApi.setStatus("Code Graph (" + panel.backend + "): rendering frame…");
+  extensionApi.setStatus("code-graph (" + panel.backend + "): rendering frame…");
 
   const args = [
     RENDER_SCRIPT,
@@ -504,13 +504,13 @@ async function reloadFrame(panel: PanelState): Promise<void> {
       stderr?: string;
     };
   } catch (error) {
-    extensionApi.setStatus("Code Graph: render process failed — " + String(error));
+    extensionApi.setStatus("code-graph: render process failed — " + String(error));
     return;
   }
 
   if (!result || result.exit_code !== 0) {
     const first = ((result && result.stderr) || "").split("\n")[0] || "unknown error";
-    extensionApi.setStatus("Code Graph: render failed — " + first);
+    extensionApi.setStatus("code-graph: render failed — " + first);
     return;
   }
   if (mySeq !== panel.renderSeq || panel.bufferId === null) return;
@@ -545,7 +545,7 @@ async function linkFrameCache(panel: PanelState): Promise<void> {
 
 async function reportEntryCandidates(panel: PanelState): Promise<void> {
   extensionApi.setStatus(
-    "Code Graph (" +
+    "code-graph (" +
       panel.backend +
       "): no entry configured; looking for candidates…",
   );
@@ -567,19 +567,19 @@ async function reportEntryCandidates(panel: PanelState): Promise<void> {
       stderr?: string;
     };
   } catch (error) {
-    extensionApi.setStatus("Code Graph: entry lookup failed — " + String(error));
+    extensionApi.setStatus("code-graph: entry lookup failed — " + String(error));
     return;
   }
   if (!result || result.exit_code !== 0) {
     const detail = ((result && result.stderr) || "").split("\n")[0] || "unknown error";
-    extensionApi.setStatus("Code Graph: entry lookup failed — " + detail);
+    extensionApi.setStatus("code-graph: entry lookup failed — " + detail);
     return;
   }
   let candidates: Array<{ qualifiedName?: string }> = [];
   try {
     candidates = JSON.parse(result.stdout || "[]") as Array<{ qualifiedName?: string }>;
   } catch {
-    extensionApi.setStatus("Code Graph: entry lookup returned invalid JSON");
+    extensionApi.setStatus("code-graph: entry lookup returned invalid JSON");
     return;
   }
   const names = candidates
@@ -587,22 +587,22 @@ async function reportEntryCandidates(panel: PanelState): Promise<void> {
     .filter((name): name is string => Boolean(name));
   if (names.length === 0) {
     extensionApi.setStatus(
-      "Code Graph: no entry candidates found; set CODE_NAV_ENTRY or CODE_NAV_SYMBOL manually",
+      "code-graph: no entry candidates found; set CODE_NAV_ENTRY or CODE_NAV_SYMBOL manually",
     );
     return;
   }
   const picked = await editor.prompt(
-    "Code Graph entry (qualified name)",
+    "code-graph entry (qualified name)",
     names[0] ?? "",
   );
   if (!picked || !picked.trim()) {
     extensionApi.setStatus(
-      "Code Graph: entry not selected · candidates: " + names.slice(0, 6).join(", "),
+      "code-graph: entry not selected · candidates: " + names.slice(0, 6).join(", "),
     );
     return;
   }
   entry = picked.trim();
-  extensionApi.setStatus("Code Graph: entry = " + entry);
+  extensionApi.setStatus("code-graph: entry = " + entry);
   await reloadFrame(panel);
 }
 
@@ -613,22 +613,22 @@ function activePanel(): PanelState | null {
 function openSelectedNode(): void {
   const panel = activePanel();
   if (!panel || !panel.frame || !panel.selectedNodeId) {
-    extensionApi.setStatus("Code Graph: click a node first");
+    extensionApi.setStatus("code-graph: click a node first");
     return;
   }
   const meta = panel.frame.meta ? panel.frame.meta[panel.selectedNodeId] : undefined;
   if (!meta || !meta.file) {
-    extensionApi.setStatus("Code Graph: that node has no file metadata");
+    extensionApi.setStatus("code-graph: that node has no file metadata");
     return;
   }
   (globalThis as any).CODE_NAV_ROOT = panel.root;
   (globalThis as any).CODE_NAV_BACKEND = panel.backend;
   const line = meta.line > 0 ? meta.line : 1;
   extensionApi.openLocation({ path: meta.file, line, column: 1 }).then(
-    () => extensionApi.setStatus("Code Graph: opened " + meta.file + ":" + line),
+    () => extensionApi.setStatus("code-graph: opened " + meta.file + ":" + line),
     (error) =>
       extensionApi.setStatus(
-        "Code Graph: could not open " + meta.file + " — " + String(error),
+        "code-graph: could not open " + meta.file + " — " + String(error),
       ),
   );
 }
@@ -669,7 +669,7 @@ function onClick(event: {
   }
   if (!hit) {
     clearSelection(panel);
-    extensionApi.setStatus("Code Graph: blank (row " + row + ", col " + column + ")");
+    extensionApi.setStatus("code-graph: blank (row " + row + ", col " + column + ")");
     return;
   }
   selectNode(panel, hit.id);
@@ -701,7 +701,7 @@ function bridgeError(result: { exit_code?: number; stderr?: string } | null): vo
   const detail = result
     ? "exit " + result.exit_code + (result.stderr ? " " + result.stderr.split("\n")[0] : "")
     : "transport error";
-  extensionApi.setStatus("Code Graph: jump bridge unavailable (" + detail + ")");
+  extensionApi.setStatus("code-graph: jump bridge unavailable (" + detail + ")");
 }
 
 async function pollBridge(): Promise<void> {
@@ -766,16 +766,16 @@ async function pollBridge(): Promise<void> {
         symbol: target.symbol,
       })
       .then(
-        () => extensionApi.setStatus("Code Graph: jumped to " + target.path + ":" + target.line),
+        () => extensionApi.setStatus("code-graph: jumped to " + target.path + ":" + target.line),
         (error) =>
           extensionApi.setStatus(
-            "Code Graph: could not open " + target.path + " — " + String(error),
+            "code-graph: could not open " + target.path + " — " + String(error),
           ),
       );
   } catch (error) {
     if (!bridgeErrorShown) {
       bridgeErrorShown = true;
-      extensionApi.setStatus("Code Graph: jump bridge error — " + String(error));
+      extensionApi.setStatus("code-graph: jump bridge error — " + String(error));
     }
   } finally {
     bridgeInFlight = false;
@@ -787,7 +787,7 @@ function toggleSync(): void {
   const next = !current;
   editor.setGlobalState(SYNC_KEY, next);
   extensionApi.setStatus(
-    "Code Graph: sync on workspace change " + (next ? "ON" : "OFF"),
+    "code-graph: sync on workspace change " + (next ? "ON" : "OFF"),
   );
 }
 
@@ -817,20 +817,20 @@ registerHandler("code_nav_poll", pollBridge);
 registerHandler("code_nav_toggle_sync", toggleSync);
 
 editor.registerCommand(
-  "Code Graph: Open (cbm)",
+  "code-graph: Open (cbm)",
   "Open the cbm-native call graph in a new tab",
   "code_nav_open_cbm",
   null,
 );
 editor.registerCommand(
-  "Code Graph: Open (SCIP)",
+  "code-graph: Open (SCIP)",
   "Open the scip-cbm-writer call graph in a new tab",
   "code_nav_open_scip",
   null,
 );
 editor.registerCommand(
-  "Code Graph: Toggle Sync On Workspace Change",
-  "Open the last Code Graph panel when the active workspace changes",
+  "code-graph: Toggle Sync On Workspace Change",
+  "Open the last code-graph panel when the active workspace changes",
   "code_nav_toggle_sync",
   null,
 );

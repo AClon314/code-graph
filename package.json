@@ -40,7 +40,7 @@
     "orchgraph": "^0.2.4",
     "string-width": "8.2.2"
   },
-  "displayName": "Code Graph",
+  "displayName": "code-graph",
   "description": "Call graph and code navigation inside VS Code, backed by codebase-memory-mcp.",
   "publisher": "code-graph",
   "engines": {
@@ -59,16 +59,16 @@
       {
         "command": "codeGraph.openCbm",
         "title": "Open (cbm)",
-        "category": "Code Graph"
+        "category": "code-graph"
       },
       {
         "command": "codeGraph.openScip",
         "title": "Open (SCIP)",
-        "category": "Code Graph"
+        "category": "code-graph"
       }
     ],
     "configuration": {
-      "title": "Code Graph",
+      "title": "code-graph",
       "properties": {
         "codeGraph.source": {
           "type": "string",
@@ -96,11 +96,11 @@
         },
         "codeGraph.cbmProject": {
           "type": "string",
-          "description": "cbm-native project name for Code Graph (cbm). Falls back to codeGraph.project when omitted."
+          "description": "cbm-native project name for code-graph (cbm). Falls back to codeGraph.project when omitted."
         },
         "codeGraph.scipProject": {
           "type": "string",
-          "description": "scip-cbm-writer project name for Code Graph (SCIP). Falls back to codeGraph.project when omitted."
+          "description": "scip-cbm-writer project name for code-graph (SCIP). Falls back to codeGraph.project when omitted."
         }
       }
     }

@@ -38,7 +38,7 @@ if [ -n "${FRAME:-}" ]; then
   echo "Frame:     $FRAME"
 fi
 
-echo "Installed. In Fresh: Ctrl+P -> 'Code Graph: Open (cbm|SCIP)'"
+echo "Installed. In Fresh: Ctrl+P -> 'code-graph: Open (cbm|SCIP)'"
 echo "Plugin:    $PLUGIN_DIR/code-nav.ts -> $BUNDLE"
 echo "Jump bridge (separate terminal): bun run jump:bridge"
 echo "Uninstall: remove $PLUGIN_DIR/code-nav.ts (no other files are touched)"

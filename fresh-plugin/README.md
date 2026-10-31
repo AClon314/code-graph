@@ -8,9 +8,9 @@ adapter is bundled in; all graph layout and ANSI parsing happens outside, in
 ## What it does
 
 - Registers mode `code-graph` and two commands:
-  **Code Graph: Open (cbm)** and **Code Graph: Open (SCIP)**.
+  **code-graph: Open (cbm)** and **code-graph: Open (SCIP)**.
 - Opens/creates a read-only virtual buffer per backend and per window
-  (` *Code Graph (cbm)* ` / ` *Code Graph (SCIP)* `) as a new tab in the
+  (` *code-graph (cbm)* ` / ` *code-graph (SCIP)* `) as a new tab in the
   current split (no split pane).
 - Reads the precomputed frame JSON from the active workspace cache and paints
   its styled runs as spans.
@@ -19,7 +19,7 @@ adapter is bundled in; all graph layout and ANSI parsing happens outside, in
 - `r` runs the Bun renderer again, then re-reads the frame (unless
   `CODE_NAV_FRAME_MODE=static`).
 - `q` closes the panel (`close_buffer` binding).
-- **Code Graph: Toggle Sync On Workspace Change** is OFF by default. When ON,
+- **code-graph: Toggle Sync On Workspace Change** is OFF by default. When ON,
   switching Fresh windows opens the last-used backend panel in the new window
   in the background (no focus steal).
 - Polls the jump bridge through `tools/jump-client.ts` and opens incoming
@@ -140,7 +140,7 @@ until a successful poll.
   the selection overlay horizontally.
 - The frame is painted in full (no paging/viewport), so keep `--max-nodes`
   modest for live cbm graphs.
-- Reload keeps an existing ` *Code Graph* ` virtual buffer when possible, but
+- Reload keeps an existing ` *code-graph* ` virtual buffer when possible, but
   content replacement invalidates old overlays; the plugin clears them.
 - The plugin is bundled by `bun run build:fresh`; the source imports the shared
   `#host` alias, which esbuild resolves to `src/extension/hosts/fresh.ts`.
