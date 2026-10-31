@@ -19,15 +19,21 @@ if [ ! -x "$BUN" ]; then
 fi
 
 echo "==> bundle and symlink plugin"
-BUNDLE="$REPO/out/fresh-plugin/code-nav.js"
+BUNDLE="$REPO/out/fresh-plugin/code-graph.js"
 if [ ! -f "$BUNDLE" ]; then
   (cd "$REPO" && "$BUN" run build:fresh)
 fi
 # Fresh loads .ts plugins; the bundle is plain JS, which is valid TS. Symlink it
 # as .ts so the loader discovers it without trying to resolve the source imports.
 mkdir -p "$PLUGIN_DIR"
-ln -sfn "$BUNDLE" "$PLUGIN_DIR/code-nav.ts"
-ls -l "$PLUGIN_DIR/code-nav.ts"
+# Migrate the old plugin filename so Fresh does not load both copies.
+LEGACY="$PLUGIN_DIR/code-nav.ts"
+if [ -L "$LEGACY" ] || [ -e "$LEGACY" ]; then
+  mv -f "$LEGACY" "$LEGACY.bak"
+  echo "moved legacy plugin to $LEGACY.bak (safe to delete)"
+fi
+ln -sfn "$BUNDLE" "$PLUGIN_DIR/code-graph.ts"
+ls -l "$PLUGIN_DIR/code-graph.ts"
 
 if [ -n "${FRAME:-}" ]; then
   echo "==> optional fixture frame"
@@ -38,7 +44,7 @@ if [ -n "${FRAME:-}" ]; then
   echo "Frame:     $FRAME"
 fi
 
-echo "Installed. In Fresh: Ctrl+P -> 'code-graph: Open (cbm|SCIP)'"
-echo "Plugin:    $PLUGIN_DIR/code-nav.ts -> $BUNDLE"
+echo "Installed. In Fresh: Ctrl+P -> 'Code Graph: Open (cbm|SCIP)'"
+echo "Plugin:    $PLUGIN_DIR/code-graph.ts -> $BUNDLE"
 echo "Jump bridge (separate terminal): bun run jump:bridge"
-echo "Uninstall: remove $PLUGIN_DIR/code-nav.ts (no other files are touched)"
+echo "Uninstall: remove $PLUGIN_DIR/code-graph.ts (no other files are touched)"

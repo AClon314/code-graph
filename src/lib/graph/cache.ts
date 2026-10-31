@@ -10,5 +10,5 @@ export function frameCachePath(root: string, backend: FrameBackend): string {
 }
 
 export function panelName(backend: FrameBackend): string {
-  return backend === "scip" ? " *code-graph (SCIP)* " : " *code-graph (cbm)* ";
+  return backend === "scip" ? " *Code Graph (SCIP)* " : " *Code Graph (cbm)* ";
 }

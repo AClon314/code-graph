@@ -1,6 +1,6 @@
 # fresh-plugin/ — QuickJS code navigator
 
-`code-nav.ts` is the Fresh-side source for the TUI path. It runs inside Fresh's
+`code-graph.ts` is the Fresh-side source for the TUI path. It runs inside Fresh's
 QuickJS sandbox: **no runtime imports, no Node APIs, no DOM**. The shared host
 adapter is bundled in; all graph layout and ANSI parsing happens outside, in
 `tui/render.ts`.
@@ -8,9 +8,9 @@ adapter is bundled in; all graph layout and ANSI parsing happens outside, in
 ## What it does
 
 - Registers mode `code-graph` and two commands:
-  **code-graph: Open (cbm)** and **code-graph: Open (SCIP)**.
+  **Code Graph: Open (cbm)** and **Code Graph: Open (SCIP)**.
 - Opens/creates a read-only virtual buffer per backend and per window
-  (` *code-graph (cbm)* ` / ` *code-graph (SCIP)* `) as a new tab in the
+  (` *Code Graph (cbm)* ` / ` *Code Graph (SCIP)* `) as a new tab in the
   current split (no split pane).
 - Reads the precomputed frame JSON from the active workspace cache and paints
   its styled runs as spans.
@@ -19,7 +19,7 @@ adapter is bundled in; all graph layout and ANSI parsing happens outside, in
 - `r` runs the Bun renderer again, then re-reads the frame (unless
   `CODE_NAV_FRAME_MODE=static`).
 - `q` closes the panel (`close_buffer` binding).
-- **code-graph: Toggle Sync On Workspace Change** is OFF by default. When ON,
+- **Code Graph: Toggle Sync On Workspace Change** is OFF by default. When ON,
   switching Fresh windows opens the last-used backend panel in the new window
   in the background (no focus steal).
 - Polls the jump bridge through `tools/jump-client.ts` and opens incoming
@@ -35,9 +35,9 @@ bash fresh-plugin/install.sh
 
 The script:
 
-1. builds `out/fresh-plugin/code-nav.js` if missing;
+1. builds `out/fresh-plugin/code-graph.js` if missing;
 2. `mkdir -p "$HOME/.config/fresh/plugins"` (or `$FRESH_CONFIG/plugins`);
-3. symlinks the bundle there as `code-nav.ts` (plain JS, valid TS).
+3. symlinks the bundle there as `code-graph.ts` (plain JS, valid TS).
 
 It does not delete anything and does not install a demo frame. To render the
 fixture explicitly:
@@ -50,7 +50,7 @@ The plugin normally creates per-workspace frames itself in cbm mode.
 
 ## Configure paths
 
-Edit the constants at the top of `code-nav.ts`, or provide overrides on
+Edit the constants at the top of `code-graph.ts`, or provide overrides on
 `globalThis` from your plugin loader:
 
 | Constant | `globalThis` override | Default |
@@ -140,7 +140,7 @@ until a successful poll.
   the selection overlay horizontally.
 - The frame is painted in full (no paging/viewport), so keep `--max-nodes`
   modest for live cbm graphs.
-- Reload keeps an existing ` *code-graph* ` virtual buffer when possible, but
+- Reload keeps an existing ` *Code Graph* ` virtual buffer when possible, but
   content replacement invalidates old overlays; the plugin clears them.
 - The plugin is bundled by `bun run build:fresh`; the source imports the shared
   `#host` alias, which esbuild resolves to `src/extension/hosts/fresh.ts`.

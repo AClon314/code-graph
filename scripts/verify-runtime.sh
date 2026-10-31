@@ -4,7 +4,7 @@ set -euo pipefail
 
 WEBVIEW="out/dist/webview/assets/webview.js"
 EXTENSION="out/dist/extension.cjs"
-FRESH="out/fresh-plugin/code-nav.js"
+FRESH="out/fresh-plugin/code-graph.js"
 
 for file in "$WEBVIEW" "$EXTENSION" "$FRESH"; do
   [ -f "$file" ] || { echo "missing build output: $file" >&2; exit 1; }

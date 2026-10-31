@@ -7,7 +7,7 @@ GraphViewData ──(Bun + orchgraph/ELK)──> frame JSON ──(QuickJS plugi
 ```
 
 Fresh plugins run in a QuickJS sandbox with **no npm imports**, so layout and
-ANSI parsing happen here under Bun. `fresh-plugin/code-nav.ts` only reads the
+ANSI parsing happen here under Bun. `fresh-plugin/code-graph.ts` only reads the
 frame and paints styled spans.
 
 A **frame** is a static snapshot: layout, styled runs, click boxes and metadata
@@ -25,7 +25,7 @@ static at paint time.
 | `entries.ts` | List explicit entry-point candidates from a cbm project |
 | `cache-link.ts` | Link a workspace frame into `~/.cache/code-graph/frames/` |
 | `fixture-graph.json` | Deterministic 6-node fixture used by tests/install |
-| `../fresh-plugin/code-nav.ts` | QuickJS consumer of the frame |
+| `../fresh-plugin/code-graph.ts` | QuickJS consumer of the frame |
 
 ## Commands
 

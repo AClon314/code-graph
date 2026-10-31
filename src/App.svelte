@@ -479,7 +479,7 @@
 
 <main class="app">
   <header>
-    <h1>code-graph</h1>
+    <h1>Code Graph</h1>
     <div class="header-actions">
       <div class="switcher" aria-label="Graph source">
                 <button

@@ -2,8 +2,8 @@
 
 Call-graph UI for codebase-memory-mcp, delivered two ways from one graph core:
 
-- **GUI (HTML)**: a VS Code web extension. `code-graph: Open (cbm)` and
-  `code-graph: Open (SCIP)` create separate editor tabs and mount the Svelte
+- **GUI (HTML)**: a VS Code web extension. `Code Graph: Open (cbm)` and
+  `Code Graph: Open (SCIP)` create separate editor tabs and mount the Svelte
   GUI in a webview.
 - **TUI**: unchanged. Fresh consumes a precomputed orchgraph frame through the
   Fresh API.
@@ -43,7 +43,7 @@ Implementations:
 |---|---|---|
 | VS Code | `src/extension/hosts/vscode.ts` | extension host |
 | Webview | `src/extension/hosts/webview.ts` | Svelte app (postMessage proxy) |
-| Fresh | `src/extension/hosts/fresh.ts` | `out/fresh-plugin/code-nav.js` |
+| Fresh | `src/extension/hosts/fresh.ts` | `out/fresh-plugin/code-graph.js` |
 | Browser dev | `src/extension/hosts/browser.ts` | `vite dev` / jump bridge |
 
 `src/extension/host.ts` imports `#host`. Vite aliases `#host` to the webview
@@ -53,12 +53,12 @@ directly. Build output contains only the selected runtime:
 
 - `out/dist/extension.cjs` — VS Code host, no `getEditor` / `acquireVsCodeApi`
 - `out/dist/webview/assets/webview.js` — webview host, no `vscode` / Fresh / bridge
-- `out/fresh-plugin/code-nav.js` — Fresh host, no `vscode` / webview
+- `out/fresh-plugin/code-graph.js` — Fresh host, no `vscode` / webview
 
 ## GUI
 
-- Commands: **code-graph: Open (cbm)** (`codeGraph.openCbm`) and
-  **code-graph: Open (SCIP)** (`codeGraph.openScip`).
+- Commands: **Code Graph: Open (cbm)** (`codeGraph.openCbm`) and
+  **Code Graph: Open (SCIP)** (`codeGraph.openScip`).
 - Each backend opens its own editor tab; invoking the same command again
   reveals that tab. The two tabs can be compared side by side.
 - File tree: **VS Code Explorer**, not a webview. The old tree panel is removed.
@@ -127,7 +127,7 @@ All build and harness artifacts are under the git-ignored `out/` directory:
 ```text
 out/dist/extension.cjs       VS Code web extension
 out/dist/webview/            Svelte webview bundle
-out/fresh-plugin/code-nav.js Fresh plugin bundle
+out/fresh-plugin/code-graph.js Fresh plugin bundle
 out/tui/frame.json           precomputed TUI frame
 out/certs/                   generated TLS certificate and key
 ```
@@ -164,7 +164,7 @@ bun run jump:bridge
 | `out/dist/extension.cjs` | VS Code web extension (`browser` entry) |
 | `out/dist/webview/assets/webview.js` | Svelte app bundle |
 | `out/dist/webview/assets/webview.css` | theme tokens + layout |
-| `out/fresh-plugin/code-nav.js` | bundled Fresh plugin |
+| `out/fresh-plugin/code-graph.js` | bundled Fresh plugin |
 
 The extension manifest is the root `package.json` (`browser`, command,
 settings). The extension host is bundled with esbuild; the webview with Vite;
@@ -195,9 +195,9 @@ bash fresh-plugin/install.sh
 
 Fresh commands:
 
-- **code-graph: Open (cbm)**
-- **code-graph: Open (SCIP)**
-- **code-graph: Toggle Sync On Workspace Change** (default OFF)
+- **Code Graph: Open (cbm)**
+- **Code Graph: Open (SCIP)**
+- **Code Graph: Toggle Sync On Workspace Change** (default OFF)
 
 Each window keeps one panel per backend. The frame cache lives in the active
 workspace:
@@ -222,9 +222,9 @@ session. Module/folder views
 are not implemented yet; the default funcs view has no folder root.
 
 - `tui/frame.ts` builds the orchgraph frame.
-- `fresh-plugin/code-nav.ts` paints it and uses the same `ExtensionApi` Fresh
+- `fresh-plugin/code-graph.ts` paints it and uses the same `ExtensionApi` Fresh
   host for `openLocation` / `setStatus`.
-- `out/fresh-plugin/code-nav.js` is the single-file QuickJS bundle.
+- `out/fresh-plugin/code-graph.js` is the single-file QuickJS bundle.
 
 ## Checks
 

@@ -12,7 +12,7 @@
     "jump:client": "bun run tools/jump-client.ts",
     "build:webview": "vite build",
     "build:extension": "esbuild src/extension/vscode.ts --bundle --format=cjs --platform=browser --external:vscode --outfile=out/dist/extension.cjs --sourcemap",
-    "build:fresh": "esbuild fresh-plugin/code-nav.ts --bundle --format=iife --platform=browser --alias:#host=./src/extension/hosts/fresh.ts --outfile=out/fresh-plugin/code-nav.js --sourcemap",
+    "build:fresh": "esbuild fresh-plugin/code-graph.ts --bundle --format=iife --platform=browser --alias:#host=./src/extension/hosts/fresh.ts --outfile=out/fresh-plugin/code-graph.js --sourcemap",
     "gui": "bun run gui:private",
     "gui:private": "bash scripts/gui.sh",
     "gui:public": "HOST=0.0.0.0 AUTH=password PASSWORD=${PASSWORD:-cbm} bash scripts/gui.sh",
@@ -40,7 +40,7 @@
     "orchgraph": "^0.2.4",
     "string-width": "8.2.2"
   },
-  "displayName": "code-graph",
+  "displayName": "Code Graph",
   "description": "Call graph and code navigation inside VS Code, backed by codebase-memory-mcp.",
   "publisher": "code-graph",
   "engines": {
@@ -59,16 +59,16 @@
       {
         "command": "codeGraph.openCbm",
         "title": "Open (cbm)",
-        "category": "code-graph"
+        "category": "Code Graph"
       },
       {
         "command": "codeGraph.openScip",
         "title": "Open (SCIP)",
-        "category": "code-graph"
+        "category": "Code Graph"
       }
     ],
     "configuration": {
-      "title": "code-graph",
+      "title": "Code Graph",
       "properties": {
         "codeGraph.source": {
           "type": "string",
@@ -96,11 +96,11 @@
         },
         "codeGraph.cbmProject": {
           "type": "string",
-          "description": "cbm-native project name for code-graph (cbm). Falls back to codeGraph.project when omitted."
+          "description": "cbm-native project name for Code Graph (cbm). Falls back to codeGraph.project when omitted."
         },
         "codeGraph.scipProject": {
           "type": "string",
-          "description": "scip-cbm-writer project name for code-graph (SCIP). Falls back to codeGraph.project when omitted."
+          "description": "scip-cbm-writer project name for Code Graph (SCIP). Falls back to codeGraph.project when omitted."
         }
       }
     }

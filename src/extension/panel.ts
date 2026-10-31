@@ -11,7 +11,7 @@ export function createGraphPanel(
   api: ExtensionApi,
   backend: GraphBackend = "cbm",
 ): vscode.WebviewPanel {
-  const title = backend === "scip" ? "code-graph (SCIP)" : "code-graph (cbm)";
+  const title = backend === "scip" ? "Code Graph (SCIP)" : "Code Graph (cbm)";
   const panel = vscode.window.createWebviewPanel(
     "codeGraph.graph",
     title,

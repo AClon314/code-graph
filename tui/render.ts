@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Render a code graph into the JSON frame consumed by fresh-plugin/code-nav.ts.
+ * Render a code graph into the JSON frame consumed by fresh-plugin/code-graph.ts.
  *
  * Fixture / already-built graph (deterministic tests):
  *
