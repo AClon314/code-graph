@@ -46,14 +46,6 @@ Current documents:
 | [`multi-workspace.md`](./multi-workspace.md) | Feasibility notes for multi-root VS Code and multi-window Fresh, and the shared workspace API. |
 | [`code-server.md`](./code-server.md) | code-server as the GUI harness; install, debugging, Workspace Trust, caveats. |
 
-Historical documents (archived, not current guidance):
-
-| Document | Contents |
-|---|---|
-| [`history/official-templates.md`](./history/official-templates.md) | Historical `yo code` template list, `vscode-extension-samples`, `vscode-test-web`, webview UI library status, recommendation. |
-| [`history/webview-svelte.md`](./history/webview-svelte.md) | Historical guide for building the webview with Svelte 5 + Vite, CSP, `asWebviewUri`, message passing, native Explorer/TreeView, theming, pitfalls. Its project layout is outdated. |
-| [`history/vscode-web-testing.md`](./history/vscode-web-testing.md) | Historical `@vscode/test-web` notes; no longer used by `bun run gui`. |
-
 ## Key official links
 
 - Extension generator: <https://github.com/microsoft/vscode-generator-code>
@@ -61,7 +53,6 @@ Historical documents (archived, not current guidance):
 - Web extensions guide: <https://code.visualstudio.com/api/extension-guides/web-extensions>
 - Webview guide: <https://code.visualstudio.com/api/extension-guides/webview>
 - Tree view guide: <https://code.visualstudio.com/api/extension-guides/tree-view>
-- Web test harness: <https://github.com/microsoft/vscode-test-web>
 - Webview UI Toolkit deprecation: <https://github.com/microsoft/vscode-webview-ui-toolkit/issues/561>
 
 ## Decisions already made
@@ -75,8 +66,8 @@ Historical documents (archived, not current guidance):
    `WebviewViewProvider` for a sidebar/panel view).
 4. Use **Svelte 5 + Vite** for the webview; keep `src/lib/graph/` framework-free and
    shared with the TUI.
-5. Use **code-server** as the GUI launch/test harness; `@vscode/test-web`
-   notes are historical. Keep the `browser` entry for vscode.dev.
+5. Use **code-server** as the GUI launch/test harness. Keep the `browser` entry
+   for vscode.dev.
 6. Do **not** add `@vscode/webview-ui-toolkit`; it is archived/deprecated.
 7. Reuse VS Code's theme tokens. Use `@vscode-elements/elements` for
    text fields/dropdowns and native buttons with `--vscode-button-*`.
@@ -91,7 +82,5 @@ Historical documents (archived, not current guidance):
 - Whether the extension needs a desktop `main` entry for local process access
   (CBM server, language tooling). If yes, share the core and keep `browser`
   feature-parity for the web path.
-- Font strategy inside the webview: reuse the local-first Maple detection + CDN
-  fallback, but add the CDN host to CSP and keep `no-referrer`.
 - Whether the old `deprecated-svelteUI` assets should be ported (components,
   layout, terminal art) or only the pure graph/terminal modules.
