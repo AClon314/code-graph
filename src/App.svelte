@@ -93,7 +93,12 @@
       method: init?.method === "POST" ? "POST" : "GET",
       body: typeof init?.body === "string" ? init.body : undefined,
     });
-    return new Response(response.body, {
+    // Response forbids a body for these statuses; host bodies are always strings.
+    const body =
+      response.status === 204 || response.status === 205 || response.status === 304
+        ? null
+        : response.body;
+    return new Response(body, {
       status: response.status,
       headers: { "content-type": "application/json" },
     });

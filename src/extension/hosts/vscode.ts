@@ -10,10 +10,8 @@ import {
   type SourceLocation,
 } from "../api";
 import {
-  TEAM_CONFIG_FILE,
-  TEAM_CONFIG_TEMPLATE,
   backendConfig,
-  loadProjectConfig,
+  loadOrCreateProjectConfig,
 } from "../../lib/config";
 import { fetchLocalCbm, resolveLocalCbm } from "./cbm-node";
 
@@ -21,14 +19,27 @@ import { fetchLocalCbm, resolveLocalCbm } from "./cbm-node";
  * VS Code extension-host implementation. This module may import `vscode`; the
  * webview and Fresh bundles never include it.
  */
-let endpointPromise: Promise<string> | null = null;
+interface EndpointEntry {
+  configured: string;
+  promise: Promise<string>;
+}
+
+let endpoint: EndpointEntry | null = null;
 
 function localEndpoint(configured: string): Promise<string> {
-  endpointPromise ??= resolveLocalCbm(configured).catch((error) => {
-    endpointPromise = null;
-    throw error;
+  if (endpoint?.configured === configured) return endpoint.promise;
+
+  const promise = resolveLocalCbm(configured).catch((cause) => {
+    // Let a later request retry after cbm was not running yet.
+    if (endpoint?.configured === configured) endpoint = null;
+    throw cause;
   });
-  return endpointPromise;
+  endpoint = { configured, promise };
+  return promise;
+}
+
+function forgetEndpoint(configured: string): void {
+  if (endpoint?.configured === configured) endpoint = null;
 }
 
 export function createExtensionApi(backend: GraphBackend = "cbm"): ExtensionApi {
@@ -61,7 +72,14 @@ export function createExtensionApi(backend: GraphBackend = "cbm"): ExtensionApi 
     async fetchCbm(request: CbmHttpRequest): Promise<CbmHttpResponse> {
       const configuration = vscode.workspace.getConfiguration("codeGraph");
       const configured = configuration.get<string>("cbmBaseUrl", DEFAULT_CONFIG.cbmBaseUrl);
-      return fetchLocalCbm(await localEndpoint(configured), request);
+      const baseUrl = await localEndpoint(configured);
+      try {
+        return await fetchLocalCbm(baseUrl, request);
+      } catch (cause) {
+        // cbm may have restarted on a different ui_port; rediscover next time.
+        forgetEndpoint(configured);
+        throw cause;
+      }
     },
     async openLocation(location) {
       const uri = resolveUri(location);
@@ -100,11 +118,11 @@ async function readProjectConfig() {
     const root = folder.uri.fsPath.replace(/[/\\]+$/, "");
     return path.startsWith(root) ? path.slice(root.length).replace(/^[/\\]+/, "") : path;
   };
+  const uriFor = (path: string): vscode.Uri =>
+    vscode.Uri.joinPath(folder.uri, relative(path));
   const readFile = async (path: string): Promise<string | null> => {
     try {
-      const data = await vscode.workspace.fs.readFile(
-        vscode.Uri.joinPath(folder.uri, relative(path)),
-      );
+      const data = await vscode.workspace.fs.readFile(uriFor(path));
       return new TextDecoder().decode(data);
     } catch (error) {
       if (error instanceof vscode.FileSystemError && error.code === "FileNotFound") {
@@ -113,20 +131,17 @@ async function readProjectConfig() {
       throw error;
     }
   };
-  const first = await loadProjectConfig(folder.uri.fsPath, readFile);
-  if (first.sources.some((source) => source.found)) return first.config;
-  try {
-    await vscode.workspace.fs.writeFile(
-      vscode.Uri.joinPath(folder.uri, TEAM_CONFIG_FILE),
-      new TextEncoder().encode(TEAM_CONFIG_TEMPLATE),
-    );
-  } catch {
-    // Read-only or trusted-mode restrictions: use defaults rather than
-    // failing the whole graph panel.
-    return first.config;
-  }
-  const created = await loadProjectConfig(folder.uri.fsPath, readFile);
-  return created.config;
+
+  const loaded = await loadOrCreateProjectConfig(folder.uri.fsPath, {
+    readFile,
+    writeFile: async (path, content) => {
+      await vscode.workspace.fs.writeFile(
+        uriFor(path),
+        new TextEncoder().encode(content),
+      );
+    },
+  });
+  return loaded.config;
 }
 
 function activeWorkspaceFolder(): vscode.WorkspaceFolder | undefined {

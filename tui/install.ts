@@ -14,7 +14,7 @@ import {
   renameSync,
   writeFileSync,
 } from "node:fs";
-import { homedir, platform } from "node:os";
+import { homedir, platform, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 const repo = resolve(import.meta.dir, "..");
@@ -32,7 +32,12 @@ function runBuild(): void {
 
 function freshConfigDir(): string {
   const explicit = process.env.FRESH_CONFIG;
-  if (explicit) return explicit;
+  if (explicit) return resolve(explicit);
+
+  // Ask Fresh itself first: this is the only reliable way to handle Windows,
+  // macOS and XDG layouts without duplicating Fresh's directory rules.
+  const fromCli = freshConfigFromCli();
+  if (fromCli) return fromCli;
 
   const home = homedir();
   const candidates: string[] = [];
@@ -47,6 +52,21 @@ function freshConfigDir(): string {
     (dir) => existsSync(join(dir, "plugins")) || existsSync(join(dir, "types")),
   );
   return existing ?? candidates[0]!;
+}
+
+function freshConfigFromCli(): string | null {
+  const bin = process.env.FRESH_BIN || "fresh";
+  try {
+    const stdout = execFileSync(bin, ["--cmd", "config", "paths"], {
+      encoding: "utf8",
+      timeout: 3000,
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    const match = stdout.match(/^\s*Config:\s*(.+?)\s*$/m);
+    return match?.[1] ? resolve(match[1]) : null;
+  } catch {
+    return null;
+  }
 }
 
 function preserveLegacyPlugin(plugins: string): void {
@@ -71,6 +91,7 @@ if (!existsSync(bundle)) {
 const wrapper =
   `globalThis.CODE_NAV_REPO = ${JSON.stringify(repo)};\n` +
   `globalThis.CODE_NAV_BUN = ${JSON.stringify(process.execPath)};\n` +
+  `globalThis.CODE_NAV_JUMP_TMP = ${JSON.stringify(join(tmpdir(), "code-nav-jump.json"))};\n` +
   readFileSync(bundle, "utf8");
 mkdirSync(join(repo, "out", "fresh-plugin"), { recursive: true });
 writeFileSync(staged, wrapper);

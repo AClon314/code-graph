@@ -12,8 +12,8 @@ paints styled spans.
 
 A **frame** is a static snapshot: layout, styled runs, click boxes and metadata
 are already computed, so painting does not need cbm or ELK. `fixture-graph.json`
-is only a hand-written sample input used for deterministic tests and the
-installer; a frame generated from a real workspace is just as static at paint
+is only a hand-written sample input used for deterministic tests and example
+renders; a frame generated from a real workspace is just as static at paint
 time.
 
 ## Files
@@ -24,7 +24,7 @@ time.
 | `render.ts` | CLI for fixture files and live cbm data |
 | `entries.ts` | List explicit entry-point candidates from a cbm project |
 | `cache-link.ts` | Link a workspace frame into `~/.cache/code-graph/frames/` |
-| `fixture-graph.json` | Deterministic 6-node fixture used by tests/install |
+| `fixture-graph.json` | Deterministic 6-node fixture used by tests/examples |
 | `plugin.ts` | QuickJS consumer of the frame |
 | `install.ts` | Cross-platform Fresh plugin installer |
 
@@ -36,8 +36,11 @@ bun run tui
 
 This builds `out/fresh-plugin/code-graph.js`, writes the installable
 `out/fresh-plugin/code-graph.ts`, and copies it to the Fresh plugin directory.
-The installer uses `FRESH_CONFIG` when set, otherwise the platform Fresh config
-directory; it works on Linux, macOS and Windows.
+The installer uses `FRESH_CONFIG` when set, otherwise asks `fresh --cmd config
+paths` for the platform config directory (falling back to the XDG/APPDATA/home
+defaults); it works on Linux, macOS and Windows. The generated wrapper also
+contains the absolute Bun path and a platform temp-file path for the jump
+bridge.
 
 ## Commands
 

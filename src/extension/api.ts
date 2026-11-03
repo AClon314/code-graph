@@ -28,18 +28,8 @@ export interface ExtensionConfig {
   symbolEntry: string;
 }
 
-export interface CbmHttpRequest {
-  /** Repository-relative cbm API path, always under /api/. */
-  path: string;
-  query?: Record<string, string>;
-  method?: "GET" | "POST";
-  body?: string;
-}
-
-export interface CbmHttpResponse {
-  status: number;
-  body: string;
-}
+import type { CbmHttpRequest, CbmHttpResponse } from "../lib/cbm-request";
+export type { CbmHttpRequest, CbmHttpResponse } from "../lib/cbm-request";
 
 export interface ExtensionApi {
   readonly runtime: Runtime;

@@ -17,10 +17,8 @@ import { extensionApi } from "../src/extension/host.ts";
 import type { JumpTarget } from "../src/lib/jump/types";
 import { frameCachePath, panelName as sharedPanelName } from "../src/lib/graph/cache";
 import {
-  TEAM_CONFIG_TEMPLATE,
   backendConfig,
-  loadProjectConfig,
-  projectConfigPaths,
+  loadOrCreateProjectConfig,
   type ProjectConfig,
 } from "../src/lib/config";
 
@@ -185,14 +183,11 @@ function framePath(root: string, backend: Backend): string {
 
 async function loadPanelConfig(panel: PanelState): Promise<boolean> {
   try {
-    const loaded = await loadProjectConfig(panel.root, (path) => editor.readFile(path));
-    if (loaded.sources.some((source) => source.found)) {
-      panel.config = loaded.config;
-    } else {
-      const team = projectConfigPaths(panel.root).team;
-      editor.writeFile(team, TEAM_CONFIG_TEMPLATE);
-      panel.config = (await loadProjectConfig(panel.root, (path) => editor.readFile(path))).config;
-    }
+    const loaded = await loadOrCreateProjectConfig(panel.root, {
+      readFile: (path) => editor.readFile(path),
+      writeFile: (path, content) => editor.writeFile(path, content),
+    });
+    panel.config = loaded.config;
     const resolved = backendConfig(panel.config, panel.backend);
     if (!panel.entry && resolved.symbolEntry) panel.entry = resolved.symbolEntry;
     return true;
@@ -561,11 +556,13 @@ async function reloadFrame(panel: PanelState): Promise<void> {
       stderr?: string;
     };
   } catch (error) {
+    if (mySeq !== panel.renderSeq || panel.bufferId === null) return;
     paintError(panel, errorText(error));
     return;
   }
 
   if (!result || result.exit_code !== 0) {
+    if (mySeq !== panel.renderSeq || panel.bufferId === null) return;
     paintError(panel, (result && result.stderr) || "render failed without stderr");
     return;
   }
@@ -733,6 +730,9 @@ function onBufferClosed(event: { buffer_id?: number; bufferId?: number }): void 
   if (closed === null) return;
   for (const [key, panel] of panels) {
     if (panel.bufferId !== closed) continue;
+    // Invalidate an in-flight render before dropping the state.
+    panel.bufferId = null;
+    panel.renderSeq++;
     panels.delete(key);
     return;
   }

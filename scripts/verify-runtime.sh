@@ -26,6 +26,8 @@ assert_absent() {
 assert_contains "$WEBVIEW" "acquireVsCodeApi"
 assert_absent "$WEBVIEW" "getEditor"
 assert_absent "$WEBVIEW" "9752"
+assert_absent "$WEBVIEW" "node:child_process"
+assert_absent "$WEBVIEW" "codebase-memory-mcp"
 
 assert_contains "$EXTENSION" "codeGraph.open"
 assert_contains "$EXTENSION" "node:child_process"
@@ -35,5 +37,6 @@ assert_absent "$EXTENSION" "getEditor"
 assert_contains "$FRESH" "getEditor"
 assert_absent "$FRESH" "acquireVsCodeApi"
 assert_absent "$FRESH" "vscode.window"
+assert_absent "$FRESH" "node:child_process"
 
 echo "runtime split OK: webview / vscode / fresh"

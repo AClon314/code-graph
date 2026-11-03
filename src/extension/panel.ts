@@ -40,8 +40,9 @@ export function createGraphPanel(
     // The graph positions hit targets with inline style attributes.
     `style-src ${panel.webview.cspSource} 'unsafe-inline' ${FONT_CDN}`,
     `script-src ${panel.webview.cspSource}`,
-    // The graph may talk to a local or remote cbm HTTP endpoint.
-    `connect-src ${panel.webview.cspSource} http: https:`,
+    // All cbm traffic goes through the extension host postMessage proxy; keep
+    // the webview origin allowed only for its own source maps/dev assets.
+    `connect-src ${panel.webview.cspSource}`,
   ].join("; ");
 
   panel.webview.html = `<!doctype html>
@@ -85,15 +86,11 @@ async function handleMessage(
     }
 
     if (message.type === "cbmFetch") {
-      try {
-        post(panel, {
-          type: "cbmResponse",
-          id: message.id,
-          response: await api.fetchCbm(message.request),
-        });
-      } catch (cause) {
-        post(panel, { type: "failed", id: message.id, message: errorMessage(cause) });
-      }
+      post(panel, {
+        type: "cbmResponse",
+        id: message.id,
+        response: await api.fetchCbm(message.request),
+      });
       return;
     }
 

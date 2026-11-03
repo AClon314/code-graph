@@ -86,10 +86,11 @@ directly. Build output contains only the selected runtime:
 | `codeGraph.symbolEntry` | `demo.src.features.useAlias` | initial graph root symbol entry (qualified name or `#id`) |
 
 Mock works without a daemon. For `cbm`, the Node extension host runs
-`config get ui_port`, probes that endpoint, then `http://127.0.0.1:9749`. The
-webview only talks to the host; it never fetches cbm directly. Remote/cross-origin
-cbm is not supported. If no local cbm responds, the panel shows the full
-probe/stack error instead of failing the whole webview.
+`config get ui_port`, probes that endpoint, then `codeGraph.cbmBaseUrl`, then
+`http://127.0.0.1:9749` (duplicates are skipped). The webview only talks to the
+host; it never fetches cbm directly. Remote/cross-origin cbm is not supported.
+If no local cbm responds, the panel shows the full probe/stack error instead of
+failing the whole webview.
 
 ### Project config
 

@@ -76,7 +76,7 @@ export async function loadProjectConfig(
 ): Promise<LoadedProjectConfig> {
   const paths = projectConfigPaths(root);
   const sources: ConfigSource[] = [];
-  const configs: ProjectConfig[] = [];
+  const configs: Array<{ config: ProjectConfig; order: number }> = [];
 
   for (const entry of [
     { path: paths.team, fallback: TEAM_DEFAULT_PRIORITY },
@@ -104,15 +104,47 @@ export async function loadProjectConfig(
     const config = parsed as ProjectConfig;
     const priority = readPriority(config.priority, entry.path, entry.fallback);
     sources.push({ path: entry.path, priority, found: true });
-    configs.push({ ...config, priority });
+    configs.push({
+      config: { ...config, priority },
+      order: configs.length,
+    });
   }
 
-  // Only `priority` decides order. Equal priorities keep canonical order:
-  // team first, personal last, so personal wins on a tie.
-  configs.sort((left, right) => (left.priority ?? 0) - (right.priority ?? 0));
+  // Only `priority` decides order. Equal priorities fall back to canonical
+  // order (team first, personal last), so personal wins on a tie. The explicit
+  // index keeps that guarantee even if a JS engine's sort is not stable.
+  configs.sort(
+    (left, right) =>
+      (left.config.priority ?? 0) - (right.config.priority ?? 0) ||
+      left.order - right.order,
+  );
   let merged: ProjectConfig = {};
-  for (const config of configs) merged = mergeValue(merged, config) as ProjectConfig;
+  for (const entry of configs) merged = mergeValue(merged, entry.config) as ProjectConfig;
   return { config: merged, sources };
+}
+
+/** Read/merge both files, creating only the team template when neither exists. */
+export async function loadOrCreateProjectConfig(
+  root: string,
+  io: {
+    readFile: (path: string) => string | null | Promise<string | null>;
+    writeFile: (
+      path: string,
+      content: string,
+    ) => void | boolean | Promise<void | boolean>;
+  },
+): Promise<LoadedProjectConfig> {
+  const loaded = await loadProjectConfig(root, io.readFile);
+  if (loaded.sources.some((source) => source.found)) return loaded;
+
+  try {
+    await io.writeFile(projectConfigPaths(root).team, TEAM_CONFIG_TEMPLATE);
+  } catch {
+    // Read-only or trusted-mode restrictions: use defaults rather than
+    // failing the whole graph panel.
+    return loaded;
+  }
+  return loadProjectConfig(root, io.readFile);
 }
 
 /** Resolve project and graph root for one backend. */

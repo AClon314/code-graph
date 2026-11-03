@@ -106,11 +106,29 @@ export function normalizeBaseUrl(value: string): string {
 }
 
 export function endpointCandidatesFromPort(port: number | null | undefined): string[] {
+  return localCbmCandidates(port);
+}
+
+/**
+ * Candidate order shared by the extension host and TUI: CLI port, an explicit
+ * configured base, then the local default. Duplicates are removed.
+ */
+export function localCbmCandidates(
+  port: number | null | undefined,
+  configured?: string | null,
+): string[] {
   const candidates: string[] = [];
+  const push = (value: string | null | undefined): void => {
+    if (!value) return;
+    const url = normalizeBaseUrl(value);
+    if (url && !candidates.includes(url)) candidates.push(url);
+  };
+
   if (typeof port === "number" && Number.isInteger(port) && port > 0 && port <= 65535) {
-    candidates.push(`http://127.0.0.1:${port}`);
+    push(`http://127.0.0.1:${port}`);
   }
-  candidates.push(DEFAULT_CBM_BASE_URL);
+  push(configured);
+  push(DEFAULT_CBM_BASE_URL);
   return candidates;
 }
 

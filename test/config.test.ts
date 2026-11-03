@@ -4,6 +4,7 @@ import {
   PERSONAL_CONFIG_FILE,
   TEAM_CONFIG_FILE,
   backendConfig,
+  loadOrCreateProjectConfig,
   loadProjectConfig,
   parseJsonc,
   projectConfigPaths,
@@ -130,5 +131,49 @@ describe("project config merge", () => {
     await expect(
       loadProjectConfig(root, files({ [TEAM_CONFIG_FILE]: `{ "priority": 1.5 }` })),
     ).rejects.toThrow("priority must be an integer");
+  });
+});
+
+describe("project config creation", () => {
+  test("creates only the team file when neither exists", async () => {
+    const written: Record<string, string> = {};
+    const io = {
+      readFile: (path: string) => written[path] ?? null,
+      writeFile: (path: string, content: string) => {
+        written[path] = content;
+      },
+    };
+
+    const loaded = await loadOrCreateProjectConfig(root, io);
+    expect(Object.keys(written)).toEqual([`${root}/${TEAM_CONFIG_FILE}`]);
+    expect(loaded.config.priority).toBe(100);
+    expect(loaded.sources).toEqual([
+      { path: `${root}/${TEAM_CONFIG_FILE}`, priority: 100, found: true },
+      { path: `${root}/${PERSONAL_CONFIG_FILE}`, priority: 200, found: false },
+    ]);
+  });
+
+  test("does not create anything when either file already exists", async () => {
+    const written: string[] = [];
+    const loaded = await loadOrCreateProjectConfig(root, {
+      readFile: (path) =>
+        path.endsWith(PERSONAL_CONFIG_FILE) ? `{ "project": "personal" }` : null,
+      writeFile: (path: string) => {
+        written.push(path);
+      },
+    });
+
+    expect(written).toEqual([]);
+    expect(loaded.config.project).toBe("personal");
+  });
+
+  test("uses defaults when the team file cannot be created", async () => {
+    const loaded = await loadOrCreateProjectConfig(root, {
+      readFile: () => null,
+      writeFile: () => {
+        throw new Error("read-only workspace");
+      },
+    });
+    expect(loaded.config).toEqual({});
   });
 });

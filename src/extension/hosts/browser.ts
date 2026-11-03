@@ -1,11 +1,10 @@
 import {
   DEFAULT_CONFIG,
   type ExtensionApi,
-  type CbmHttpRequest,
-  type CbmHttpResponse,
   type ExtensionConfig,
   type SourceLocation,
 } from "../api";
+import { requestCbm } from "../../lib/cbm-request";
 import { JumpClient } from "../../lib/jump/client";
 
 /**
@@ -27,18 +26,9 @@ export function createExtensionApi(): ExtensionApi {
         symbolEntry: env.VITE_SYMBOL_ENTRY ?? DEFAULT_CONFIG.symbolEntry,
       } satisfies ExtensionConfig;
     },
-    async fetchCbm(request: CbmHttpRequest): Promise<CbmHttpResponse> {
+    async fetchCbm(request) {
       const base = import.meta.env.VITE_CBM_BASE ?? DEFAULT_CONFIG.cbmBaseUrl;
-      const url = new URL(request.path, base);
-      for (const [key, value] of Object.entries(request.query ?? {})) {
-        url.searchParams.set(key, value);
-      }
-      const response = await fetch(url, {
-        method: request.method ?? "GET",
-        headers: { accept: "application/json", "content-type": "application/json" },
-        body: request.body,
-      });
-      return { status: response.status, body: await response.text() };
+      return requestCbm(base, request);
     },
     async openLocation(location: SourceLocation) {
       await jump.send({
