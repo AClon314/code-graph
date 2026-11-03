@@ -81,6 +81,9 @@ export function createExtensionApi(backend: GraphBackend = "cbm"): ExtensionApi 
         throw cause;
       }
     },
+    async openSettings(query) {
+      await vscode.commands.executeCommand("workbench.action.openSettings", query);
+    },
     async openLocation(location) {
       const uri = resolveUri(location);
       if (!uri) {

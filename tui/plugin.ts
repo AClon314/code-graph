@@ -322,7 +322,7 @@ function paintError(panel: PanelState, detail: string): void {
     entries.push({ text: "\n" });
   }
   editor.setVirtualBufferContent(panel.bufferId, entries);
-  extensionApi.setStatus("Code Graph: error · press r to retry");
+  extensionApi.setStatus("Code Graph: error · r retry · text is selectable/copyable");
 }
 
 function rebuildIndex(panel: PanelState, value: Frame): void {
@@ -493,7 +493,7 @@ async function openPanel(backend: Backend, focus: boolean): Promise<void> {
       mode: PANEL_MODE,
       readOnly: true,
       editingDisabled: true,
-      showCursors: false,
+      showCursors: true,
       showLineNumbers: false,
       // Sync-on-workspace-change opens panels without taking the reader away
       // from the file they were editing.
@@ -853,6 +853,8 @@ editor.defineMode(
     ["o", "code_nav_open_node"],
     ["Return", "code_nav_open_node"],
   ],
+  true,
+  false,
   true,
 );
 

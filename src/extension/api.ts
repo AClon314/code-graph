@@ -36,6 +36,7 @@ export interface ExtensionApi {
   getConfig(): Promise<ExtensionConfig>;
   fetchCbm(request: CbmHttpRequest): Promise<CbmHttpResponse>;
   openLocation(location: SourceLocation): Promise<void>;
+  openSettings(query: string): Promise<void>;
   setStatus(message: string, kind?: "info" | "error"): void;
 }
 

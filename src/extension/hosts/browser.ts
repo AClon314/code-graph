@@ -30,6 +30,9 @@ export function createExtensionApi(): ExtensionApi {
       const base = import.meta.env.VITE_CBM_BASE ?? DEFAULT_CONFIG.cbmBaseUrl;
       return requestCbm(base, request);
     },
+    async openSettings(query) {
+      console.info(`[code-graph] open settings: ${query}`);
+    },
     async openLocation(location: SourceLocation) {
       await jump.send({
         project: location.project ?? DEFAULT_CONFIG.project,

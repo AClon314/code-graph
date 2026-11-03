@@ -191,6 +191,17 @@ vscode-single-select {
   padding: 0.35lh 0.8ch;
 }
 
+.error-panel {
+  display: grid;
+  gap: 0.35lh;
+  justify-items: start;
+}
+
+.fix-button {
+  font-size: 0.78rem;
+  padding: 0.2lh 0.8ch;
+}
+
 .badge {
   border: 1px solid transparent;
   border-radius: 999px;

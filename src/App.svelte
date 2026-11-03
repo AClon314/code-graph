@@ -32,6 +32,7 @@
     triggerExport?(): void;
     copy?(): Promise<void>;
   }
+  type SettingsFix = { label: string; query: string };
   type JumpRow = {
     filePath?: string;
     startLine?: number;
@@ -49,6 +50,7 @@
   let backend = $state<GraphBackend>("cbm");
   let symbol = $state<SymbolBundle | null>(null);
   let error = $state("");
+  let errorFix = $state<SettingsFix | null>(null);
   let loading = $state(false);
   let requestId = 0;
 
@@ -57,6 +59,7 @@
   let graphData = $state<GraphViewData | null>(null);
   let graphLoading = $state(false);
   let graphError = $state("");
+  let graphFix = $state<SettingsFix | null>(null);
   let graphRequestId = 0;
   let selectedId = $state("");
   let focusNode = $state<GraphViewNode | null>(null);
@@ -114,10 +117,43 @@
         });
   }
 
+  function cbmUrlFix(): SettingsFix {
+    return { label: "Open cbm URL setting", query: "codeGraph.cbmBaseUrl" };
+  }
+
+  function fixFor(value: unknown): SettingsFix {
+    const text = message(value).toLowerCase();
+    if (
+      text.includes("project not found") ||
+      text.includes("unknown project") ||
+      text.includes("no such project")
+    ) {
+      return {
+        label: "Open project setting",
+        query: backend === "scip" ? "codeGraph.scipProject" : "codeGraph.cbmProject",
+      };
+    }
+    if (text.includes("symbol") || text.includes("entry")) {
+      return { label: "Open symbol entry setting", query: "codeGraph.symbolEntry" };
+    }
+    return cbmUrlFix();
+  }
+
+  async function openFix(fix: SettingsFix | null): Promise<void> {
+    if (!fix) return;
+    try {
+      await extensionApi.openSettings(fix.query);
+    } catch (cause) {
+      error = `Open settings failed: ${message(cause)}`;
+    }
+  }
+
   async function load(): Promise<void> {
     const id = ++requestId;
     loading = true;
     error = "";
+    errorFix = null;
+    graphFix = null;
     detailError = "";
     jumpStatus = "";
     jumpError = "";
@@ -151,6 +187,7 @@
       selectedId = "";
       focusNode = null;
       problems.push(`symbol: ${message(symbolResult.reason)}`);
+      errorFix = fixFor(symbolResult.reason);
     }
 
     loading = false;
@@ -177,6 +214,7 @@
       return true;
     } catch (cause) {
       error = formatCbmEndpointError(cause);
+      errorFix = cbmUrlFix();
       return false;
     }
   }
@@ -185,6 +223,7 @@
     const id = ++graphRequestId;
     graphLoading = true;
     graphError = "";
+    graphFix = null;
     graphData = null;
 
     try {
@@ -200,6 +239,7 @@
     } catch (cause) {
       if (id !== graphRequestId || request !== requestId) return;
       graphError = message(cause);
+      graphFix = fixFor(cause);
     } finally {
       if (id === graphRequestId) graphLoading = false;
     }
@@ -209,6 +249,7 @@
     const id = ++graphRequestId;
     graphLoading = true;
     graphError = "";
+    graphFix = null;
     exportStatus = "";
 
     try {
@@ -225,6 +266,7 @@
       if (id !== graphRequestId) return;
       graphData = null;
       graphError = message(cause);
+      graphFix = fixFor(cause);
     } finally {
       if (id === graphRequestId) graphLoading = false;
     }
@@ -245,6 +287,7 @@
         if (config.symbolEntry) ref = config.symbolEntry;
       } catch (cause) {
         error = formatCbmEndpointError(cause);
+        errorFix = cbmUrlFix();
         return;
       }
 
@@ -578,7 +621,16 @@
   </section>
 
   {#if error}
-    <p class="error">{error}</p>
+    <div class="error-panel">
+      <p class="error">{error}</p>
+      {#if errorFix}
+        <button
+          class="vscode-button secondary fix-button"
+          type="button"
+          onclick={() => void openFix(errorFix)}
+        >{errorFix.label}</button>
+      {/if}
+    </div>
   {/if}
 
   <div class="board">
@@ -685,7 +737,16 @@
         </div>
 
         {#if graphError}
-          <p class="error compact">Neighborhood failed: {graphError}</p>
+          <div class="error-panel">
+            <p class="error compact">Neighborhood failed: {graphError}</p>
+            {#if graphFix}
+              <button
+                class="vscode-button secondary fix-button"
+                type="button"
+                onclick={() => void openFix(graphFix)}
+              >{graphFix.label}</button>
+            {/if}
+          </div>
         {/if}
 
         {#if graphData}

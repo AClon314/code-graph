@@ -145,6 +145,27 @@ printed by code-server (usually `https://127.0.0.1:8080`).
 `bun run gui` is an alias for `bun run gui:private`:
 `HOST=127.0.0.1 PORT=8080 AUTH=none`.
 
+Neither `gui` nor `gui:public` starts cbm. Start it separately and keep the
+terminal open, or reuse an existing cbm daemon:
+
+```bash
+cd ../../cbm-runtime
+sleep infinity | ./node_modules/.bin/codebase-memory-mcp --ui=true --port=9751
+```
+
+Use the port reported by `codebase-memory-mcp config get ui_port` (currently
+`9751`); if it differs, pass that value to `--port` or set
+`codeGraph.cbmBaseUrl`. Then pass the binary to the Node host and Fresh so
+discovery can run `config get`:
+
+```bash
+CBM_BIN="$PWD/../../cbm-runtime/node_modules/.bin/codebase-memory-mcp" bun run gui
+CBM_BIN="$PWD/../../cbm-runtime/node_modules/.bin/codebase-memory-mcp" fresh
+```
+
+If cbm is already running, verify it with
+`curl http://127.0.0.1:9751/api/ui-config` instead of starting a second process.
+
 `gui` first runs `bun run lazy_mkcert`, which writes `out/certs/pub.pem` and
 `out/certs/key.pem` and gives code-server a browser-trusted certificate for
 `localhost`, the loopback addresses, and every address reported by

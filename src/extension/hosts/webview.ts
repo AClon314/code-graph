@@ -24,6 +24,7 @@ const vscode = acquireVsCodeApi();
 const configPending = new Map<number, Pending<ExtensionConfig>>();
 const cbmPending = new Map<number, Pending<CbmHttpResponse>>();
 const locationPending = new Map<number, Pending<void>>();
+const settingsPending = new Map<number, Pending<void>>();
 let sequence = 0;
 
 window.addEventListener("message", (event: MessageEvent<HostResponse>) => {
@@ -51,14 +52,23 @@ window.addEventListener("message", (event: MessageEvent<HostResponse>) => {
     return;
   }
 
+  if (message.type === "settingsOpened") {
+    const waiting = settingsPending.get(message.id);
+    settingsPending.delete(message.id);
+    waiting?.resolve();
+    return;
+  }
+
   if (message.type === "failed") {
     const error = new Error(message.message);
     configPending.get(message.id)?.reject(error);
     cbmPending.get(message.id)?.reject(error);
     locationPending.get(message.id)?.reject(error);
+    settingsPending.get(message.id)?.reject(error);
     configPending.delete(message.id);
     cbmPending.delete(message.id);
     locationPending.delete(message.id);
+    settingsPending.delete(message.id);
   }
 });
 
@@ -74,6 +84,9 @@ export function createExtensionApi(): ExtensionApi {
     },
     async openLocation(location: SourceLocation) {
       await request(locationPending, (id) => ({ type: "openLocation", id, location }));
+    },
+    async openSettings(query: string) {
+      await request(settingsPending, (id) => ({ type: "openSettings", id, query }));
     },
     setStatus(message, kind) {
       vscode.postMessage({ type: "status", message, kind });

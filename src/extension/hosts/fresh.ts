@@ -41,6 +41,9 @@ export function createExtensionApi(): ExtensionApi {
     async fetchCbm(request) {
       return requestCbm(DEFAULT_CONFIG.cbmBaseUrl, request);
     },
+    async openSettings(query) {
+      getEditor().setStatus("Code Graph: configure " + query + " in your settings");
+    },
     async openLocation(location) {
       const target = resolvePath(location);
       getEditor().openFile(
