@@ -7,6 +7,12 @@ import {
   type GraphBackend,
   type SourceLocation,
 } from "../api";
+import {
+  TEAM_CONFIG_FILE,
+  TEAM_CONFIG_TEMPLATE,
+  backendConfig,
+  loadProjectConfig,
+} from "../../lib/config";
 
 /**
  * VS Code extension-host implementation. This module may import `vscode`; the
@@ -21,6 +27,8 @@ export function createExtensionApi(backend: GraphBackend = "cbm"): ExtensionApi 
         "project",
         DEFAULT_CONFIG.project,
       );
+      const projectConfig = await readProjectConfig();
+      const resolved = backendConfig(projectConfig, backend);
       return {
         backend,
         source: configuration.get<ExtensionConfig["source"]>(
@@ -31,11 +39,12 @@ export function createExtensionApi(backend: GraphBackend = "cbm"): ExtensionApi 
           "cbmBaseUrl",
           DEFAULT_CONFIG.cbmBaseUrl,
         ),
-        project: configuration.get<string>(
-          `${backend}Project`,
-          fallbackProject,
-        ),
-        symbol: configuration.get<string>("symbol", DEFAULT_CONFIG.symbol),
+        project:
+          resolved.project ||
+          configuration.get<string>(`${backend}Project`, fallbackProject),
+        symbolEntry:
+          resolved.symbolEntry ||
+          configuration.get<string>("symbolEntry", DEFAULT_CONFIG.symbolEntry),
       };
     },
     async openLocation(location) {
@@ -66,6 +75,50 @@ export function createExtensionApi(backend: GraphBackend = "cbm"): ExtensionApi 
       vscode.window.setStatusBarMessage(message, 4000);
     },
   };
+}
+
+async function readProjectConfig() {
+  const folder = activeWorkspaceFolder();
+  if (!folder) return {};
+  const relative = (path: string): string => {
+    const root = folder.uri.fsPath.replace(/[/\\]+$/, "");
+    return path.startsWith(root) ? path.slice(root.length).replace(/^[/\\]+/, "") : path;
+  };
+  const readFile = async (path: string): Promise<string | null> => {
+    try {
+      const data = await vscode.workspace.fs.readFile(
+        vscode.Uri.joinPath(folder.uri, relative(path)),
+      );
+      return new TextDecoder().decode(data);
+    } catch (error) {
+      if (error instanceof vscode.FileSystemError && error.code === "FileNotFound") {
+        return null;
+      }
+      throw error;
+    }
+  };
+  const first = await loadProjectConfig(folder.uri.fsPath, readFile);
+  if (first.sources.some((source) => source.found)) return first.config;
+  try {
+    await vscode.workspace.fs.writeFile(
+      vscode.Uri.joinPath(folder.uri, TEAM_CONFIG_FILE),
+      new TextEncoder().encode(TEAM_CONFIG_TEMPLATE),
+    );
+  } catch {
+    // Read-only or trusted-mode restrictions: use defaults rather than
+    // failing the whole graph panel.
+    return first.config;
+  }
+  const created = await loadProjectConfig(folder.uri.fsPath, readFile);
+  return created.config;
+}
+
+function activeWorkspaceFolder(): vscode.WorkspaceFolder | undefined {
+  const editor = vscode.window.activeTextEditor;
+  const active = editor
+    ? vscode.workspace.getWorkspaceFolder(editor.document.uri)
+    : undefined;
+  return active ?? vscode.workspace.workspaceFolders?.[0];
 }
 
 function resolveUri(location: SourceLocation): vscode.Uri | undefined {

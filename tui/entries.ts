@@ -3,7 +3,7 @@
  * List explicit entry-point candidates for a cbm project.
  *
  *   bun run tui/entries.ts --project fixture-hard-scip
- *   bun run tui/entries.ts --cbm http://127.0.0.1:9751 --project p --json
+ *   bun run tui/entries.ts --project p --json
  *
  * This is a candidate list, not an inference of "the" entry. cbm's
  * is_entry_point is heuristic; Java/Python may have several valid entries.
@@ -11,6 +11,7 @@
 import { parseArgs } from "node:util";
 
 import { entryCandidates, type RepositoryNode } from "../src/lib/graph/entries.ts";
+import { resolveCbmBaseUrl } from "./cbm-discovery.ts";
 
 const { values } = parseArgs({
   args: process.argv.slice(2),
@@ -28,7 +29,7 @@ if (values.help) {
   console.log(`Usage: bun run tui/entries.ts --project <name> [options]
 
 Options:
-  --cbm <url>       cbm HTTP base (default: CBM_HTTP or http://127.0.0.1:9749)
+  --cbm <url>       explicit local cbm base (testing only)
   --project <name>  cbm project name
   --limit <n>       maximum candidates (default: 20)
   --json            print JSON
@@ -41,10 +42,8 @@ if (!values.project) {
   process.exit(2);
 }
 
-const base = (values.cbm || process.env.CBM_HTTP || "http://127.0.0.1:9749").replace(
-  /\/+$/,
-  "",
-);
+const endpoint = await resolveCbmBaseUrl(values.cbm);
+const base = endpoint.baseUrl;
 const limit = Number(values.limit ?? "20");
 if (!Number.isInteger(limit) || limit < 0) {
   console.error("entries: --limit must be a non-negative integer");

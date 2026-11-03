@@ -79,14 +79,56 @@ directly. Build output contains only the selected runtime:
 | Setting | Default | Meaning |
 |---|---|---|
 | `codeGraph.source` | `cbm` | `mock` or `cbm` |
-| `codeGraph.cbmBaseUrl` | `http://127.0.0.1:9749` | cbm HTTP base |
+| `codeGraph.cbmBaseUrl` | `http://127.0.0.1:9749` | local cbm HTTP base; remote/cross-origin is unsupported |
 | `codeGraph.project` | `demo` | fallback project for both backends |
 | `codeGraph.cbmProject` | `codeGraph.project` | cbm-native project for `(cbm)` |
 | `codeGraph.scipProject` | `codeGraph.project` | scip-cbm-writer project for `(SCIP)` |
-| `codeGraph.symbol` | `demo.src.features.useAlias` | initial root symbol |
+| `codeGraph.symbolEntry` | `demo.src.features.useAlias` | initial graph root symbol entry (qualified name or `#id`) |
 
-Mock works without a daemon. For `cbm`, the webview fetches `cbmBaseUrl`
-directly; in vscode.dev that request is subject to CORS.
+Mock works without a daemon. For `cbm`, the GUI probes the configured local
+endpoint and then `http://127.0.0.1:9749`; remote/cross-origin cbm is not
+supported. If no local cbm responds, the panel shows the full probe/stack error
+instead of failing the whole webview. The web extension cannot execute
+`config get`; if cbm is not on 9749, set `codeGraph.cbmBaseUrl` to its local
+port. TUI/Fresh perform the `config get` discovery automatically.
+
+### Project config
+
+Team and personal workspace config live next to each other:
+
+```text
+code-graph.config.jsonc        # team defaults, typically committed
+.code-graph.config.jsonc       # personal overrides, typically ignored
+```
+
+Both are JSONC and are merged at runtime by `priority` (larger wins). Equal
+priorities keep canonical order: team first, personal last, so personal wins a
+tie. The files are never written back; when neither exists, only the team file
+is created.
+
+```jsonc
+// code-graph.config.jsonc
+{
+  "priority": 100,
+  "backend": "cbm",
+  "backends": {
+    "cbm": { "project": "gpen-js" },
+    "scip": { "project": "gpen-js-scip" }
+  }
+}
+```
+
+```jsonc
+// .code-graph.config.jsonc
+{
+  "priority": 200,
+  "symbolEntry": "gpen.src.main.main"
+}
+```
+
+`symbolEntry` is the qualified name of the graph root. It is not a list, filter,
+or cbm entry-point flag; `/api/symbol` calls it `qn` because cbm identifies any
+node by qualified name.
 
 ## Run
 
@@ -215,11 +257,12 @@ A convenience link is written to the user cache after a successful render:
 ```
 
 `CODE_NAV_FRAME_MODE=static` forces reading that cache and never renders;
-otherwise a missing cache is rendered once with `tui/render.ts --cbm`. The root
-entry must be explicit (`CODE_NAV_ENTRY` or `CODE_NAV_SYMBOL`); if absent the
-plugin lists cbm entry candidates in a prompt and uses the selection for the
-session. Module/folder views
-are not implemented yet; the default funcs view has no folder root.
+otherwise a missing cache is rendered once with `tui/render.ts`. Local cbm
+discovery first reads `codebase-memory-mcp config get ui_port` (set `CBM_BIN`
+to override the executable), then probes 9749. The root entry comes from `symbolEntry` in project config, or
+`CODE_NAV_ENTRY` / `CODE_NAV_SYMBOL_ENTRY`; if absent the plugin lists cbm entry
+candidates in a prompt and uses the selection for the session. Module/folder
+views are not implemented yet; the default funcs view has no folder root.
 
 - `tui/frame.ts` builds the orchgraph frame.
 - `fresh-plugin/code-graph.ts` paints it and uses the same `ExtensionApi` Fresh

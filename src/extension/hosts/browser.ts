@@ -22,7 +22,7 @@ export function createExtensionApi(): ExtensionApi {
         source,
         cbmBaseUrl: env.VITE_CBM_BASE ?? DEFAULT_CONFIG.cbmBaseUrl,
         project: env.VITE_PROJECT ?? DEFAULT_CONFIG.project,
-        symbol: env.VITE_SYMBOL ?? DEFAULT_CONFIG.symbol,
+        symbolEntry: env.VITE_SYMBOL_ENTRY ?? DEFAULT_CONFIG.symbolEntry,
       } satisfies ExtensionConfig;
     },
     async openLocation(location: SourceLocation) {

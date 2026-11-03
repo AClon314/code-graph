@@ -16,6 +16,13 @@
 import { extensionApi } from "../src/extension/host.ts";
 import type { JumpTarget } from "../src/lib/jump/types";
 import { frameCachePath, panelName as sharedPanelName } from "../src/lib/graph/cache";
+import {
+  TEAM_CONFIG_TEMPLATE,
+  backendConfig,
+  loadProjectConfig,
+  projectConfigPaths,
+  type ProjectConfig,
+} from "../src/lib/config";
 
 const editor = getEditor();
 
@@ -30,8 +37,6 @@ const BUN = (globalThis as any).CODE_NAV_BUN || "/home/n/.bun/bin/bun";
 const RENDER_SCRIPT = REPO + "/tui/render.ts";
 const ENTRY_SCRIPT = REPO + "/tui/entries.ts";
 const CACHE_LINK_SCRIPT = REPO + "/tui/cache-link.ts";
-const CBM_URL =
-  (globalThis as any).CODE_NAV_CBM || "http://127.0.0.1:9749";
 const CBM_PROJECT =
   (globalThis as any).CODE_NAV_CBM_PROJECT ||
   (globalThis as any).CODE_NAV_PROJECT ||
@@ -40,9 +45,8 @@ const SCIP_PROJECT =
   (globalThis as any).CODE_NAV_SCIP_PROJECT || CBM_PROJECT + "-scip";
 const CONFIG_ENTRY =
   (globalThis as any).CODE_NAV_ENTRY ||
-  (globalThis as any).CODE_NAV_SYMBOL ||
+  (globalThis as any).CODE_NAV_SYMBOL_ENTRY ||
   "";
-let entry = CONFIG_ENTRY;
 const FRAME_MODE =
   (globalThis as any).CODE_NAV_FRAME_MODE === "static" ? "static" : "cbm";
 const DEPTH = Number((globalThis as any).CODE_NAV_DEPTH || 2);
@@ -114,6 +118,8 @@ interface PanelState {
   selectedNodeId: string | null;
   renderSeq: number;
   opening: boolean;
+  config: ProjectConfig;
+  entry: string;
 }
 
 // ── state ─────────────────────────────────────────────────────────────────
@@ -177,8 +183,33 @@ function framePath(root: string, backend: Backend): string {
   return frameCachePath(root, backend);
 }
 
-function projectFor(backend: Backend): string {
-  return backend === "scip" ? SCIP_PROJECT : CBM_PROJECT;
+async function loadPanelConfig(panel: PanelState): Promise<boolean> {
+  try {
+    const loaded = await loadProjectConfig(panel.root, (path) => editor.readFile(path));
+    if (loaded.sources.some((source) => source.found)) {
+      panel.config = loaded.config;
+    } else {
+      const team = projectConfigPaths(panel.root).team;
+      editor.writeFile(team, TEAM_CONFIG_TEMPLATE);
+      panel.config = (await loadProjectConfig(panel.root, (path) => editor.readFile(path))).config;
+    }
+    const resolved = backendConfig(panel.config, panel.backend);
+    if (!panel.entry && resolved.symbolEntry) panel.entry = resolved.symbolEntry;
+    return true;
+  } catch (error) {
+    paintError(panel, errorText(error));
+    return false;
+  }
+}
+
+function projectFor(panel: PanelState): string {
+  const resolved = backendConfig(panel.config, panel.backend);
+  return resolved.project || (panel.backend === "scip" ? SCIP_PROJECT : CBM_PROJECT);
+}
+
+function entryFor(panel: PanelState): string {
+  const resolved = backendConfig(panel.config, panel.backend);
+  return panel.entry || resolved.symbolEntry || CONFIG_ENTRY;
 }
 
 function activeWindow(): WindowInfo | null {
@@ -204,6 +235,8 @@ function stateFor(
       existing.lineStarts = [];
       existing.selectedNodeId = null;
       existing.renderSeq++;
+      existing.config = {};
+      existing.entry = CONFIG_ENTRY;
     }
     existing.root = root;
     existing.framePath = framePath(root, backend);
@@ -221,6 +254,8 @@ function stateFor(
     selectedNodeId: null,
     renderSeq: 0,
     opening: false,
+    config: {},
+    entry: CONFIG_ENTRY,
   };
   panels.set(key, created);
   return created;
@@ -271,6 +306,28 @@ function readFrame(path: string): Frame | null {
     throw new Error("invalid frame JSON");
   }
   return parsed;
+}
+
+function errorText(error: unknown): string {
+  if (error instanceof Error) return error.stack || error.message;
+  return String(error);
+}
+
+/** Paint an error into the panel so a failed render never blocks the buffer. */
+function paintError(panel: PanelState, detail: string): void {
+  if (panel.bufferId === null) return;
+  panel.frame = null;
+  panel.selectedNodeId = null;
+  panel.lineTexts = detail.replace(/\r\n/g, "\n").split("\n");
+  panel.lineStarts = computeLineStarts(panel.lineTexts);
+  editor.clearNamespace(panel.bufferId, SELECT_NS);
+  const entries: Record<string, unknown>[] = [];
+  for (const line of panel.lineTexts) {
+    entries.push({ text: line });
+    entries.push({ text: "\n" });
+  }
+  editor.setVirtualBufferContent(panel.bufferId, entries);
+  extensionApi.setStatus("Code Graph: error · press r to retry");
 }
 
 function rebuildIndex(panel: PanelState, value: Frame): void {
@@ -348,11 +405,11 @@ function renderFrame(panel: PanelState): void {
   try {
     value = readFrame(panel.framePath);
   } catch (error) {
-    extensionApi.setStatus("Code Graph: cannot read frame — " + String(error));
+    paintError(panel, errorText(error));
     return;
   }
   if (!value) {
-    extensionApi.setStatus(missingFrameMessage(panel));
+    paintError(panel, missingFrameMessage(panel));
     return;
   }
 
@@ -429,6 +486,7 @@ async function openPanel(backend: Backend, focus: boolean): Promise<void> {
 
   if (panel.bufferId !== null) {
     if (focus) editor.showBuffer(panel.bufferId);
+    if (!(await loadPanelConfig(panel))) return;
     await ensureFrame(panel);
     return;
   }
@@ -457,6 +515,7 @@ async function openPanel(backend: Backend, focus: boolean): Promise<void> {
   } finally {
     panel.opening = false;
   }
+  if (!(await loadPanelConfig(panel))) return;
   await ensureFrame(panel);
 }
 
@@ -471,7 +530,7 @@ async function reloadFrame(panel: PanelState): Promise<void> {
     );
     return;
   }
-  if (!entry) {
+  if (!entryFor(panel)) {
     await reportEntryCandidates(panel);
     return;
   }
@@ -481,12 +540,10 @@ async function reloadFrame(panel: PanelState): Promise<void> {
 
   const args = [
     RENDER_SCRIPT,
-    "--cbm",
-    CBM_URL,
     "--project",
-    projectFor(panel.backend),
-    "--symbol",
-    entry,
+    projectFor(panel),
+    "--symbol-entry",
+    entryFor(panel),
     "--depth",
     String(DEPTH),
     "--direction",
@@ -504,13 +561,12 @@ async function reloadFrame(panel: PanelState): Promise<void> {
       stderr?: string;
     };
   } catch (error) {
-    extensionApi.setStatus("Code Graph: render process failed — " + String(error));
+    paintError(panel, errorText(error));
     return;
   }
 
   if (!result || result.exit_code !== 0) {
-    const first = ((result && result.stderr) || "").split("\n")[0] || "unknown error";
-    extensionApi.setStatus("Code Graph: render failed — " + first);
+    paintError(panel, (result && result.stderr) || "render failed without stderr");
     return;
   }
   if (mySeq !== panel.renderSeq || panel.bufferId === null) return;
@@ -551,10 +607,8 @@ async function reportEntryCandidates(panel: PanelState): Promise<void> {
   );
   const args = [
     ENTRY_SCRIPT,
-    "--cbm",
-    CBM_URL,
     "--project",
-    projectFor(panel.backend),
+    projectFor(panel),
     "--json",
     "--limit",
     "8",
@@ -567,12 +621,11 @@ async function reportEntryCandidates(panel: PanelState): Promise<void> {
       stderr?: string;
     };
   } catch (error) {
-    extensionApi.setStatus("Code Graph: entry lookup failed — " + String(error));
+    paintError(panel, errorText(error));
     return;
   }
   if (!result || result.exit_code !== 0) {
-    const detail = ((result && result.stderr) || "").split("\n")[0] || "unknown error";
-    extensionApi.setStatus("Code Graph: entry lookup failed — " + detail);
+    paintError(panel, (result && result.stderr) || "entry lookup failed without stderr");
     return;
   }
   let candidates: Array<{ qualifiedName?: string }> = [];
@@ -587,7 +640,7 @@ async function reportEntryCandidates(panel: PanelState): Promise<void> {
     .filter((name): name is string => Boolean(name));
   if (names.length === 0) {
     extensionApi.setStatus(
-      "Code Graph: no entry candidates found; set CODE_NAV_ENTRY or CODE_NAV_SYMBOL manually",
+      "Code Graph: no entry candidates found; set CODE_NAV_ENTRY or CODE_NAV_SYMBOL_ENTRY manually",
     );
     return;
   }
@@ -601,8 +654,8 @@ async function reportEntryCandidates(panel: PanelState): Promise<void> {
     );
     return;
   }
-  entry = picked.trim();
-  extensionApi.setStatus("Code Graph: entry = " + entry);
+  panel.entry = picked.trim();
+  extensionApi.setStatus("Code Graph: entry = " + panel.entry);
   await reloadFrame(panel);
 }
 

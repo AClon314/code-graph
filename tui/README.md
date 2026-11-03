@@ -38,9 +38,8 @@ bun run tui/render.ts --graph tui/fixture-graph.json --out /tmp/code-graph-frame
 
 # Live cbm: a small local BFS over /api/symbol callers/callees
 bun run tui/render.ts \
-  --cbm http://127.0.0.1:9749 \
   --project my-project \
-  --symbol 'pkg.mod.fn' \
+  --symbol-entry 'pkg.mod.fn' \
   --depth 2 --direction both \
   --max-nodes 60 \
   --out /tmp/code-graph-frame.json
@@ -111,8 +110,12 @@ Notes:
 
 ## Live cbm BFS
 
-`render.ts --cbm` calls `CbmHttpSource.symbol(project, qnOrId)` and walks
-callers/callees locally, keeping the TUI independent of the GUI's
+`--cbm` is an explicit test override. Normal runs omit it: `tui/cbm-discovery.ts`
+reads `codebase-memory-mcp config get ui_port`, probes that port and 9749, and
+fails with the full attempt stack when no local cbm responds.
+
+`render.ts` discovers a local cbm endpoint (`config get ui_port`, then 9749),
+calls `CbmHttpSource.symbol(project, qnOrId)`, and walks callers/callees locally, keeping the TUI independent of the GUI's
 `src/lib/graph/neighborhood.ts`. It keeps a node budget (`--max-nodes`),
 deduplicates nodes by qualified name and edges by `source -> target : type`,
 and never writes to `src/`. `truncated` is currently set only when the node

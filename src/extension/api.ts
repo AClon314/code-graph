@@ -25,7 +25,7 @@ export interface ExtensionConfig {
   source: GraphSourceKind;
   cbmBaseUrl: string;
   project: string;
-  symbol: string;
+  symbolEntry: string;
 }
 
 export interface ExtensionApi {
@@ -40,5 +40,5 @@ export const DEFAULT_CONFIG: ExtensionConfig = {
   source: "mock",
   cbmBaseUrl: "http://127.0.0.1:9749",
   project: "demo",
-  symbol: "demo.src.features.useAlias",
+  symbolEntry: "demo.src.features.useAlias",
 };

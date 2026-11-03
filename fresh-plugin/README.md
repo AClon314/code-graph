@@ -57,10 +57,9 @@ Edit the constants at the top of `code-graph.ts`, or provide overrides on
 | --- | --- | --- |
 | `REPO` | `CODE_NAV_REPO` | this repository |
 | `BUN` | `CODE_NAV_BUN` | `~/.bun/bin/bun` |
-| `CBM_URL` | `CODE_NAV_CBM` | `http://127.0.0.1:9749` |
 | `CBM_PROJECT` | `CODE_NAV_CBM_PROJECT` / `CODE_NAV_PROJECT` | `demo` |
 | `SCIP_PROJECT` | `CODE_NAV_SCIP_PROJECT` | `<CBM_PROJECT>-scip` |
-| `ENTRY` | `CODE_NAV_ENTRY` / `CODE_NAV_SYMBOL` | empty (must be set) |
+| `ENTRY` | `CODE_NAV_ENTRY` / `CODE_NAV_SYMBOL_ENTRY` | from project config `symbolEntry`; optional override |
 | `FRAME_MODE` | `CODE_NAV_FRAME_MODE` | `cbm`; set `static` to force cache read |
 | `DEPTH` | `CODE_NAV_DEPTH` | `2` |
 | `DIRECTION` | `CODE_NAV_DIRECTION` | `both` |
@@ -69,7 +68,23 @@ Edit the constants at the top of `code-graph.ts`, or provide overrides on
 | `PROJECT_ROOT` | `CODE_NAV_ROOT` | active Fresh window root |
 | `JUMP_TMP` | `CODE_NAV_JUMP_TMP` | `/tmp/code-nav-jump.json` |
 
-The frame cache is per workspace and backend:
+Local cbm discovery is automatic: the renderer asks
+`codebase-memory-mcp config get ui_port` (`CBM_BIN` overrides the executable),
+probes that port, then probes 9749.
+Remote/cross-origin cbm is not supported. A failed discovery is painted into the
+panel as a full error/stack; it does not prevent the panel from opening.
+
+Project config is read from two workspace files and merged by `priority`
+(larger wins):
+
+```text
+code-graph.config.jsonc        # team
+.code-graph.config.jsonc       # personal
+```
+
+When neither exists, the plugin creates only `code-graph.config.jsonc`. The
+`symbolEntry` field is the qualified name of the graph root. The frame cache is
+per workspace and backend:
 
 ```text
 <workspace>/.codebase-memory/code-graph/cbm/frame.json

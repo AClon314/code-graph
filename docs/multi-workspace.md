@@ -62,7 +62,7 @@ candidates for the former; the user (or a config file) chooses the latter.
 
 A minimal UI is a multi-select over workspace/project candidates plus "analyze
 selected". Persist the selection outside any one editor window (user config,
-workspace settings, or `.code-graph.json`) so switching workspaces does not
+workspace settings, or `.code-graph.config.jsonc`) so switching workspaces does not
 silently change the analysis set. Default to the current workspace only when no
 scope has been chosen.
 
@@ -152,7 +152,7 @@ The editor workspace root is **not** a cbm project name. A mapping is required:
 
 1. **Explicit setting** (simplest): extend `codeGraph` configuration with
    `codeGraph.projects: [{ root, project }]`, or a JSON map.
-2. **Workspace metadata**: a `.code-graph.json` next to the root, so both
+2. **Workspace metadata**: a `.code-graph.config.jsonc` next to the root, so both
    VS Code and Fresh read the same file.
 3. **cbm introspection**: query cbm's project list and match by path/name.
 4. **Heuristic**: folder basename equals cbm project name; acceptable only as a

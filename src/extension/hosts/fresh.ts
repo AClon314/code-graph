@@ -16,8 +16,7 @@ type FreshGlobals = {
   CODE_NAV_ROOT?: string;
   CODE_NAV_BACKEND?: "cbm" | "scip";
   CODE_NAV_PROJECT?: string;
-  CODE_NAV_SYMBOL?: string;
-  CODE_NAV_CBM?: string;
+  CODE_NAV_SYMBOL_ENTRY?: string;
   CODE_NAV_SOURCE?: ExtensionConfig["source"];
 };
 
@@ -33,9 +32,9 @@ export function createExtensionApi(): ExtensionApi {
       return {
         backend: globals.CODE_NAV_BACKEND ?? DEFAULT_CONFIG.backend,
         source: globals.CODE_NAV_SOURCE ?? DEFAULT_CONFIG.source,
-        cbmBaseUrl: globals.CODE_NAV_CBM ?? DEFAULT_CONFIG.cbmBaseUrl,
+        cbmBaseUrl: DEFAULT_CONFIG.cbmBaseUrl,
         project: globals.CODE_NAV_PROJECT ?? DEFAULT_CONFIG.project,
-        symbol: globals.CODE_NAV_SYMBOL ?? DEFAULT_CONFIG.symbol,
+        symbolEntry: globals.CODE_NAV_SYMBOL_ENTRY ?? DEFAULT_CONFIG.symbolEntry,
       };
     },
     async openLocation(location) {

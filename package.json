@@ -82,17 +82,12 @@
         "codeGraph.cbmBaseUrl": {
           "type": "string",
           "default": "http://127.0.0.1:9749",
-          "description": "codebase-memory-mcp HTTP base URL."
+          "description": "Local cbm HTTP base. Remote/cross-origin backends are not supported; default http://127.0.0.1:9749."
         },
         "codeGraph.project": {
           "type": "string",
           "default": "demo",
           "description": "Initial cbm project name."
-        },
-        "codeGraph.symbol": {
-          "type": "string",
-          "default": "demo.src.features.useAlias",
-          "description": "Initial root symbol (qualified name or #id)."
         },
         "codeGraph.cbmProject": {
           "type": "string",
@@ -101,6 +96,11 @@
         "codeGraph.scipProject": {
           "type": "string",
           "description": "scip-cbm-writer project name for Code Graph (SCIP). Falls back to codeGraph.project when omitted."
+        },
+        "codeGraph.symbolEntry": {
+          "type": "string",
+          "default": "demo.src.features.useAlias",
+          "description": "Initial graph root symbol entry (qualified name or #id)."
         }
       }
     }

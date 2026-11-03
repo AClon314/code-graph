@@ -4,6 +4,11 @@
   import GraphView from "./lib/components/GraphView.svelte";
   import OrchgraphView from "./lib/components/OrchgraphView.svelte";
   import { CbmHttpSource } from "./lib/graph/cbm-http";
+  import {
+    DEFAULT_CBM_BASE_URL,
+    discoverCbmEndpoint,
+    formatCbmEndpointError,
+  } from "./lib/cbm-endpoint";
   import { MockSource } from "./lib/graph/mock";
   import {
     loadNeighborhood,
@@ -94,6 +99,16 @@
     jumpError = "";
     exportStatus = "";
 
+    if (kind === "cbm" && !(await ensureCbmEndpoint())) {
+      loading = false;
+      symbol = null;
+      graphData = null;
+      graphLoading = false;
+      graphError = "";
+      syncUrl();
+      return;
+    }
+
     const source = currentSource();
     const symbolResult = await source.symbol(project, ref).then(
       (value) => ({ status: "fulfilled" as const, value }),
@@ -126,6 +141,19 @@
       graphError = "";
     }
     syncUrl();
+  }
+
+  async function ensureCbmEndpoint(): Promise<boolean> {
+    try {
+      const result = await discoverCbmEndpoint({
+        candidates: [cbmBaseUrl, DEFAULT_CBM_BASE_URL],
+      });
+      cbmBaseUrl = result.baseUrl;
+      return true;
+    } catch (cause) {
+      error = formatCbmEndpointError(cause);
+      return false;
+    }
   }
 
   async function loadGraph(source: GraphSource, root: string, request: number): Promise<void> {
@@ -189,9 +217,10 @@
         if (config.source === "mock" || config.source === "cbm") kind = config.source;
         cbmBaseUrl = config.cbmBaseUrl;
         if (config.project) project = config.project;
-        if (config.symbol) ref = config.symbol;
+        if (config.symbolEntry) ref = config.symbolEntry;
       } catch (cause) {
-        console.warn("code-graph: could not read extension configuration", cause);
+        error = formatCbmEndpointError(cause);
+        return;
       }
 
       if (disposed) return;
@@ -511,7 +540,7 @@
     </label>
     <!-- svelte-ignore a11y_label_has_associated_control -->
     <label>
-      Symbol (qn or #id)
+      Symbol entry (qn or #id)
       <vscode-textfield
         value={ref}
         spellcheck="false"

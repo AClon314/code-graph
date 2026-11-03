@@ -8,8 +8,8 @@
  *
  * Live cbm data (small local BFS over callers/callees):
  *
- *   bun run tui/render.ts --cbm http://127.0.0.1:9749 --project my-project \
- *     --symbol 'pkg.mod.fn' --depth 2 --direction both --out /tmp/frame.json
+ *   bun run tui/render.ts --project my-project \
+ *     --symbol-entry 'pkg.mod.fn' --depth 2 --direction both --out /tmp/frame.json
  *
  * No src/ files are modified: this script only reads GraphViewData types and
  * CbmHttpSource.
@@ -19,6 +19,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 import { buildFrame } from "./frame.ts";
+import { resolveCbmBaseUrl } from "./cbm-discovery.ts";
 import type { BuildFrameOptions } from "./frame.ts";
 import { CbmHttpSource } from "../src/lib/graph/cbm-http.ts";
 import type { GraphDirection } from "orchgraph";
@@ -35,7 +36,7 @@ interface CliArgs {
   graph?: string;
   cbm?: string;
   project?: string;
-  symbol?: string;
+  symbolEntry?: string;
   depth: number;
   direction: BfsDirection;
   maxNodes: number;
@@ -47,10 +48,11 @@ interface CliArgs {
 
 const USAGE = `usage:
   bun run tui/render.ts --graph <graph.json> --out <frame.json> [options]
-  bun run tui/render.ts --cbm <url> --project <name> --symbol <qn> --out <frame.json> [options]
+  bun run tui/render.ts --project <name> --symbol-entry <qn> --out <frame.json> [options]
 
 options:
-  --depth <n>             BFS depth for --cbm (default 2)
+  --cbm <url>             explicit local cbm base (testing only)
+  --depth <n>             BFS depth (default 2)
   --direction <d>         both | callers | callees (default both)
   --max-nodes <n>         node budget for --cbm (default 60)
   --layout-direction <d>  DOWN | UP | LEFT | RIGHT (default DOWN)
@@ -109,8 +111,8 @@ function parseArgs(argv: string[]): CliArgs | null {
     } else if (flag === "--project") {
       args.project = takeValue(argv, i, flag);
       i++;
-    } else if (flag === "--symbol") {
-      args.symbol = takeValue(argv, i, flag);
+    } else if (flag === "--symbol-entry") {
+      args.symbolEntry = takeValue(argv, i, flag);
       i++;
     } else if (flag === "--depth") {
       args.depth = nonNegativeInt(takeValue(argv, i, flag), flag);
@@ -142,9 +144,8 @@ function parseArgs(argv: string[]): CliArgs | null {
   }
 
   if (args.graph && args.cbm) throw new Error("use either --graph or --cbm, not both");
-  if (!args.graph && !args.cbm) throw new Error("one of --graph or --cbm is required");
-  if (args.cbm && (!args.project || !args.symbol)) {
-    throw new Error("--cbm also needs --project and --symbol");
+  if (!args.graph && (!args.project || !args.symbolEntry)) {
+    throw new Error("live render needs --project and --symbol-entry");
   }
   return args;
 }
@@ -229,8 +230,9 @@ function edgeId(source: string, target: string, type: string, seen: Map<string, 
  * a small, deterministic node/edge budget.
  */
 async function fetchCbmView(args: CliArgs): Promise<GraphViewData> {
-  const source = new CbmHttpSource({ baseUrl: args.cbm!, project: args.project! });
-  const rootBundle = await source.symbol(args.project!, args.symbol!);
+  const endpoint = await resolveCbmBaseUrl(args.cbm);
+  const source = new CbmHttpSource({ baseUrl: endpoint.baseUrl, project: args.project! });
+  const rootBundle = await source.symbol(args.project!, args.symbolEntry!);
 
   const nodeMap = new Map<string, GraphViewNode>();
   const ordered: GraphViewNode[] = [];
@@ -271,7 +273,7 @@ async function fetchCbmView(args: CliArgs): Promise<GraphViewData> {
   const rootNode = rootBundle.node;
   const rootView = addNode(rootNode);
   if (!rootView) throw new Error("root symbol was not added");
-  const rootRef = nodeRef(rootNode) ?? args.symbol!;
+  const rootRef = nodeRef(rootNode) ?? args.symbolEntry!;
   bundles.set(rootRef, rootBundle);
 
   const queue: Array<{ ref: string; id: string; depth: number }> = [
