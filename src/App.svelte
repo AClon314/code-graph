@@ -8,6 +8,7 @@
     DEFAULT_CBM_BASE_URL,
     discoverCbmEndpoint,
     formatCbmEndpointError,
+    type FetchLike,
   } from "./lib/cbm-endpoint";
   import { MockSource } from "./lib/graph/mock";
   import {
@@ -84,10 +85,28 @@
     return hits;
   });
 
+  const hostFetch: FetchLike = async (input, init) => {
+    const url = new URL(String(input));
+    const response = await extensionApi.fetchCbm({
+      path: url.pathname,
+      query: Object.fromEntries(url.searchParams),
+      method: init?.method === "POST" ? "POST" : "GET",
+      body: typeof init?.body === "string" ? init.body : undefined,
+    });
+    return new Response(response.body, {
+      status: response.status,
+      headers: { "content-type": "application/json" },
+    });
+  };
+
   function currentSource(): GraphSource {
     return kind === "mock"
       ? mock
-      : new CbmHttpSource({ baseUrl: cbmBaseUrl, project });
+      : new CbmHttpSource({
+          baseUrl: cbmBaseUrl,
+          project,
+          fetchImpl: runtime === "webview" ? hostFetch : undefined,
+        });
   }
 
   async function load(): Promise<void> {
@@ -144,6 +163,7 @@
   }
 
   async function ensureCbmEndpoint(): Promise<boolean> {
+    if (runtime === "webview") return true;
     try {
       const result = await discoverCbmEndpoint({
         candidates: [cbmBaseUrl, DEFAULT_CBM_BASE_URL],

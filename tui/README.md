@@ -7,14 +7,14 @@ GraphViewData ──(Bun + orchgraph/ELK)──> frame JSON ──(QuickJS plugi
 ```
 
 Fresh plugins run in a QuickJS sandbox with **no npm imports**, so layout and
-ANSI parsing happen here under Bun. `fresh-plugin/code-graph.ts` only reads the
-frame and paints styled spans.
+ANSI parsing happen here under Bun. `tui/plugin.ts` only reads the frame and
+paints styled spans.
 
 A **frame** is a static snapshot: layout, styled runs, click boxes and metadata
 are already computed, so painting does not need cbm or ELK. `fixture-graph.json`
 is only a hand-written sample input used for deterministic tests and the
-installer; a frame generated from a real workspace with `--cbm` is just as
-static at paint time.
+installer; a frame generated from a real workspace is just as static at paint
+time.
 
 ## Files
 
@@ -25,7 +25,19 @@ static at paint time.
 | `entries.ts` | List explicit entry-point candidates from a cbm project |
 | `cache-link.ts` | Link a workspace frame into `~/.cache/code-graph/frames/` |
 | `fixture-graph.json` | Deterministic 6-node fixture used by tests/install |
-| `../fresh-plugin/code-graph.ts` | QuickJS consumer of the frame |
+| `plugin.ts` | QuickJS consumer of the frame |
+| `install.ts` | Cross-platform Fresh plugin installer |
+
+## Install
+
+```bash
+bun run tui
+```
+
+This builds `out/fresh-plugin/code-graph.js`, writes the installable
+`out/fresh-plugin/code-graph.ts`, and copies it to the Fresh plugin directory.
+The installer uses `FRESH_CONFIG` when set, otherwise the platform Fresh config
+directory; it works on Linux, macOS and Windows.
 
 ## Commands
 
@@ -115,8 +127,8 @@ reads `codebase-memory-mcp config get ui_port`, probes that port and 9749, and
 fails with the full attempt stack when no local cbm responds.
 
 `render.ts` discovers a local cbm endpoint (`config get ui_port`, then 9749),
-calls `CbmHttpSource.symbol(project, qnOrId)`, and walks callers/callees locally, keeping the TUI independent of the GUI's
-`src/lib/graph/neighborhood.ts`. It keeps a node budget (`--max-nodes`),
+calls `CbmHttpSource.symbol(project, qnOrId)`, and walks callers/callees
+locally, keeping the TUI independent of the GUI's `src/lib/graph/neighborhood.ts`. It keeps a node budget (`--max-nodes`),
 deduplicates nodes by qualified name and edges by `source -> target : type`,
 and never writes to `src/`. `truncated` is currently set only when the node
 budget is hit.
@@ -129,6 +141,6 @@ budget is hit.
   frame itself is ASCII-width). The fixture and cbm identifiers are ASCII.
 - No viewport paging: the whole frame is written to the virtual buffer.
   Very large graphs should be capped in `render.ts`.
-- Layout requires ELK and therefore Bun/Node; `fresh-plugin/` must never layout.
+- Layout requires ELK and therefore Bun/Node; `tui/plugin.ts` must never layout.
 - The frame reports only foreground color + bold. Dim/italic/underline and
   background SGR are stripped.

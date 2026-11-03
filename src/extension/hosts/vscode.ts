@@ -2,6 +2,8 @@ import * as vscode from "vscode";
 
 import {
   DEFAULT_CONFIG,
+  type CbmHttpRequest,
+  type CbmHttpResponse,
   type ExtensionApi,
   type ExtensionConfig,
   type GraphBackend,
@@ -13,11 +15,22 @@ import {
   backendConfig,
   loadProjectConfig,
 } from "../../lib/config";
+import { fetchLocalCbm, resolveLocalCbm } from "./cbm-node";
 
 /**
  * VS Code extension-host implementation. This module may import `vscode`; the
  * webview and Fresh bundles never include it.
  */
+let endpointPromise: Promise<string> | null = null;
+
+function localEndpoint(configured: string): Promise<string> {
+  endpointPromise ??= resolveLocalCbm(configured).catch((error) => {
+    endpointPromise = null;
+    throw error;
+  });
+  return endpointPromise;
+}
+
 export function createExtensionApi(backend: GraphBackend = "cbm"): ExtensionApi {
   return {
     runtime: "vscode",
@@ -29,16 +42,14 @@ export function createExtensionApi(backend: GraphBackend = "cbm"): ExtensionApi 
       );
       const projectConfig = await readProjectConfig();
       const resolved = backendConfig(projectConfig, backend);
+      const source = configuration.get<ExtensionConfig["source"]>("source", "cbm");
+      const configured = configuration.get<string>("cbmBaseUrl", DEFAULT_CONFIG.cbmBaseUrl);
+      const cbmBaseUrl =
+        source === "cbm" ? await localEndpoint(configured) : configured;
       return {
         backend,
-        source: configuration.get<ExtensionConfig["source"]>(
-          "source",
-          "cbm",
-        ),
-        cbmBaseUrl: configuration.get<string>(
-          "cbmBaseUrl",
-          DEFAULT_CONFIG.cbmBaseUrl,
-        ),
+        source,
+        cbmBaseUrl,
         project:
           resolved.project ||
           configuration.get<string>(`${backend}Project`, fallbackProject),
@@ -46,6 +57,11 @@ export function createExtensionApi(backend: GraphBackend = "cbm"): ExtensionApi 
           resolved.symbolEntry ||
           configuration.get<string>("symbolEntry", DEFAULT_CONFIG.symbolEntry),
       };
+    },
+    async fetchCbm(request: CbmHttpRequest): Promise<CbmHttpResponse> {
+      const configuration = vscode.workspace.getConfiguration("codeGraph");
+      const configured = configuration.get<string>("cbmBaseUrl", DEFAULT_CONFIG.cbmBaseUrl);
+      return fetchLocalCbm(await localEndpoint(configured), request);
     },
     async openLocation(location) {
       const uri = resolveUri(location);

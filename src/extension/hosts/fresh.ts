@@ -1,5 +1,7 @@
 import {
   DEFAULT_CONFIG,
+  type CbmHttpRequest,
+  type CbmHttpResponse,
   type ExtensionApi,
   type ExtensionConfig,
   type SourceLocation,
@@ -36,6 +38,18 @@ export function createExtensionApi(): ExtensionApi {
         project: globals.CODE_NAV_PROJECT ?? DEFAULT_CONFIG.project,
         symbolEntry: globals.CODE_NAV_SYMBOL_ENTRY ?? DEFAULT_CONFIG.symbolEntry,
       };
+    },
+    async fetchCbm(request: CbmHttpRequest): Promise<CbmHttpResponse> {
+      const url = new URL(request.path, DEFAULT_CONFIG.cbmBaseUrl);
+      for (const [key, value] of Object.entries(request.query ?? {})) {
+        url.searchParams.set(key, value);
+      }
+      const response = await fetch(url, {
+        method: request.method ?? "GET",
+        headers: { accept: "application/json", "content-type": "application/json" },
+        body: request.body,
+      });
+      return { status: response.status, body: await response.text() };
     },
     async openLocation(location) {
       const target = resolvePath(location);

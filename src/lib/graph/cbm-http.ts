@@ -1,11 +1,12 @@
 import type { GraphSource, SymbolBundle, SymbolConnection, SymbolNode } from "./types";
+import type { FetchLike } from "../cbm-endpoint";
 
 export interface CbmHttpOptions {
   /** cbm HTTP base; empty means same-origin (Vite dev proxy). */
   baseUrl?: string;
   /** Project selected in the UI. cbm's HTTP API is project-scoped. */
   project: string;
-  fetchImpl?: typeof fetch;
+  fetchImpl?: FetchLike;
 }
 
 interface CbmNode {
@@ -39,7 +40,7 @@ interface CbmSymbol {
 export class CbmHttpSource implements GraphSource {
   readonly baseUrl: string;
   readonly project: string;
-  private readonly fetchImpl: typeof fetch;
+  private readonly fetchImpl: FetchLike;
 
   constructor(options: CbmHttpOptions) {
     this.baseUrl = (options.baseUrl ?? "").replace(/\/$/, "");

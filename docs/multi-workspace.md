@@ -136,15 +136,16 @@ export interface ExtensionApi {
 
 Runtime mappings:
 
-| Method | VS Code host | Fresh host | Browser host |
+| Method | VS Code host | Fresh host | Browser dev host |
 |---|---|---|---|
 | `listWorkspaces` | `workspace.workspaceFolders` | `editor.listWindows()` (filter to real roots) | one fake workspace |
 | `activeWorkspace` | folder containing `window.activeTextEditor`, else first | `listWindows().find(w => w.id === editor.activeWindow())` | the fake one |
 | `focusWorkspace` | reveal/open a file in that folder; no true folder focus | `orchestrator.focusWorkspace(id)` or `setActiveWindow(id)` | no-op/false |
 | `onDidChangeWorkspaces` | `onDidChangeWorkspaceFolders` | `active_window_changed` + `window_created` + `window_closed` | no-op |
 
-In the webview host, all four become `postMessage` requests through the existing
-request/response table in `src/extension/protocol.ts`.
+In the webview, all four become `postMessage` requests through the existing
+request/response table in `src/extension/protocol.ts`; the Node host implements
+them in `src/extension/hosts/vscode.ts`.
 
 ## What "compute the call graph per workspace" needs
 
@@ -162,15 +163,15 @@ Once mapped, the flow is the same in both runtimes:
 
 ```text
 listWorkspaces()
-  -> for each mapped root: render frame(root, project, symbol)
+  -> for each mapped root: render frame(root, project, symbolEntry)
   -> cache frame per workspaceId
   -> activeWorkspace() picks the visible frame
   -> onDidChangeWorkspaces() re-renders / switches
 ```
 
-In Fresh, run the existing `tui/render.ts --cbm ...` with the workspace root as
-`cwd` (or pass `--project`); in VS Code, fetch cbm from the extension host and
-push data to the webview. Keep one frame cache keyed by `WorkspaceRef.id`.
+In Fresh, run the existing `tui/render.ts` with the workspace root as `cwd` (or
+pass `--project`); in VS Code, the Node extension host fetches cbm and pushes
+data to the webview. Keep one frame cache keyed by `WorkspaceRef.id`.
 
 ## UI options
 
@@ -196,8 +197,8 @@ workspace would add another tab. Prefer one tab with a picker.
   enumerate arbitrary disk paths.
 - **Which workspace is "active" in VS Code**: the active editor's folder is a
   good heuristic, but an editor can be outside any folder.
-- **CORS**: the webview fetches cbm directly today; per-workspace fetching in
-  vscode.dev makes the extension-host proxy more attractive.
+- **CORS**: the Node extension host proxies local cbm; the webview never
+  fetches it directly. This is required for remote code-server access.
 
 None of this blocks the current single-workspace UI; it is a schema and host
 adapter change, not a graph-core change.

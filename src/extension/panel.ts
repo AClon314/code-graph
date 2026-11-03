@@ -84,6 +84,19 @@ async function handleMessage(
       return;
     }
 
+    if (message.type === "cbmFetch") {
+      try {
+        post(panel, {
+          type: "cbmResponse",
+          id: message.id,
+          response: await api.fetchCbm(message.request),
+        });
+      } catch (cause) {
+        post(panel, { type: "failed", id: message.id, message: errorMessage(cause) });
+      }
+      return;
+    }
+
     if (message.type === "openLocation") {
       await api.openLocation(message.location);
       post(panel, { type: "opened", id: message.id });
@@ -110,6 +123,7 @@ function isHostRequest(value: unknown): value is HostRequest {
   const message = value as { type?: unknown };
   return (
     message.type === "getConfig" ||
+    message.type === "cbmFetch" ||
     message.type === "openLocation" ||
     message.type === "status"
   );

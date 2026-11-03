@@ -28,6 +28,7 @@ assert_absent "$WEBVIEW" "getEditor"
 assert_absent "$WEBVIEW" "9752"
 
 assert_contains "$EXTENSION" "codeGraph.open"
+assert_contains "$EXTENSION" "node:child_process"
 assert_absent "$EXTENSION" "acquireVsCodeApi"
 assert_absent "$EXTENSION" "getEditor"
 

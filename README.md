@@ -2,9 +2,9 @@
 
 Call-graph UI for codebase-memory-mcp, delivered two ways from one graph core:
 
-- **GUI (HTML)**: a VS Code web extension. `Code Graph: Open (cbm)` and
+- **GUI (HTML)**: a VS Code Node extension. `Code Graph: Open (cbm)` and
   `Code Graph: Open (SCIP)` create separate editor tabs and mount the Svelte
-  GUI in a webview.
+  GUI in a webview. cbm requests are proxied by the extension host.
 - **TUI**: unchanged. Fresh consumes a precomputed orchgraph frame through the
   Fresh API.
 
@@ -21,8 +21,8 @@ The old standalone Svelte shell (with its own file tree) is preserved on the
                              │
         ┌────────────────────┼────────────────────┐
         │                    │                    │
-   Svelte webview       VS Code host          Fresh host
-   (iframe)             (WebWorker)           (QuickJS plugin)
+   Svelte webview       Node host             Fresh host
+   (iframe)             (extension)           (QuickJS plugin)
         │                    │                    │
    postMessage  <──────>  ExtensionApi  <──────>  ExtensionApi
 ```
@@ -67,8 +67,8 @@ directly. Build output contains only the selected runtime:
 - Details: symbol bundle, callers/callees, **Jump** opens the file at the
   symbol's 1-based line through `ExtensionApi.openLocation`.
 - Workspace Trust: declared supported for untrusted and virtual workspaces, so
-  the graph viewer is usable in Restricted Mode; cbm network access is still
-  browser-side.
+  the graph viewer is usable in Restricted Mode. cbm requests are made by the
+  Node extension host, not the webview.
 - Styling: VS Code `--vscode-*` theme tokens. `@vscode-elements/elements`
   provides `vscode-textfield` / `vscode-single-select`; buttons are native
   `<button>` elements using `--vscode-button-*`. The archived
@@ -85,12 +85,11 @@ directly. Build output contains only the selected runtime:
 | `codeGraph.scipProject` | `codeGraph.project` | scip-cbm-writer project for `(SCIP)` |
 | `codeGraph.symbolEntry` | `demo.src.features.useAlias` | initial graph root symbol entry (qualified name or `#id`) |
 
-Mock works without a daemon. For `cbm`, the GUI probes the configured local
-endpoint and then `http://127.0.0.1:9749`; remote/cross-origin cbm is not
-supported. If no local cbm responds, the panel shows the full probe/stack error
-instead of failing the whole webview. The web extension cannot execute
-`config get`; if cbm is not on 9749, set `codeGraph.cbmBaseUrl` to its local
-port. TUI/Fresh perform the `config get` discovery automatically.
+Mock works without a daemon. For `cbm`, the Node extension host runs
+`config get ui_port`, probes that endpoint, then `http://127.0.0.1:9749`. The
+webview only talks to the host; it never fetches cbm directly. Remote/cross-origin
+cbm is not supported. If no local cbm responds, the panel shows the full
+probe/stack error instead of failing the whole webview.
 
 ### Project config
 
@@ -167,9 +166,10 @@ bun run lazy_mkcert --force extra.example 192.0.2.10
 All build and harness artifacts are under the git-ignored `out/` directory:
 
 ```text
-out/dist/extension.cjs       VS Code web extension
+out/dist/extension.cjs       VS Code Node extension
 out/dist/webview/            Svelte webview bundle
 out/fresh-plugin/code-graph.js Fresh plugin bundle
+out/fresh-plugin/code-graph.ts Generated installable plugin
 out/tui/frame.json           precomputed TUI frame
 out/certs/                   generated TLS certificate and key
 ```
@@ -203,14 +203,15 @@ bun run jump:bridge
 
 | Output | Purpose |
 |---|---|
-| `out/dist/extension.cjs` | VS Code web extension (`browser` entry) |
+| `out/dist/extension.cjs` | VS Code Node extension (`main` entry) |
 | `out/dist/webview/assets/webview.js` | Svelte app bundle |
 | `out/dist/webview/assets/webview.css` | theme tokens + layout |
 | `out/fresh-plugin/code-graph.js` | bundled Fresh plugin |
+| `out/fresh-plugin/code-graph.ts` | generated installable Fresh plugin |
 
-The extension manifest is the root `package.json` (`browser`, command,
-settings). The extension host is bundled with esbuild; the webview with Vite;
-the Fresh plugin with esbuild + `#host` alias.
+The extension manifest is the root `package.json` (`main`, command, settings).
+The Node extension host is bundled with esbuild; the webview with Vite; the Fresh
+plugin with esbuild + `#host` alias.
 
 ## Fonts
 
@@ -232,7 +233,7 @@ the CDN font and falls back to a proportional glyph. Braille is exactly one cell
 The TUI path is independent of VS Code:
 
 ```bash
-bash fresh-plugin/install.sh
+bun run tui
 ```
 
 Fresh commands:
@@ -265,9 +266,10 @@ candidates in a prompt and uses the selection for the session. Module/folder
 views are not implemented yet; the default funcs view has no folder root.
 
 - `tui/frame.ts` builds the orchgraph frame.
-- `fresh-plugin/code-graph.ts` paints it and uses the same `ExtensionApi` Fresh
-  host for `openLocation` / `setStatus`.
-- `out/fresh-plugin/code-graph.js` is the single-file QuickJS bundle.
+- `tui/plugin.ts` paints it and uses the same `ExtensionApi` Fresh host for
+  `openLocation` / `setStatus`.
+- `out/fresh-plugin/code-graph.js` is the single-file QuickJS bundle;
+  `bun run tui` generates `out/fresh-plugin/code-graph.ts` and installs it.
 
 ## Checks
 
@@ -278,11 +280,14 @@ bun run build          # all three bundles
 bun run verify:runtime # assert each bundle contains only its host
 ```
 
-## Limits
+## LIMITATIONS
 
+- **vscode.dev is unsupported.** The extension uses a Node `main` host and
+  proxies cbm there. Browser-only VS Code hosts cannot execute `config get` or
+  avoid CORS; use desktop VS Code or code-server instead.
+- **Remote/cross-origin cbm is unsupported.** cbm is expected on the same
+  machine as the extension host (desktop local or the code-server server).
 - No embedded code editor; navigation is `openLocation`.
-- The webview still talks to cbm directly. A web extension host proxy would
-  avoid CORS for vscode.dev, but is not implemented yet.
 - `bun run gui` is a code-server development harness, not a packaged VSIX
   workflow. It requires `code-server` on `PATH`.
 - `deprecated-svelteUI` keeps the old shell for reference; do not add features
