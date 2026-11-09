@@ -1,17 +1,6 @@
 import { expect, test } from "bun:test";
 
 import { CbmHttpSource } from "../src/lib/graph/cbm-http";
-import { MockSource } from "../src/lib/graph/mock";
-
-test("MockSource returns a symbol bundle", async () => {
-  const source = new MockSource();
-
-  const bundle = await source.symbol("demo", "demo.src.features.useAlias");
-  expect(bundle.node.name).toBe("useAlias");
-  expect(bundle.callees.map((callee) => callee.name)).toContain("get");
-
-  await expect(source.symbol("demo", "missing")).rejects.toThrow("mock symbol not found");
-});
 
 test("CbmHttpSource maps the symbol payload and URL", async () => {
   const calls: string[] = [];

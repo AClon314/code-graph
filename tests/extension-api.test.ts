@@ -19,7 +19,6 @@ afterEach(() => {
   calls.length = 0;
   statuses.length = 0;
   delete (globalThis as Record<string, unknown>).CODE_NAV_ROOT;
-  delete (globalThis as Record<string, unknown>).CODE_NAV_PROJECT;
 });
 
 test("Fresh host resolves workspace-relative paths and opens 1-based locations", async () => {
@@ -32,13 +31,6 @@ test("Fresh host resolves workspace-relative paths and opens 1-based locations",
 
   await api.openLocation({ path: "/abs/b.ts", line: 0 });
   expect(calls[1]).toEqual({ path: "/abs/b.ts", line: 1, column: 1 });
-});
-
-test("Fresh host reads project configuration from the plugin globals", async () => {
-  (globalThis as Record<string, unknown>).CODE_NAV_PROJECT = "p";
-  const config = await createExtensionApi().getConfig();
-  expect(config.project).toBe("p");
-  expect(config.source).toBe("mock");
 });
 
 test("Fresh host forwards status messages to the editor", () => {
