@@ -57,7 +57,12 @@ let payload: { nodes?: RepositoryNode[] };
 try {
   const response = await fetch(url);
   if (!response.ok) {
-    console.error(`entries: ${response.status} ${response.statusText}`);
+    const detail = (await response.text()).trim();
+    console.error(
+      `entries: ${response.status} ${response.statusText}` +
+        (detail ? `: ${detail}` : "") +
+        ` (project=${values.project})`,
+    );
     process.exit(1);
   }
   payload = (await response.json()) as { nodes?: RepositoryNode[] };

@@ -88,7 +88,7 @@ export async function loadProjectConfig(
     } catch (cause) {
       throw new ProjectConfigError(entry.path, "cannot read config", cause);
     }
-    if (text === null) {
+    if (text === null || text.trim() === "") {
       sources.push({ path: entry.path, priority: entry.fallback, found: false });
       continue;
     }

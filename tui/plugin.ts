@@ -38,9 +38,9 @@ const CACHE_LINK_SCRIPT = REPO + "/tui/cache-link.ts";
 const CBM_PROJECT =
   (globalThis as any).CODE_NAV_CBM_PROJECT ||
   (globalThis as any).CODE_NAV_PROJECT ||
-  "demo";
+  "";
 const SCIP_PROJECT =
-  (globalThis as any).CODE_NAV_SCIP_PROJECT || CBM_PROJECT + "-scip";
+  (globalThis as any).CODE_NAV_SCIP_PROJECT || (CBM_PROJECT ? CBM_PROJECT + "-scip" : "");
 const CONFIG_ENTRY =
   (globalThis as any).CODE_NAV_ENTRY ||
   (globalThis as any).CODE_NAV_SYMBOL_ENTRY ||
@@ -184,7 +184,17 @@ function framePath(root: string, backend: Backend): string {
 async function loadPanelConfig(panel: PanelState): Promise<boolean> {
   try {
     const loaded = await loadOrCreateProjectConfig(panel.root, {
-      readFile: (path) => editor.readFile(path),
+      // Fresh returns null for a missing file in the common case, but some
+      // remote/virtual backends throw or return "". Treat both as absent so an
+      // optional config never prevents the graph from opening.
+      readFile: (path) => {
+        try {
+          const text = editor.readFile(path);
+          return typeof text === "string" && text.trim() ? text : null;
+        } catch {
+          return null;
+        }
+      },
       writeFile: (path, content) => editor.writeFile(path, content),
     });
     panel.config = loaded.config;
@@ -525,6 +535,23 @@ async function reloadFrame(panel: PanelState): Promise<void> {
     );
     return;
   }
+  if (!projectFor(panel)) {
+    paintError(
+      panel,
+      "Code Graph: no " +
+        panel.backend +
+        " project configured.\n" +
+        "Set backends." +
+        panel.backend +
+        ".project in " +
+        panel.root +
+        "/code-graph.config.jsonc, then press r.\n" +
+        "Example: { \"backends\": { \"" +
+        panel.backend +
+        "\": { \"project\": \"my-project\" } } }",
+    );
+    return;
+  }
   if (!entryFor(panel)) {
     await reportEntryCandidates(panel);
     return;
@@ -862,7 +889,12 @@ registerHandler("code_nav_open_cbm", () => openPanel("cbm", true));
 registerHandler("code_nav_open_scip", () => openPanel("scip", true));
 registerHandler("code_nav_reload", () => {
   const panel = activePanel();
-  if (panel) void reloadFrame(panel);
+  if (!panel) return;
+  void (async () => {
+    // A config error must be retried too; otherwise r falls back to the
+    // default project and the entry lookup returns 404.
+    if (await loadPanelConfig(panel)) await reloadFrame(panel);
+  })();
 });
 registerHandler("code_nav_open_node", openSelectedNode);
 registerHandler("code_nav_click", onClick);
