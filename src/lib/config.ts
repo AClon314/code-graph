@@ -46,7 +46,12 @@ export const TEAM_DEFAULT_PRIORITY = 100;
 export const PERSONAL_DEFAULT_PRIORITY = 200;
 
 export const TEAM_CONFIG_TEMPLATE = `{
-  "priority": ${TEAM_DEFAULT_PRIORITY}
+  "priority": ${TEAM_DEFAULT_PRIORITY},
+  "backend": "cbm",
+  "backends": {
+    // "cbm": { "project": "my-cbm-project" },
+    // "scip": { "project": "my-scip-project" }
+  }
 }
 `;
 
