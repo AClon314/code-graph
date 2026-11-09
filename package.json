@@ -20,7 +20,7 @@
     "vscode:prepublish": "bun run build",
     "verify:runtime": "bash scripts/verify-runtime.sh",
     "lazy_mkcert": "bun run scripts/lazy-mkcert.ts",
-    "tui": "bun run tui/install.ts"
+    "tui": "bun run tui/install.ts && bun run tui/launch.ts"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^6.0.0",

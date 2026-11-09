@@ -266,6 +266,10 @@ The TUI path is independent of VS Code:
 bun run tui
 ```
 
+This installs the Fresh plugin, starts cbm when it is not already healthy, and
+then launches Fresh. Use `TUI_NO_START=1 bun run tui` to install only, or
+`CBM_AUTOSTART=0` to leave cbm alone. cbm logs go to `out/cbm.log`.
+
 Fresh commands:
 
 - **Code Graph: Open (cbm)**

@@ -27,6 +27,7 @@ time.
 | `fixture-graph.json` | Deterministic 6-node fixture used by tests/examples |
 | `plugin.ts` | QuickJS consumer of the frame |
 | `install.ts` | Cross-platform Fresh plugin installer |
+| `launch.ts` | Start cbm if needed, then launch Fresh |
 
 ## Install
 
@@ -35,14 +36,25 @@ bun run tui
 ```
 
 This builds `out/fresh-plugin/code-graph.js`, writes the installable
-`out/fresh-plugin/code-graph.ts`, and copies it to the Fresh plugin directory.
+`out/fresh-plugin/code-graph.ts`, copies it to the Fresh plugin directory, and
+then launches Fresh. When cbm is not already healthy it starts
+`codebase-memory-mcp --ui=true` first (log: `out/cbm.log`) and passes the
+resolved port to the plugin.
+
 The installer uses `FRESH_CONFIG` when set, otherwise asks `fresh --cmd config
 paths` for the platform config directory (falling back to the XDG/APPDATA/home
 defaults); it works on Linux, macOS and Windows. The generated wrapper also
 contains the absolute Bun path and a platform temp-file path for the jump
 bridge.
 
-For a cbm-backed panel, start the local service in another terminal:
+Install only, without starting cbm or Fresh:
+
+```bash
+TUI_NO_START=1 bun run tui
+```
+
+Use an existing remote/tunneled cbm with `CBM_HTTP`, or skip autostart with
+`CBM_AUTOSTART=0`. For a cbm-backed panel started manually, use:
 
 ```bash
 bun run cbm --ui=true --port=9751
