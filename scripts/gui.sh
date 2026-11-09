@@ -75,6 +75,7 @@ start_cbm() {
     port="$("$bin" config get ui_port 2>/dev/null | tail -n 1 | tr -d '[:space:]' || true)"
   fi
   port="${port:-9749}"
+  export CBM_PORT="$port"
 
   if command -v curl >/dev/null 2>&1 &&
     curl -fsS --max-time 1 "http://127.0.0.1:${port}/api/ui-config" >/dev/null 2>&1; then

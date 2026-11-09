@@ -23,6 +23,13 @@ export interface CbmPortLookup {
 
 /** Read the effective UI port. Never throws; the caller probes it. */
 export function readCbmPortFromCli(): CbmPortLookup {
+  const explicit = process.env.CBM_PORT?.trim();
+  if (explicit) {
+    const port = Number(explicit);
+    if (Number.isInteger(port) && port > 0 && port <= 65535) return { port };
+    return { error: `CBM_PORT is not a valid port: ${explicit}` };
+  }
+
   const bin = process.env.CBM_BIN || "codebase-memory-mcp";
   try {
     const stdout = execFileSync(bin, ["config", "get", "ui_port"], {
