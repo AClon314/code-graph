@@ -8,5 +8,6 @@ bun run test:vscode
 ```
 
 The `webServer` entry starts the isolated code-server profile from
-`scripts/gui.sh`; it disables cbm autostart and the fixture workspace selects
-`codeGraph.source = "mock"`, so this smoke test needs no daemon.
+`scripts/gui.sh`; it disables cbm autostart and sets `WORKSPACE` to the fixture
+workspace, which selects `codeGraph.source = "mock"`, so this smoke test needs
+no daemon.

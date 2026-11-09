@@ -1,6 +1,8 @@
 import { defineConfig } from "@playwright/test";
+import { fileURLToPath } from "node:url";
 
 const port = Number(process.env.CODE_SERVER_TEST_PORT || "8099");
+const fixtureWorkspace = fileURLToPath(new URL("./fixtures/workspace", import.meta.url));
 
 export default defineConfig({
   testDir: "./tests/vscode",
@@ -26,6 +28,7 @@ export default defineConfig({
       HOST: "127.0.0.1",
       AUTH: "none",
       CBM_AUTOSTART: "0",
+      WORKSPACE: fixtureWorkspace,
     },
   },
 });

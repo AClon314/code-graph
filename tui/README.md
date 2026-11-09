@@ -133,8 +133,9 @@ Notes:
 - Trailing spaces on each row are trimmed, so overlay byte ranges stop at the
   visible text. Click columns still map into the original node boxes because
   boxes are stored in cell coordinates.
-- `lines` is indexed by buffer row. The Fresh panel hides line numbers so row
-  indices and node-box `y` values agree.
+- `lines` is the frame payload. The Fresh plugin prepends two toolbar rows;
+  click and overlay math adds `panel.headerRows` before comparing node-box
+  `y` values.
 - The root node marker uses orchgraph's `running` theme (bold/yellow); other
   markers use `idle` with a fixed gray. That keeps at least one colored run in
   every non-empty frame without inventing graph state.
@@ -153,6 +154,26 @@ calls `CbmHttpSource.symbol(project, qnOrId)`, and uses the shared
 node budget (`--max-nodes`), deduplicates nodes by qualified name and edges by
 `source -> target : type`, and never writes to `src/`. `truncated` is set when
 either the node budget or the depth boundary is hit.
+
+## Keyboard and mouse
+
+The graph panel starts with a clickable toolbar:
+
+```text
+[?] Help  [e] Entry  [r] Reload  [q] Close
+```
+
+Keys:
+
+- `?` — toggle the help screen
+- `e` — prompt for a new root symbol
+- `r` — reload config and frame
+- `o` / `Enter` — open the selected node
+- `q` — close the panel
+- click — select a node; double-click — open it
+
+`Code Graph: Show Keys` and `Code Graph: Set Entry` expose the same actions from
+the command palette.
 
 ## Known limitations
 

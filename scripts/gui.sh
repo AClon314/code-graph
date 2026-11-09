@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Start the local GUI harness: build, install this extension into an isolated
-# code-server profile, and run code-server on the fixture workspace.
+# code-server profile, and run code-server on the caller's cwd.
 #
 #   bun run gui
+#   WORKSPACE=/path/to/repo bun run gui
 #   HOST=0.0.0.0 PASSWORD=secret bun run gui   # remote, password auth
 #
 # Requires code-server on PATH. This is intentionally a development harness,
@@ -10,6 +11,12 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CALLER_CWD="$(pwd)"
+WORKSPACE="${WORKSPACE:-$CALLER_CWD}"
+case "$WORKSPACE" in
+  /*) ;;
+  *) WORKSPACE="$CALLER_CWD/$WORKSPACE" ;;
+esac
 cd "$REPO"
 
 if ! command -v code-server >/dev/null 2>&1; then
@@ -110,4 +117,4 @@ exec code-server \
   --disable-telemetry \
   --disable-update-check \
   "$@" \
-  "$REPO/fixtures/workspace"
+  "$WORKSPACE"

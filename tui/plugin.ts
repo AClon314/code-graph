@@ -21,6 +21,16 @@ import {
   loadOrCreateProjectConfig,
   type ProjectConfig,
 } from "../src/lib/config";
+import {
+  HEADER_ROWS,
+  HELP_LINES,
+  headerEntries,
+  headerLines,
+  toolbarActionAt,
+  type ToolbarAction,
+} from "./panel-chrome.ts";
+import type { Frame, NodeBox, NodeMeta } from "./frame-types.ts";
+import { byteToChar, hexToRgb, utf8Len } from "./text.ts";
 
 const editor = getEditor();
 
@@ -61,35 +71,6 @@ const PANEL_MODE = "code-graph";
 const SELECT_NS = "code-nav-sel";
 const POLL_MS = 500;
 
-// ── frame types (kept local; the sandbox cannot import) ────────────────────
-interface Run {
-  t: string;
-  fg?: string;
-  bold?: boolean;
-}
-interface NodeBox {
-  id: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-interface NodeMeta {
-  label: string;
-  kind: string;
-  file: string;
-  line: number;
-  qn?: string;
-}
-interface Frame {
-  width: number;
-  height: number;
-  nodeCount: number;
-  lines: Run[][];
-  nodes?: NodeBox[];
-  meta?: Record<string, NodeMeta>;
-}
-
 interface WindowInfo {
   id: number;
   label: string;
@@ -118,6 +99,8 @@ interface PanelState {
   opening: boolean;
   config: ProjectConfig;
   entry: string;
+  helpVisible: boolean;
+  headerRows: number;
 }
 
 // ── state ─────────────────────────────────────────────────────────────────
@@ -127,38 +110,30 @@ let bridgeInFlight = false;
 let bridgeErrorShown = false;
 let lastJumpKey = "";
 
+function toolbarHit(panel: PanelState, column: number): void {
+  const action = toolbarActionAt(panel.helpVisible, column);
+  if (action) runToolbarAction(panel, action);
+}
+
+function runToolbarAction(panel: PanelState, action: ToolbarAction): void {
+  if (action === "help") {
+    toggleHelp(panel);
+    return;
+  }
+  if (action === "entry") {
+    void setEntry();
+    return;
+  }
+  if (action === "reload") {
+    void (async () => {
+      if (await loadPanelConfig(panel)) await reloadFrame(panel);
+    })();
+    return;
+  }
+  if (panel.bufferId !== null) editor.closeBuffer(panel.bufferId, true);
+}
+
 // ── utilities ─────────────────────────────────────────────────────────────
-function hexToRgb(hex: string): [number, number, number] | null {
-  if (typeof hex !== "string") return null;
-  const value = hex.charAt(0) === "#" ? hex.slice(1) : hex;
-  if (value.length !== 6) return null;
-  const r = parseInt(value.slice(0, 2), 16);
-  const g = parseInt(value.slice(2, 4), 16);
-  const b = parseInt(value.slice(4, 6), 16);
-  if (r !== r || g !== g || b !== b) return null;
-  return [r, g, b];
-}
-
-function utf8Len(value: string): number {
-  let count = 0;
-  for (const ch of value) {
-    const cp = ch.codePointAt(0) ?? 0;
-    count += cp < 0x80 ? 1 : cp < 0x800 ? 2 : cp < 0x10000 ? 3 : 4;
-  }
-  return count;
-}
-
-function byteToChar(value: string, byteColumn: number): number {
-  let bytes = 0;
-  let chars = 0;
-  for (const ch of value) {
-    if (bytes >= byteColumn) return chars;
-    bytes += utf8Len(ch);
-    chars++;
-  }
-  return chars;
-}
-
 function computeLineStarts(lines: string[]): number[] {
   const starts: number[] = [];
   let offset = 0;
@@ -244,6 +219,8 @@ function stateFor(
       existing.renderSeq++;
       existing.config = {};
       existing.entry = CONFIG_ENTRY;
+      existing.helpVisible = false;
+      existing.headerRows = 0;
     }
     existing.root = root;
     existing.framePath = framePath(root, backend);
@@ -263,6 +240,8 @@ function stateFor(
     opening: false,
     config: {},
     entry: CONFIG_ENTRY,
+    helpVisible: false,
+    headerRows: 0,
   };
   panels.set(key, created);
   return created;
@@ -305,6 +284,35 @@ function frameToEntries(value: Frame): Record<string, unknown>[] {
   return entries;
 }
 
+function setPanelContent(
+  panel: PanelState,
+  lines: string[],
+  entries: Record<string, unknown>[],
+): void {
+  panel.lineTexts = lines;
+  panel.lineStarts = computeLineStarts(lines);
+  editor.setVirtualBufferContent(panel.bufferId!, entries);
+}
+
+function paintHelp(panel: PanelState): void {
+  if (panel.bufferId === null) return;
+  panel.headerRows = HEADER_ROWS;
+  panel.selectedNodeId = null;
+  const lines = [...headerLines(panel.helpVisible), ...HELP_LINES, ""];
+  const entries: Record<string, unknown>[] = headerEntries(panel.helpVisible);
+  for (const line of HELP_LINES) entries.push({ text: line + "\n" });
+  entries.push({ text: "\n" });
+  editor.clearNamespace(panel.bufferId, SELECT_NS);
+  setPanelContent(panel, lines, entries);
+  extensionApi.setStatus("Code Graph: help · ? back · e entry · r reload · q close");
+}
+
+function toggleHelp(panel: PanelState): void {
+  panel.helpVisible = !panel.helpVisible;
+  if (panel.helpVisible) paintHelp(panel);
+  else renderFrame(panel);
+}
+
 function readFrame(path: string): Frame | null {
   const raw = editor.readFile(path);
   if (!raw) return null;
@@ -325,6 +333,8 @@ function paintError(panel: PanelState, detail: string): void {
   if (panel.bufferId === null) return;
   panel.frame = null;
   panel.selectedNodeId = null;
+  panel.helpVisible = false;
+  panel.headerRows = 0;
   panel.lineTexts = detail.replace(/\r\n/g, "\n").split("\n");
   panel.lineStarts = computeLineStarts(panel.lineTexts);
   editor.clearNamespace(panel.bufferId, SELECT_NS);
@@ -363,12 +373,13 @@ function selectNode(panel: PanelState, id: string): void {
   editor.clearNamespace(panel.bufferId, SELECT_NS);
 
   for (let row = box.y; row < box.y + box.height; row++) {
-    const text = panel.lineTexts[row] ?? "";
+    const viewRow = row + panel.headerRows;
+    const text = panel.lineTexts[viewRow] ?? "";
     const startChar = Math.max(0, Math.min(text.length, box.x));
     const endChar = Math.max(startChar, Math.min(text.length, box.x + box.width));
     if (endChar <= startChar) continue;
-    const start = (panel.lineStarts[row] ?? 0) + utf8Len(text.slice(0, startChar));
-    const end = (panel.lineStarts[row] ?? 0) + utf8Len(text.slice(0, endChar));
+    const start = (panel.lineStarts[viewRow] ?? 0) + utf8Len(text.slice(0, startChar));
+    const end = (panel.lineStarts[viewRow] ?? 0) + utf8Len(text.slice(0, endChar));
     if (end > start) {
       editor.addOverlay(panel.bufferId, SELECT_NS, start, end, {
         bg: [48, 58, 78],
@@ -421,9 +432,12 @@ function renderFrame(panel: PanelState): void {
   }
 
   rebuildIndex(panel, value);
+  panel.helpVisible = false;
+  panel.headerRows = HEADER_ROWS;
   // Content replacement invalidates byte offsets stored in old overlays.
   editor.clearNamespace(panel.bufferId, SELECT_NS);
-  editor.setVirtualBufferContent(panel.bufferId, frameToEntries(value));
+  const lines = [...headerLines(panel.helpVisible), ...value.lines.map((runs) => runs.map((run) => run.t).join(""))];
+  setPanelContent(panel, lines, [...headerEntries(panel.helpVisible), ...frameToEntries(value)]);
   extensionApi.setStatus(
     "Code Graph (" +
       panel.backend +
@@ -433,7 +447,7 @@ function renderFrame(panel: PanelState): void {
       value.width +
       "×" +
       value.height +
-      " · e entry · r reload · q close",
+      " · ? help · e entry · r reload · q close",
   );
 }
 
@@ -742,7 +756,7 @@ function onClick(event: {
   const bufferId = event.buffer_id ?? event.bufferId ?? null;
   if (bufferId === null) return;
   const panel = findPanelByBuffer(bufferId);
-  if (!panel || !panel.frame) return;
+  if (!panel) return;
   if (event.button && event.button !== "left") return;
   if (typeof event.buffer_row !== "number" || typeof event.buffer_col !== "number") return;
 
@@ -751,12 +765,19 @@ function onClick(event: {
   // buffer_col is a byte offset inside the row; boxes are character cells.
   const column = byteToChar(text, event.buffer_col);
 
+  if (row < panel.headerRows) {
+    if (row === 0) toolbarHit(panel, column);
+    return;
+  }
+  if (!panel.frame || panel.helpVisible) return;
+  const frameRow = row - panel.headerRows;
+
   let hit: NodeBox | null = null;
   if (panel.frame.nodes) {
     for (const box of panel.frame.nodes) {
       if (
-        row >= box.y &&
-        row < box.y + box.height &&
+        frameRow >= box.y &&
+        frameRow < box.y + box.height &&
         column >= box.x &&
         column < box.x + box.width
       ) {
@@ -767,7 +788,7 @@ function onClick(event: {
   }
   if (!hit) {
     clearSelection(panel);
-    extensionApi.setStatus("Code Graph: blank (row " + row + ", col " + column + ")");
+    extensionApi.setStatus("Code Graph: blank (row " + frameRow + ", col " + column + ")");
     return;
   }
   selectNode(panel, hit.id);
@@ -897,6 +918,7 @@ editor.defineMode(
   PANEL_MODE,
   [
     ["q", "close_buffer"],
+    ["?", "code_nav_help"],
     ["r", "code_nav_reload"],
     ["e", "code_nav_set_entry"],
     ["o", "code_nav_open_node"],
@@ -921,6 +943,10 @@ registerHandler("code_nav_reload", () => {
 registerHandler("code_nav_set_entry", () => {
   void setEntry();
 });
+registerHandler("code_nav_help", () => {
+  const panel = activePanel();
+  if (panel) toggleHelp(panel);
+});
 registerHandler("code_nav_open_node", openSelectedNode);
 registerHandler("code_nav_click", onClick);
 registerHandler("code_nav_closed", onBufferClosed);
@@ -938,6 +964,12 @@ editor.registerCommand(
   "Code Graph: Open (SCIP)",
   "Open the scip-cbm-writer call graph in a new tab",
   "code_nav_open_scip",
+  null,
+);
+editor.registerCommand(
+  "Code Graph: Show Keys",
+  "Show the Code Graph keyboard and mouse actions",
+  "code_nav_help",
   null,
 );
 editor.registerCommand(

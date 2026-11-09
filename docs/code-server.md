@@ -17,7 +17,8 @@ The script:
 2. runs `bun run lazy_mkcert`, then `bun run build`;
 3. symlinks this repo into `.code-server/extensions/<publisher>.<name>-<version>`;
 4. starts code-server with an isolated `.code-server/data` profile, the
-   generated certificate, and `fixtures/workspace`.
+   generated certificate, and the caller's current directory. Override it with
+   `WORKSPACE=/path/to/repo bun run gui`.
 
 `bun run gui` is `gui:private` (`HOST=127.0.0.1`, `PORT=8080`,
 `AUTH=none`). Open the URL printed by code-server.

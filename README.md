@@ -190,8 +190,9 @@ bun run gui
 
 `gui` builds all bundles, checks `code-server` is on `PATH` (it exits with an
 error if not), installs this extension into an isolated profile under
-`.code-server/`, and starts code-server on the fixture workspace. Open the URL
-printed by code-server (usually `https://127.0.0.1:8080`).
+`.code-server/`, and starts code-server on the current directory. Open the URL
+printed by code-server (usually `https://127.0.0.1:8080`). Use
+`WORKSPACE=/path/to/repo bun run gui` to open a different workspace.
 
 `bun run gui` is an alias for `bun run gui:private`:
 `HOST=127.0.0.1 PORT=8080 AUTH=none`.
@@ -326,10 +327,13 @@ Fresh commands:
 - **Code Graph: Open (cbm)**
 - **Code Graph: Open (SCIP)**
 - **Code Graph: Set Entry**
+- **Code Graph: Show Keys**
 - **Code Graph: Toggle Sync On Workspace Change** (default OFF)
 
-Inside an open graph, press `e` to change the root symbol, `r` to reload, and
-`q` to close. The entry can be persisted in `code-graph.config.jsonc`:
+Inside an open graph, the first line is a clickable toolbar:
+`[?] Help`, `[e] Entry`, `[r] Reload`, `[q] Close`. Press `?` for the full
+keyboard/mouse help, `e` to change the root symbol, `r` to reload, and `q` to
+close. The entry can be persisted in `code-graph.config.jsonc`:
 
 ```jsonc
 {
