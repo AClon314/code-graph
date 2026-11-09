@@ -199,7 +199,9 @@ async function loadPanelConfig(panel: PanelState): Promise<boolean> {
     });
     panel.config = loaded.config;
     const resolved = backendConfig(panel.config, panel.backend);
-    if (!panel.entry && resolved.symbolEntry) panel.entry = resolved.symbolEntry;
+    // Config wins on every reload; otherwise keep a prompt/session selection.
+    if (resolved.symbolEntry) panel.entry = resolved.symbolEntry;
+    else if (!panel.entry) panel.entry = CONFIG_ENTRY;
     return true;
   } catch (error) {
     paintError(panel, errorText(error));
@@ -390,7 +392,7 @@ function selectNode(panel: PanelState, id: string): void {
         meta.file +
         ":" +
         line +
-        "  (o/Enter open, r reload, q close)",
+        "  (o/Enter open, e entry, r reload, q close)",
     );
   } else {
     extensionApi.setStatus(
@@ -431,7 +433,7 @@ function renderFrame(panel: PanelState): void {
       value.width +
       "×" +
       value.height +
-      " · r reload · q close",
+      " · e entry · r reload · q close",
   );
 }
 
@@ -683,6 +685,25 @@ async function reportEntryCandidates(panel: PanelState): Promise<void> {
   await reloadFrame(panel);
 }
 
+async function setEntry(): Promise<void> {
+  const panel = activePanel();
+  if (!panel) {
+    extensionApi.setStatus("Code Graph: open a graph panel first");
+    return;
+  }
+  const picked = await editor.prompt(
+    "Code Graph entry (qualified name)",
+    entryFor(panel),
+  );
+  if (!picked || !picked.trim()) {
+    extensionApi.setStatus("Code Graph: entry unchanged");
+    return;
+  }
+  panel.entry = picked.trim();
+  extensionApi.setStatus("Code Graph: entry = " + panel.entry);
+  await reloadFrame(panel);
+}
+
 function activePanel(): PanelState | null {
   return findPanelByBuffer(editor.getActiveBufferId());
 }
@@ -877,6 +898,7 @@ editor.defineMode(
   [
     ["q", "close_buffer"],
     ["r", "code_nav_reload"],
+    ["e", "code_nav_set_entry"],
     ["o", "code_nav_open_node"],
     ["Return", "code_nav_open_node"],
   ],
@@ -896,6 +918,9 @@ registerHandler("code_nav_reload", () => {
     if (await loadPanelConfig(panel)) await reloadFrame(panel);
   })();
 });
+registerHandler("code_nav_set_entry", () => {
+  void setEntry();
+});
 registerHandler("code_nav_open_node", openSelectedNode);
 registerHandler("code_nav_click", onClick);
 registerHandler("code_nav_closed", onBufferClosed);
@@ -913,6 +938,12 @@ editor.registerCommand(
   "Code Graph: Open (SCIP)",
   "Open the scip-cbm-writer call graph in a new tab",
   "code_nav_open_scip",
+  null,
+);
+editor.registerCommand(
+  "Code Graph: Set Entry",
+  "Change the root symbol of the active Code Graph panel",
+  "code_nav_set_entry",
   null,
 );
 editor.registerCommand(

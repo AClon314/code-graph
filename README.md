@@ -325,7 +325,21 @@ Fresh commands:
 
 - **Code Graph: Open (cbm)**
 - **Code Graph: Open (SCIP)**
+- **Code Graph: Set Entry**
 - **Code Graph: Toggle Sync On Workspace Change** (default OFF)
+
+Inside an open graph, press `e` to change the root symbol, `r` to reload, and
+`q` to close. The entry can be persisted in `code-graph.config.jsonc`:
+
+```jsonc
+{
+  "symbolEntry": "graph-ui-svelte.tui.render.main"
+}
+```
+
+or per backend with `backends.cbm.symbolEntry` / `backends.scip.symbolEntry`.
+Config wins on `r`; a prompt/session selection is kept only when config has no
+entry. If no entry is configured, the plugin lists cbm entry candidates.
 
 Each window keeps one panel per backend. The frame cache lives in the active
 workspace:
