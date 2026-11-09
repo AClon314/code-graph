@@ -171,45 +171,6 @@ label {
   align-self: end;
 }
 
-.root-entry {
-  display: flex;
-  align-items: stretch;
-  min-width: 0;
-}
-
-.root-entry vscode-textfield {
-  flex: 1;
-  min-width: 0;
-}
-
-/* An arrow-only native select beside the free-form input. Native pickers
-   render option text in the popup even when the collapsed face is hidden. */
-.root-select {
-  width: 3ch;
-  padding: 0;
-  border: 1px solid var(--vscode-input-border, var(--line));
-  border-left: 0;
-  border-radius: 0 0.25rem 0.25rem 0;
-  background-color: var(--vscode-input-background, var(--panel));
-  background-image:
-    linear-gradient(45deg, transparent 50%, var(--vscode-foreground, var(--text)) 50%),
-    linear-gradient(135deg, var(--vscode-foreground, var(--text)) 50%, transparent 50%);
-  background-position:
-    calc(100% - 1.35ch) 50%,
-    calc(100% - 1ch) 50%;
-  background-repeat: no-repeat;
-  background-size: 0.4ch 0.4ch, 0.4ch 0.4ch;
-  appearance: none;
-  color: transparent;
-  font-size: 0.75rem;
-  cursor: pointer;
-}
-
-.root-select option {
-  color: var(--vscode-foreground, var(--text));
-  background: var(--vscode-input-background, var(--panel));
-}
-
 vscode-single-select {
   min-width: 10ch;
 }

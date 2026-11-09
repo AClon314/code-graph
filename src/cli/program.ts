@@ -7,7 +7,7 @@ import { runIndex } from "./lib/indexer.ts";
 import { renderResolved, resolveOutputMode } from "./lib/output.ts";
 import { resolveProject } from "./lib/project.ts";
 import { writeRootsCache, refreshRootsCache } from "./lib/roots-cache.ts";
-import { formatEntries, entriesForProject } from "./lib/entries.ts";
+import { formatRoots, loadProjectRoots } from "../lib/graph/roots-fetch.ts";
 
 /** Build the Commander program and attach @bomb.sh/tab completion. */
 export function createProgram(): Command {
@@ -202,7 +202,7 @@ function addEntriesCommand(program: Command): void {
   command.action(async (options) => {
     const root = resolve(options.root);
     const project = await resolveProject(root, options.backend, options.project);
-    const candidates = await entriesForProject(project.project, {
+    const candidates = await loadProjectRoots(project.project, {
       cbm: options.cbm,
       limit: options.limit,
     });
@@ -214,7 +214,7 @@ function addEntriesCommand(program: Command): void {
       console.log(JSON.stringify(candidates, null, 2));
       return;
     }
-    console.log(formatEntries(candidates));
+    console.log(formatRoots(candidates));
   });
 }
 

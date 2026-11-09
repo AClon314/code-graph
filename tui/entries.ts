@@ -11,8 +11,7 @@
  */
 import { parseArgs } from "node:util";
 
-import { fetchRootCandidates } from "../src/lib/graph/roots.ts";
-import { resolveCbmBaseUrl } from "../src/lib/cbm-discovery.ts";
+import { formatRoots, loadProjectRoots } from "../src/lib/graph/roots-fetch.ts";
 import { writeRootsCache } from "../src/cli/lib/roots-cache.ts";
 
 const { values } = parseArgs({
@@ -48,8 +47,6 @@ if (!values.project) {
   process.exit(2);
 }
 
-const endpoint = await resolveCbmBaseUrl(values.cbm);
-const base = endpoint.baseUrl;
 const limit = Number(values.limit ?? "50");
 if (!Number.isInteger(limit) || limit < 0) {
   console.error("entries: --limit must be a non-negative integer");
@@ -58,7 +55,7 @@ if (!Number.isInteger(limit) || limit < 0) {
 
 let candidates;
 try {
-  candidates = await fetchRootCandidates(base, values.project, limit);
+  candidates = await loadProjectRoots(values.project, { cbm: values.cbm, limit });
 } catch (cause) {
   console.error(`entries: ${String(cause)} (project=${values.project})`);
   process.exit(1);
@@ -80,10 +77,5 @@ if (values.json) {
 } else if (candidates.length === 0) {
   console.log("no root candidates (cbm's is_entry_point is heuristic)");
 } else {
-  for (const candidate of candidates) {
-    const location = candidate.filePath
-      ? `${candidate.filePath}:${candidate.startLine}`
-      : "(no file)";
-    console.log(`${candidate.qualifiedName}\t${location}\t${candidate.reason}`);
-  }
+  console.log(formatRoots(candidates));
 }
