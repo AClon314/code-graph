@@ -95,6 +95,22 @@ test("a failed neighbour is skipped without killing the rest of the graph", asyn
   expect(data.edges.map(edgeKey)).toEqual(["a->c:CALLS"]);
 });
 
+test("returns the canonical root id when looked up by numeric id", async () => {
+  const source = new FakeSource({ "#97": bundle("a", [], []) });
+  const data = await loadNeighborhood(source, "p", "#97", { depth: 1 });
+
+  expect(data.root).toBe("a");
+  expect(data.nodes.map((node) => node.id)).toEqual(["a"]);
+});
+
+test("depth 0 keeps only the root", async () => {
+  const source = new FakeSource(graph());
+  const data = await loadNeighborhood(source, "p", "a", { depth: 0 });
+
+  expect(data.nodes.map((node) => node.id)).toEqual(["a"]);
+  expect(data.edges).toEqual([]);
+});
+
 test("a failed root rejects with a useful message", async () => {
   const source = new FakeSource({});
   await expect(loadNeighborhood(source, "project-x", "missing.root")).rejects.toThrow(

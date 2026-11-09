@@ -67,3 +67,22 @@ export function entryCandidates(
     })
     .slice(0, Math.max(0, limit));
 }
+
+/** Fetch and rank entry candidates from a local cbm repository map. */
+export async function fetchEntryCandidates(
+  baseUrl: string,
+  project: string,
+  limit = 20,
+  fetchImpl: typeof fetch = fetch,
+): Promise<EntryCandidate[]> {
+  const url = new URL("/api/repository-map", baseUrl);
+  url.searchParams.set("project", project);
+  const response = await fetchImpl(url);
+  if (!response.ok) {
+    throw new Error(
+      `cannot query repository map for "${project}": ${response.status} ${response.statusText}`,
+    );
+  }
+  const payload = (await response.json()) as { nodes?: RepositoryNode[] };
+  return entryCandidates(payload.nodes ?? [], limit);
+}

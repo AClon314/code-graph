@@ -1,6 +1,7 @@
-import { Command, Flags } from "@oclif/core";
+import { Command } from "@oclif/core";
 import { resolve } from "node:path";
 
+import { indexFlags } from "../lib/flags.ts";
 import { runIndex } from "../lib/indexer.ts";
 import { resolveProject } from "../lib/project.ts";
 
@@ -13,50 +14,7 @@ export default class IndexCommand extends Command {
     "<%= config.bin %> index --backend scip --project my-project",
     "<%= config.bin %> index --backend both --mode fast",
   ];
-  static flags = {
-    backend: Flags.string({
-      char: "b",
-      options: ["cbm", "scip", "both"],
-      default: "cbm",
-      description: "index backend",
-    }),
-    root: Flags.string({
-      description: "workspace root",
-      default: process.cwd(),
-    }),
-    project: Flags.string({
-      description: "cbm-native project name (default: workspace basename)",
-    }),
-    "scip-project": Flags.string({
-      description: "SCIP project name (default: <project>-scip)",
-    }),
-    mode: Flags.string({
-      options: ["fast", "moderate", "full"],
-      default: "moderate",
-      description: "cbm-native indexing mode",
-    }),
-    "scip-indexer": Flags.string({
-      description: "scip-typescript entry point",
-    }),
-    writer: Flags.string({
-      description: "scip-cbm-writer directory",
-    }),
-    "scip-output": Flags.string({
-      description: "keep the generated .scip at this path",
-    }),
-    "cache-dir": Flags.string({
-      description: "shared cbm cache directory",
-    }),
-    "cbm-bin": Flags.string({
-      description: "codebase-memory-mcp binary",
-    }),
-    bun: Flags.string({
-      description: "bun binary used for scip-cbm-writer",
-    }),
-    node: Flags.string({
-      description: "node binary used for scip-typescript",
-    }),
-  };
+  static flags = { ...indexFlags };
 
   async run(): Promise<void> {
     const { flags } = await this.parse(IndexCommand);

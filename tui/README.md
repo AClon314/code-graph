@@ -143,16 +143,16 @@ Notes:
 
 ## Live cbm BFS
 
-`--cbm` is an explicit test override. Normal runs omit it: `tui/cbm-discovery.ts`
+`--cbm` is an explicit test override. Normal runs omit it: `src/lib/cbm-discovery.ts`
 reads `codebase-memory-mcp config get ui_port`, probes that port and 9749, and
 fails with the full attempt stack when no local cbm responds.
 
 `render.ts` discovers a local cbm endpoint (`config get ui_port`, then 9749),
-calls `CbmHttpSource.symbol(project, qnOrId)`, and walks callers/callees
-locally, keeping the TUI independent of the GUI's `src/lib/graph/neighborhood.ts`. It keeps a node budget (`--max-nodes`),
-deduplicates nodes by qualified name and edges by `source -> target : type`,
-and never writes to `src/`. `truncated` is currently set only when the node
-budget is hit.
+calls `CbmHttpSource.symbol(project, qnOrId)`, and uses the shared
+`src/lib/graph/load.ts` + `src/lib/graph/neighborhood.ts` loader. It keeps a
+node budget (`--max-nodes`), deduplicates nodes by qualified name and edges by
+`source -> target : type`, and never writes to `src/`. `truncated` is set when
+either the node budget or the depth boundary is hit.
 
 ## Known limitations
 

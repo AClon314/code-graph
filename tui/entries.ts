@@ -10,8 +10,8 @@
  */
 import { parseArgs } from "node:util";
 
-import { entryCandidates, type RepositoryNode } from "../src/lib/graph/entries.ts";
-import { resolveCbmBaseUrl } from "./cbm-discovery.ts";
+import { fetchEntryCandidates } from "../src/lib/graph/entries.ts";
+import { resolveCbmBaseUrl } from "../src/lib/cbm-discovery.ts";
 
 const { values } = parseArgs({
   args: process.argv.slice(2),
@@ -50,28 +50,14 @@ if (!Number.isInteger(limit) || limit < 0) {
   process.exit(2);
 }
 
-const url = new URL(`${base}/api/repository-map`);
-url.searchParams.set("project", values.project);
-
-let payload: { nodes?: RepositoryNode[] };
+let candidates;
 try {
-  const response = await fetch(url);
-  if (!response.ok) {
-    const detail = (await response.text()).trim();
-    console.error(
-      `entries: ${response.status} ${response.statusText}` +
-        (detail ? `: ${detail}` : "") +
-        ` (project=${values.project})`,
-    );
-    process.exit(1);
-  }
-  payload = (await response.json()) as { nodes?: RepositoryNode[] };
+  candidates = await fetchEntryCandidates(base, values.project, limit);
 } catch (cause) {
-  console.error(`entries: cannot query ${url}: ${String(cause)}`);
+  console.error(`entries: ${String(cause)} (project=${values.project})`);
   process.exit(1);
 }
 
-const candidates = entryCandidates(payload.nodes ?? [], limit);
 if (values.json) {
   console.log(JSON.stringify(candidates, null, 2));
 } else if (candidates.length === 0) {

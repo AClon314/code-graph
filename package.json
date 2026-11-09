@@ -9,6 +9,8 @@
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "test": "bun test tests/*.test.ts",
     "index": "bun bin/run.ts index",
+    "graph": "bun bin/run.ts graph",
+    "render": "bun bin/run.ts render",
     "test:fresh": "bun run build:fresh && bun run tests/fresh/run.ts",
     "test:vscode": "playwright test",
     "test:e2e": "bun run test:fresh && bun run test:vscode",

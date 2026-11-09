@@ -14,7 +14,7 @@ import {
   normalizeBaseUrl,
   type CbmProbeResult,
   type FetchLike,
-} from "../src/lib/cbm-endpoint.ts";
+} from "./cbm-endpoint.ts";
 
 export interface CbmPortLookup {
   port?: number;

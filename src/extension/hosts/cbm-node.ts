@@ -13,7 +13,7 @@ import {
   localCbmCandidates,
 } from "../../lib/cbm-endpoint";
 import { requestCbm } from "../../lib/cbm-request";
-import { readCbmPortFromCli } from "../../../tui/cbm-discovery";
+import { readCbmPortFromCli } from "../../lib/cbm-discovery.ts";
 import type { CbmHttpRequest, CbmHttpResponse } from "../api";
 
 const FETCH_TIMEOUT_MS = 5000;

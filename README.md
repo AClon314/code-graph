@@ -159,10 +159,12 @@ The Oclif entry point exposes the GUI/TUI inputs without a source checkout
 around a script:
 
 ```bash
-bun run cli graph --backend cbm --format both
-bun run cli render --project graph-ui-svelte --symbol-entry pkg.main --format svg
-bun run cli render --graph tui/fixture-graph.json --format orchgraph
+bun run graph --backend cbm --format both
+bun run render --project graph-ui-svelte --symbol-entry pkg.main --format svg
+bun run render --graph tui/fixture-graph.json --format orchgraph
 ```
+
+`bun run cli graph ...` is the equivalent long form.
 
 `graph` indexes first, then renders; `render` expects an existing project.
 Both accept `--depth`, `--direction`, `--max-nodes`, `--cbm`,

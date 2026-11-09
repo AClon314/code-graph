@@ -6,29 +6,26 @@
  *
  *   bun run tui/render.ts --graph tui/fixture-graph.json --out /tmp/code-graph-frame.json
  *
- * Live cbm data (small local BFS over callers/callees):
+ * Live cbm data (shared cbm neighborhood loader):
  *
  *   bun run tui/render.ts --project my-project \
  *     --symbol-entry 'pkg.mod.fn' --depth 2 --direction both --out /tmp/frame.json
  *
- * No src/ files are modified: this script only reads GraphViewData types and
- * CbmHttpSource.
+ * No src/ files are modified: this script only reads GraphViewData through the
+ * shared graph loader and CbmHttpSource.
  */
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 import { buildFrame } from "./frame.ts";
-import { resolveCbmBaseUrl } from "./cbm-discovery.ts";
+import { resolveCbmBaseUrl } from "../src/lib/cbm-discovery.ts";
 import type { BuildFrameOptions } from "./frame.ts";
 import { CbmHttpSource } from "../src/lib/graph/cbm-http.ts";
 import type { GraphDirection } from "orchgraph";
-import type {
-  SymbolBundle,
-  SymbolConnection,
-  SymbolNode,
-} from "../src/lib/graph/types.ts";
-import type { GraphViewData, GraphViewEdge, GraphViewNode } from "../src/lib/graph/types.ts";
+import { loadGraphView } from "../src/lib/graph/load.ts";
+import type { NeighborhoodDepth } from "../src/lib/graph/neighborhood.ts";
+import type { GraphViewData } from "../src/lib/graph/types.ts";
 
 type BfsDirection = "both" | "callers" | "callees";
 
@@ -52,7 +49,7 @@ const USAGE = `usage:
 
 options:
   --cbm <url>             explicit local cbm base (testing only)
-  --depth <n>             BFS depth (default 2)
+  --depth <n>             BFS depth 0-3 (default 2)
   --direction <d>         both | callers | callees (default both)
   --max-nodes <n>         node budget for --cbm (default 60)
   --layout-direction <d>  DOWN | UP | LEFT | RIGHT (default DOWN)
@@ -150,190 +147,22 @@ function parseArgs(argv: string[]): CliArgs | null {
   return args;
 }
 
-function loadView(path: string): GraphViewData {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(readFileSync(path, "utf8"));
-  } catch (error) {
-    throw new Error(`cannot read graph ${path}: ${String(error)}`);
-  }
-  if (!parsed || typeof parsed !== "object") throw new Error(`${path} is not a GraphViewData object`);
-  const raw = parsed as Partial<GraphViewData>;
-  if (!Array.isArray(raw.nodes) || raw.nodes.length === 0) {
-    throw new Error(`${path}: nodes must be a non-empty array`);
-  }
-  const root = typeof raw.root === "string" && raw.root.length > 0 ? raw.root : raw.nodes[0]!.id;
-  return {
-    root,
-    nodes: raw.nodes,
-    edges: Array.isArray(raw.edges) ? raw.edges : [],
-    truncated: raw.truncated === true,
-  };
-}
+async function loadView(args: CliArgs): Promise<GraphViewData> {
+  if (args.graph) return loadGraphView({ graph: args.graph });
 
-function realQualifiedName(node: { qualifiedName?: string }): string | undefined {
-  const qn = node.qualifiedName;
-  return qn && qn !== "?" ? qn : undefined;
-}
-
-function nodeId(node: SymbolNode): string {
-  const qn = realQualifiedName(node);
-  if (qn) return qn;
-  if (node.id !== undefined) return `#${node.id}`;
-  return `${node.name}@${node.filePath ?? ""}:${node.startLine ?? 0}`;
-}
-
-function nodeRef(node: SymbolNode): string | undefined {
-  const qn = realQualifiedName(node);
-  if (qn) return qn;
-  return node.id !== undefined ? `#${node.id}` : undefined;
-}
-
-function toViewNode(node: SymbolNode, id: string): GraphViewNode {
-  return {
-    id,
-    label: node.label,
-    name: node.name,
-    qualifiedName: node.qualifiedName,
-    filePath: node.filePath,
-    startLine: node.startLine,
-    endLine: node.endLine,
-    docstring: node.docstring,
-    isEntry: node.isEntry,
-    isTest: node.isTest,
-    isExported: node.isExported,
-    symbolId: node.id,
-  };
-}
-
-function connectionToSymbolNode(connection: SymbolConnection): SymbolNode {
-  return {
-    id: connection.id,
-    label: connection.label,
-    name: connection.name,
-    qualifiedName: connection.qualifiedName,
-    filePath: connection.filePath,
-    startLine: connection.startLine,
-  };
-}
-
-function edgeId(source: string, target: string, type: string, seen: Map<string, number>): string {
-  const base = `${source}->${target}:${type}`;
-  const count = seen.get(base) ?? 0;
-  seen.set(base, count + 1);
-  return count === 0 ? base : `${base}#${count + 1}`;
-}
-
-/**
- * Small local BFS over cbm callers/callees. Intentionally not shared with the
- * Svelte GUI (which owns its own neighborhood exploration); the TUI just needs
- * a small, deterministic node/edge budget.
- */
-async function fetchCbmView(args: CliArgs): Promise<GraphViewData> {
   const endpoint = await resolveCbmBaseUrl(args.cbm);
-  const source = new CbmHttpSource({ baseUrl: endpoint.baseUrl, project: args.project! });
-  const rootBundle = await source.symbol(args.project!, args.symbolEntry!);
-
-  const nodeMap = new Map<string, GraphViewNode>();
-  const ordered: GraphViewNode[] = [];
-  const edgeList: GraphViewEdge[] = [];
-  const edgeKeys = new Set<string>();
-  const edgeIds = new Map<string, number>();
-  const bundles = new Map<string, SymbolBundle>();
-  let capHit = false;
-
-  const addNode = (node: SymbolNode): GraphViewNode | null => {
-    const id = nodeId(node);
-    const existing = nodeMap.get(id);
-    if (existing) return existing;
-    if (ordered.length >= args.maxNodes) {
-      capHit = true;
-      return null;
-    }
-    const viewNode = toViewNode(node, id);
-    nodeMap.set(id, viewNode);
-    ordered.push(viewNode);
-    return viewNode;
-  };
-
-  const addEdge = (sourceId: string, targetId: string, type: string): void => {
-    if (!nodeMap.has(sourceId) || !nodeMap.has(targetId)) return;
-    const key = `${sourceId}\u0000${targetId}\u0000${type}`;
-    if (edgeKeys.has(key)) return;
-    edgeKeys.add(key);
-    edgeList.push({
-      id: edgeId(sourceId, targetId, type, edgeIds),
-      source: sourceId,
-      target: targetId,
-      type,
-      label: type,
-    });
-  };
-
-  const rootNode = rootBundle.node;
-  const rootView = addNode(rootNode);
-  if (!rootView) throw new Error("root symbol was not added");
-  const rootRef = nodeRef(rootNode) ?? args.symbolEntry!;
-  bundles.set(rootRef, rootBundle);
-
-  const queue: Array<{ ref: string; id: string; depth: number }> = [
-    { ref: rootRef, id: rootView.id, depth: 0 },
-  ];
-  const processed = new Set<string>();
-  const queued = new Set<string>([rootView.id]);
-
-  for (let cursor = 0; cursor < queue.length; cursor++) {
-    const item = queue[cursor]!;
-    if (processed.has(item.id)) continue;
-    processed.add(item.id);
-    if (item.depth >= args.depth) continue;
-
-    let bundle = bundles.get(item.ref);
-    if (!bundle) {
-      try {
-        bundle = await source.symbol(args.project!, item.ref);
-      } catch {
-        // A broken/missing connection should not kill the whole frame.
-        continue;
-      }
-      bundles.set(item.ref, bundle);
-    }
-
-    const includeCallers = args.direction === "both" || args.direction === "callers";
-    const includeCallees = args.direction === "both" || args.direction === "callees";
-
-    if (includeCallers) {
-      for (const connection of bundle.callers) {
-        const neighbor = addNode(connectionToSymbolNode(connection));
-        if (!neighbor) break;
-        addEdge(neighbor.id, item.id, connection.type || "CALLS");
-        const ref = nodeRef(connectionToSymbolNode(connection));
-        if (ref && !queued.has(neighbor.id)) {
-          queued.add(neighbor.id);
-          queue.push({ ref, id: neighbor.id, depth: item.depth + 1 });
-        }
-      }
-    }
-    if (includeCallees) {
-      for (const connection of bundle.callees) {
-        const neighbor = addNode(connectionToSymbolNode(connection));
-        if (!neighbor) break;
-        addEdge(item.id, neighbor.id, connection.type || "CALLS");
-        const ref = nodeRef(connectionToSymbolNode(connection));
-        if (ref && !queued.has(neighbor.id)) {
-          queued.add(neighbor.id);
-          queue.push({ ref, id: neighbor.id, depth: item.depth + 1 });
-        }
-      }
-    }
-  }
-
-  return {
-    root: rootView.id,
-    nodes: ordered,
-    edges: edgeList,
-    truncated: capHit,
-  };
+  const source = new CbmHttpSource({
+    baseUrl: endpoint.baseUrl,
+    project: args.project!,
+  });
+  return loadGraphView({
+    source,
+    project: args.project!,
+    symbolEntry: args.symbolEntry!,
+    depth: Math.min(3, Math.max(0, args.depth)) as NeighborhoodDepth,
+    direction: args.direction,
+    maxNodes: args.maxNodes,
+  });
 }
 
 async function main(): Promise<void> {
@@ -351,7 +180,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const view = args.graph ? loadView(args.graph) : await fetchCbmView(args);
+  const view = await loadView(args);
   const frameOptions: BuildFrameOptions = {};
   if (args.layoutDirection) frameOptions.direction = args.layoutDirection;
   if (args.spacing !== undefined) frameOptions.spacing = args.spacing;

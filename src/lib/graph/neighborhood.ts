@@ -9,8 +9,10 @@ import type {
 
 export type NeighborhoodDirection = "both" | "callers" | "callees";
 
+export type NeighborhoodDepth = 0 | 1 | 2 | 3;
+
 export interface NeighborhoodOptions {
-  depth?: 1 | 2 | 3;
+  depth?: NeighborhoodDepth;
   direction?: NeighborhoodDirection;
   maxNodes?: number;
 }
@@ -147,7 +149,7 @@ export async function loadNeighborhood(
   }
 
   return {
-    root,
+    root: rootRecord.id,
     nodes: [...nodes.values()],
     edges: [...edges.values()],
     truncated,
@@ -198,8 +200,8 @@ function makeRootRecord(root: string, bundle: SymbolBundle): LoadedRecord {
   };
 }
 
-function normalizeDepth(value: NeighborhoodOptions["depth"]): 1 | 2 | 3 {
-  if (value === 1 || value === 2 || value === 3) return value;
+function normalizeDepth(value: NeighborhoodOptions["depth"]): NeighborhoodDepth {
+  if (value === 0 || value === 1 || value === 2 || value === 3) return value;
   return DEFAULT_DEPTH;
 }
 

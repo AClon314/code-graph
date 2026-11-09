@@ -30,16 +30,60 @@ function pointList(points: Array<{ x: number; y: number }>): string {
   return points.map((point) => `${point.x},${point.y}`).join(" ");
 }
 
-const STYLE = `
-:root { --bg: #ffffff; --graph-bg: #ffffff; --node-bg: #ffffff; --node-line: #999999; --edge: #888888; --text: #111111; --muted: #666666; --font-code: ui-monospace, monospace; }
-.graph-svg { background: var(--graph-bg); }
-.orchgraph-edge { fill: none; stroke: var(--edge); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-.orchgraph-arrow { fill: var(--edge); }
-.orchgraph-node rect { fill: var(--node-bg); stroke: var(--node-line); stroke-width: 1.25; }
-.orchgraph-node-kind { fill: var(--muted); font: 600 9px var(--font-code); letter-spacing: .04em; text-transform: uppercase; }
-.orchgraph-node-label { fill: var(--text); font: 600 14px var(--font-code); }
-.orchgraph-node-detail { fill: var(--muted); font: 10px var(--font-code); }
+export const GRAPH_SVG_RULES = `
+.graph-svg { background: var(--graph-bg, #ffffff); }
+.has-search-hits .orchgraph-node:not(.is-search-hit) { opacity: .35; }
+.orchgraph-edge { fill: none; stroke: var(--edge, #888888); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.orchgraph-arrow { fill: var(--edge, #888888); }
+.orchgraph-node rect { fill: var(--node-bg, #ffffff); stroke: var(--node-line, #999999); stroke-width: 1.25; }
+.orchgraph-node-kind { fill: var(--muted, #666666); font: 600 9px var(--font-code, ui-monospace, monospace); letter-spacing: .04em; text-transform: uppercase; }
+.orchgraph-node-label { fill: var(--text, #111111); font: 600 14px var(--font-code, ui-monospace, monospace); }
+.orchgraph-node-detail { fill: var(--muted, #666666); font: 10px var(--font-code, ui-monospace, monospace); }
+.orchgraph-node-state { fill: var(--muted, #666666); font: 700 12px var(--font-code, ui-monospace, monospace); }
+.orchgraph-edge-label { fill: var(--muted, #666666); font: 10px var(--font-code, ui-monospace, monospace); text-anchor: middle; }
+.orchgraph-node.is-search-hit rect { stroke: var(--hit, #c98a00); stroke-width: 2; }
+.orchgraph-node.is-selected rect { stroke: var(--accent, #176b5a); stroke-width: 2.5; }
 `.trim();
+
+export const SVG_THEME_VARIABLE_NAMES = [
+  "--bg",
+  "--panel",
+  "--line",
+  "--text",
+  "--muted",
+  "--accent",
+  "--graph-bg",
+  "--node-bg",
+  "--node-line",
+  "--edge",
+  "--hit",
+  "--font-code",
+] as const;
+
+const SVG_THEME_VALUES: Record<(typeof SVG_THEME_VARIABLE_NAMES)[number], string> = {
+  "--bg": "#ffffff",
+  "--panel": "#ffffff",
+  "--line": "#d0d0d0",
+  "--text": "#111111",
+  "--muted": "#666666",
+  "--accent": "#176b5a",
+  "--graph-bg": "#ffffff",
+  "--node-bg": "#ffffff",
+  "--node-line": "#999999",
+  "--edge": "#888888",
+  "--hit": "#c98a00",
+  "--font-code": "ui-monospace, monospace",
+};
+
+export const SVG_THEME_VARIABLES = SVG_THEME_VARIABLE_NAMES.map(
+  (name) => `${name}: ${SVG_THEME_VALUES[name]};`,
+).join(" ");
+
+/** Build the style block shared by the GUI download and the headless SVG CLI. */
+export function graphSvgStyle(variables = SVG_THEME_VARIABLES): string {
+  return `:root { color-scheme: light dark; ${variables} }
+${GRAPH_SVG_RULES}`;
+}
 
 /** Render the same graph view as GraphView.svelte without a DOM. */
 export async function renderGraphSvg(
@@ -87,7 +131,7 @@ export async function renderGraphSvg(
 <svg xmlns="http://www.w3.org/2000/svg" class="graph-svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${escapeXml(`Call graph for ${data.root}: ${data.nodes.length} nodes, ${data.edges.length} edges`)}">
 <title>${escapeXml(`Call graph for ${data.root}`)}</title>
 <defs>
-<style>${STYLE}</style>
+<style>${graphSvgStyle()}</style>
 <marker id="${markerId}" markerWidth="11" markerHeight="11" refX="10" refY="5.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path class="orchgraph-arrow" d="M0,0 L11,5.5 L0,11 z"/></marker>
 ${clips}
 </defs>

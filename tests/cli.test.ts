@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { resolveIndexOptions } from "../src/cli/lib/indexer.ts";
+import { readGraphFile } from "../src/lib/graph/load.ts";
 import { renderGraphSvg } from "../src/lib/graph/svg.ts";
 import type { GraphViewData } from "../src/lib/graph/types";
 
@@ -34,6 +35,14 @@ describe("CLI renderers", () => {
     const svg = await renderGraphSvg(escaped);
     expect(svg).toContain("a&amp;b");
     expect(svg).not.toContain(">a&b<");
+  });
+});
+
+describe("CLI graph loading", () => {
+  test("reads the deterministic TUI fixture", () => {
+    const view = readGraphFile("tui/fixture-graph.json");
+    expect(view.nodes.length).toBeGreaterThan(0);
+    expect(view.root).toBe("demo.src.features.useAlias");
   });
 });
 
