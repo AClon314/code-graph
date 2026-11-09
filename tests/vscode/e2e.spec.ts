@@ -2,7 +2,7 @@ import { fileURLToPath } from "node:url";
 
 import { expect, test } from "@playwright/test";
 
-const workspace = fileURLToPath(new URL("../../fixtures/workspace", import.meta.url));
+const workspace = fileURLToPath(new URL("../../out/e2e-workspace", import.meta.url));
 
 test("opens the mock Code Graph webview", async ({ page }) => {
   await page.goto(`/?folder=${encodeURIComponent(workspace)}`);

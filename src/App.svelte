@@ -231,8 +231,11 @@
   }
 
   function selectRoot(event: Event): void {
-    const value = textValue(event);
+    const select = event.currentTarget as HTMLSelectElement;
+    const value = select.value;
     if (value) ref = value;
+    // Keep the collapsed control as an arrow-only dropdown.
+    select.value = "";
   }
 
   async function ensureCbmEndpoint(): Promise<boolean> {
@@ -614,29 +617,30 @@
     <!-- svelte-ignore a11y_label_has_associated_control -->
     <label>
       Symbol entry (qn or #id)
-      <vscode-textfield
-        value={ref}
-        spellcheck="false"
-        oninput={(event: Event) => (ref = textValue(event))}
-      ></vscode-textfield>
-    </label>
-    <!-- vscode-textfield has no datalist; a native VS Code single-select is
-         the quick root picker, while the text field above remains free-form. -->
-    <!-- svelte-ignore a11y_label_has_associated_control -->
-    <label>
-      Project roots
-      <vscode-single-select
-        value={ref}
-        onchangecapture={(event: Event) => selectRoot(event)}
-      >
-        <vscode-option value="">Custom / manual</vscode-option>
-        {#each rootCandidates as candidate (candidate.qualifiedName)}
-          <vscode-option value={candidate.qualifiedName}>
-            {candidate.qualifiedName}
-          </vscode-option>
-        {/each}
-      </vscode-single-select>
-      {#if rootsLoading}<span class="sub">loading…</span>{/if}
+      <!-- vscode-textfield has no datalist support. A native select next to
+           the free-form input keeps the hidden text/arrow-only affordance;
+           its popup still shows the full root QNs. -->
+      <div class="root-entry">
+        <vscode-textfield
+          value={ref}
+          spellcheck="false"
+          oninput={(event: Event) => (ref = textValue(event))}
+        ></vscode-textfield>
+        <select
+          class="root-select"
+          aria-label="Choose a project root"
+          title="Choose a project root"
+          onchange={(event: Event) => selectRoot(event)}
+        >
+          <option value=""></option>
+          {#each rootCandidates as candidate (candidate.qualifiedName)}
+            <option value={candidate.qualifiedName}>
+              {candidate.qualifiedName}
+            </option>
+          {/each}
+        </select>
+      </div>
+      {#if rootsLoading}<span class="sub">loading roots…</span>{/if}
     </label>
         <button class="vscode-button" type="button" onclick={() => void load()} disabled={loading}>
       {loading ? "Loading…" : "Load"}

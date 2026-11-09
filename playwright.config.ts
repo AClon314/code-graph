@@ -1,8 +1,27 @@
 import { defineConfig } from "@playwright/test";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const port = Number(process.env.CODE_SERVER_TEST_PORT || "8099");
-const fixtureWorkspace = fileURLToPath(new URL("./fixtures/workspace", import.meta.url));
+const e2eWorkspace = fileURLToPath(new URL("./out/e2e-workspace", import.meta.url));
+
+// Keep the e2e workspace out of the source tree: write only the files the
+// smoke test needs, with mock source configured.
+mkdirSync(join(e2eWorkspace, ".vscode"), { recursive: true });
+writeFileSync(join(e2eWorkspace, "README.md"), "# fixture\n");
+writeFileSync(
+  join(e2eWorkspace, ".vscode", "settings.json"),
+  `${JSON.stringify(
+    {
+      "codeGraph.source": "mock",
+      "codeGraph.project": "demo",
+      "codeGraph.symbolEntry": "demo.src.features.useAlias",
+    },
+    null,
+    2,
+  )}\n`,
+);
 
 export default defineConfig({
   testDir: "./tests/vscode",
@@ -28,7 +47,7 @@ export default defineConfig({
       HOST: "127.0.0.1",
       AUTH: "none",
       CBM_AUTOSTART: "0",
-      WORKSPACE: fixtureWorkspace,
+      WORKSPACE: e2eWorkspace,
     },
   },
 });

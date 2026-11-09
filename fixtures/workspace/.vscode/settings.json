@@ -1,5 +1,0 @@
-{
-  "codeGraph.source": "mock",
-  "codeGraph.project": "demo",
-  "codeGraph.symbolEntry": "demo.src.features.useAlias"
-}

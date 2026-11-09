@@ -28,7 +28,9 @@
     "verify:runtime": "bash scripts/verify-runtime.sh",
     "lazy_mkcert": "bun run scripts/lazy-mkcert.ts",
     "tui": "bun run tui/install.ts && bun run tui/launch.ts",
-    "cli": "bun bin/run.ts"
+    "cli": "bun bin/run.ts",
+    "postinstall": "node scripts/completion-lifecycle.mjs --notice",
+    "preuninstall": "node scripts/completion-lifecycle.mjs --uninstall"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1",

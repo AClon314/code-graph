@@ -35,7 +35,12 @@ const render = cli.command("render", "Render an existing graph");
 addProjectOptions(render);
 addRenderOptions(render);
 
-const completion = cli.command("completion", "Print a shell completion script");
+const completion = cli.command("completion", "Print or install shell completion");
+completion.argument("action", (complete) => {
+  for (const action of ["install", "uninstall", "zsh", "bash", "fish", "powershell"]) {
+    complete(action, "");
+  }
+});
 completion.argument("shell", (complete) => {
   for (const shell of ["zsh", "bash", "fish", "powershell"]) {
     complete(shell, "");

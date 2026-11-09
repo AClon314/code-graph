@@ -64,11 +64,11 @@ directly. Build output contains only the selected runtime:
 - File tree: **VS Code Explorer**, not a webview. The old tree panel is removed.
 - Graph: D3/SVG or the orchgraph character canvas, with search, depth,
   direction, fit, SVG export / copy.
-- Root picker: **Project roots** is a `vscode-single-select` populated from
-  cbm's repository map (entry points, source modules, exported classes). The
-  **Symbol entry** text field stays editable, so arbitrary QNs and `#id`
-  values still work. `vscode-textfield` is a shadow-DOM input without a
-  `datalist`, so the component pair is deliberate.
+- Root picker: the **Symbol entry** row is a free-form `vscode-textfield` plus
+  an arrow-only native `<select>` populated from cbm's repository map (entry
+  points, source modules, exported classes). The input stays editable, so
+  arbitrary QNs and `#id` values still work; selecting a root fills the input.
+  `vscode-textfield` has no `datalist`, hence the adjacent select.
 - Details: symbol bundle, callers/callees, **Jump** opens the file at the
   symbol's 1-based line through `ExtensionApi.openLocation`.
 - Workspace Trust: declared supported for untrusted and virtual workspaces, so
@@ -167,11 +167,37 @@ code-graph completion powershell
 shell completion. Dynamic `--project` / `--symbol-entry` candidates are read
 synchronously from `roots.json`, never fetched over HTTP during a Tab press.
 
-A `postinstall` hook is deliberately not used: global installs, CI, multiple
-shells and unattended package-manager runs make editing `.zshrc` / `$PROFILE`
-unsafe, and uninstall hooks are not a reliable place to remove user config.
-Install the generated script explicitly, or add it under a marked block if you
-want a reproducible uninstall.
+For an idempotent managed block:
+
+```bash
+code-graph completion install          # detects $SHELL
+code-graph completion install zsh      # explicit override
+code-graph completion uninstall
+code-graph completion install --dry-run
+```
+
+`completion install` detects the marked block *or* an existing manual
+`source <(code-graph completion ...)` line and is idempotent. `postinstall` only
+prints an opt-in hint (suppressed by `CI` and
+`CODE_GRAPH_SKIP_COMPLETION_NOTICE=1`); it never edits a profile. `preuninstall`
+removes only the marked `# >>> code-graph completion >>>` block. Package-manager
+uninstall hooks are best-effort, so use `completion uninstall` explicitly if
+the package manager does not run them.
+
+### Install the CLI locally
+
+```bash
+cd /home/n/document/code/gpen/gpen-js/rules/cbm/graph-ui-svelte
+bun install
+bun link
+command -v code-graph
+code-graph --help
+```
+
+`bun link` is the editable-link equivalent of `pip install -e .`: it creates a
+`code-graph` executable in Bun's global bin directory pointing at this
+checkout. Ensure `bun pm bin -g` is on `PATH`. `bun install -g .` is the
+copy-install alternative.
 
 ### Indexing
 
