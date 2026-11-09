@@ -42,6 +42,12 @@ defaults); it works on Linux, macOS and Windows. The generated wrapper also
 contains the absolute Bun path and a platform temp-file path for the jump
 bridge.
 
+For a cbm-backed panel, start the local service in another terminal:
+
+```bash
+bun run cbm
+```
+
 ## Commands
 
 ```bash

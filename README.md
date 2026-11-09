@@ -146,21 +146,25 @@ printed by code-server (usually `https://127.0.0.1:8080`).
 `HOST=127.0.0.1 PORT=8080 AUTH=none`.
 
 Neither `gui` nor `gui:public` starts cbm. Start it separately and keep the
-terminal open, or reuse an existing cbm daemon:
+terminal open, or reuse an existing cbm service:
 
 ```bash
-cd ../../cbm-runtime
-sleep infinity | ./node_modules/.bin/codebase-memory-mcp --ui=true --port=9751
+bun run cbm
 ```
 
-Use the port reported by `codebase-memory-mcp config get ui_port` (currently
-`9751`); if it differs, pass that value to `--port` or set
-`codeGraph.cbmBaseUrl`. Then pass the binary to the Node host and Fresh so
-discovery can run `config get`:
+`bun run cbm` resolves `CBM_BIN`, then `codebase-memory-mcp` on `PATH`
+(for example `bun i -g codebase-memory-mcp@0.12.1`), then the legacy
+`rules/cbm-runtime` path. It reads `CBM_PORT` or
+`codebase-memory-mcp config get ui_port`, prints the URL, and refuses to start
+a second healthy instance. Use `CBM_PORT=9755 bun run cbm` to override the port.
+
+When the global binary is on `PATH`, `gui` and Fresh inherit it and no
+`CBM_BIN` is needed. If code-server or Fresh is launched from an environment
+without `~/.bun/bin`, pass the binary explicitly:
 
 ```bash
-CBM_BIN="$PWD/../../cbm-runtime/node_modules/.bin/codebase-memory-mcp" bun run gui
-CBM_BIN="$PWD/../../cbm-runtime/node_modules/.bin/codebase-memory-mcp" fresh
+CBM_BIN="$(command -v codebase-memory-mcp)" bun run gui
+CBM_BIN="$(command -v codebase-memory-mcp)" fresh
 ```
 
 If cbm is already running, verify it with
