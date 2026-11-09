@@ -1,4 +1,10 @@
-import { loadGraphData, renderGraph, type RenderFormat } from "./render.ts";
+import {
+  loadGraphData,
+  renderGraph,
+  renderOrchgraphText,
+  renderSvgText,
+  type RenderFormat,
+} from "./render.ts";
 import { resolveProject, type ResolvedProject } from "./project.ts";
 
 export interface RenderRunOptions {
@@ -14,6 +20,7 @@ export interface RenderRunOptions {
   maxNodes: number;
   format: RenderFormat;
   out?: string;
+  stream?: boolean;
   layoutDirection: "DOWN" | "UP" | "LEFT" | "RIGHT";
   spacing: number;
   maxNodeWidth: number;
@@ -25,6 +32,7 @@ export interface RenderRunResult {
   edges: number;
   truncated: boolean;
   files: string[];
+  stdout?: string;
 }
 
 /** Resolve one backend, load its graph, and write the requested outputs. */
@@ -44,7 +52,25 @@ export async function renderResolved(options: RenderRunOptions): Promise<RenderR
     direction: options.direction,
     maxNodes: options.maxNodes,
   });
-  const base = options.out ?? `code-graph-${safeName(project.project)}`;
+  if (options.stream) {
+    if (options.format === "both") {
+      throw new Error("piped output needs --format orchgraph or --format svg, not both");
+    }
+    const content =
+      options.format === "svg"
+        ? await renderSvgText(view, options)
+        : await renderOrchgraphText(view, options);
+    return {
+      project,
+      nodes: view.nodes.length,
+      edges: view.edges.length,
+      truncated: view.truncated,
+      files: [],
+      stdout: content,
+    };
+  }
+
+  const base = options.out ?? `code-graph.${safeName(project.project)}`;
   const files = await renderGraph(view, {
     format: options.format,
     out: base,
@@ -59,6 +85,17 @@ export async function renderResolved(options: RenderRunOptions): Promise<RenderR
     edges: view.edges.length,
     truncated: view.truncated,
     files: Object.values(files),
+  };
+}
+
+export function resolveOutputMode(explicitFormat?: string): {
+  format: RenderFormat;
+  stream: boolean;
+} {
+  const stream = !process.stdout.isTTY;
+  return {
+    stream,
+    format: (explicitFormat as RenderFormat | undefined) ?? (stream ? "orchgraph" : "both"),
   };
 }
 

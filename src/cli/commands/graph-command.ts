@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 import { graphFlags, indexTuningFlags } from "../lib/flags.ts";
 import { runIndex } from "../lib/indexer.ts";
-import { renderResolved } from "../lib/output.ts";
+import { renderResolved, resolveOutputMode } from "../lib/output.ts";
 import { resolveProject } from "../lib/project.ts";
 
 export default class GraphCommand extends Command {
@@ -42,6 +42,11 @@ export default class GraphCommand extends Command {
       if (code !== 0) this.exit(code);
     }
 
+    const mode = resolveOutputMode(flags.format);
+    if (mode.stream && flags.out) {
+      console.error("stdout is piped; ignoring --out");
+    }
+
     const result = await renderResolved({
       root,
       backend,
@@ -53,17 +58,22 @@ export default class GraphCommand extends Command {
       depth: flags.depth as 1 | 2 | 3,
       direction: flags.direction as "both" | "callers" | "callees",
       maxNodes: flags["max-nodes"],
-      format: flags.format as "svg" | "orchgraph" | "both",
+      format: mode.format,
       out: flags.out,
+      stream: mode.stream,
       layoutDirection: flags["layout-direction"] as "DOWN" | "UP" | "LEFT" | "RIGHT",
       spacing: flags.spacing,
       maxNodeWidth: flags["max-node-width"],
     });
 
-    this.log(
+    console.error(
       `Rendered ${result.nodes} nodes / ${result.edges} edges` +
         (result.truncated ? " (truncated)" : ""),
     );
-    for (const path of result.files) this.log(`Wrote ${path}`);
+    if (result.stdout !== undefined) {
+      process.stdout.write(result.stdout);
+    } else {
+      for (const path of result.files) console.error(`Wrote ${path}`);
+    }
   }
 }

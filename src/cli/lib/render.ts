@@ -75,6 +75,25 @@ async function discoverEntry(baseUrl: string, project: string): Promise<string> 
   return candidate.qualifiedName;
 }
 
+export async function renderSvgText(
+  data: GraphViewData,
+  options: Pick<RenderOptions, "layoutDirection"> = {},
+): Promise<string> {
+  return renderGraphSvg(data, { direction: options.layoutDirection });
+}
+
+export async function renderOrchgraphText(
+  data: GraphViewData,
+  options: Pick<RenderOptions, "layoutDirection" | "spacing" | "maxNodeWidth"> = {},
+): Promise<string> {
+  const canvas = await buildTerminalCanvas(data, {
+    direction: options.layoutDirection,
+    spacing: options.spacing,
+    maxNodeWidth: options.maxNodeWidth,
+  });
+  return `${canvas.lines.join("\n")}\n`;
+}
+
 /** Write SVG and/or orchgraph output; returns the actual paths. */
 export async function renderGraph(
   data: GraphViewData,
@@ -87,26 +106,23 @@ export async function renderGraph(
   const files: RenderedFiles = {};
 
   if (format === "svg" || format === "both") {
-    const path = format === "svg" ? base : `${base}.svg`;
-    const svg = await renderGraphSvg(data, {
-      direction: options.layoutDirection,
-    });
-    writeOutput(path, svg);
+    const path = outputPath(base, "svg");
+    writeOutput(path, await renderSvgText(data, options));
     files.svg = path;
   }
 
   if (format === "orchgraph" || format === "both") {
-    const path = format === "orchgraph" ? base : `${base}.orchgraph.txt`;
-    const canvas = await buildTerminalCanvas(data, {
-      direction: options.layoutDirection,
-      spacing: options.spacing,
-      maxNodeWidth: options.maxNodeWidth,
-    });
-    writeOutput(path, `${canvas.lines.join("\n")}\n`);
+    const path = outputPath(base, "orchgraph");
+    writeOutput(path, await renderOrchgraphText(data, options));
     files.orchgraph = path;
   }
 
   return files;
+}
+
+function outputPath(base: string, kind: "svg" | "orchgraph"): string {
+  const extension = kind === "svg" ? ".svg" : ".txt";
+  return base.endsWith(extension) ? base : `${base}${extension}`;
 }
 
 function writeOutput(path: string, content: string): void {

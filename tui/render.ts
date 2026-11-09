@@ -205,7 +205,7 @@ async function main(): Promise<void> {
   mkdirSync(dirname(args.out), { recursive: true });
   writeFileSync(args.out, JSON.stringify(frame) + "\n");
 
-  console.log(
+  console.error(
     `wrote ${args.out}: ${frame.width}x${frame.height}, ` +
       `${frame.nodeCount} nodes, ${frame.nodes.length} boxes, ` +
       `${frame.lines.length} lines (${nonEmptyLines} non-empty), ` +

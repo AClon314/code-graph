@@ -1,7 +1,7 @@
 import { Command } from "@oclif/core";
 
 import { graphFlags } from "../lib/flags.ts";
-import { renderResolved } from "../lib/output.ts";
+import { renderResolved, resolveOutputMode } from "../lib/output.ts";
 
 export default class RenderCommand extends Command {
   static summary = "Render an existing graph to SVG and/or orchgraph text";
@@ -16,6 +16,11 @@ export default class RenderCommand extends Command {
 
   async run(): Promise<void> {
     const { flags } = await this.parse(RenderCommand);
+    const mode = resolveOutputMode(flags.format);
+    if (mode.stream && flags.out) {
+      console.error("stdout is piped; ignoring --out");
+    }
+
     const result = await renderResolved({
       root: flags.root,
       backend: flags.backend as "cbm" | "scip",
@@ -27,17 +32,22 @@ export default class RenderCommand extends Command {
       depth: flags.depth as 1 | 2 | 3,
       direction: flags.direction as "both" | "callers" | "callees",
       maxNodes: flags["max-nodes"],
-      format: flags.format as "svg" | "orchgraph" | "both",
+      format: mode.format,
       out: flags.out,
+      stream: mode.stream,
       layoutDirection: flags["layout-direction"] as "DOWN" | "UP" | "LEFT" | "RIGHT",
       spacing: flags.spacing,
       maxNodeWidth: flags["max-node-width"],
     });
 
-    this.log(
+    console.error(
       `Rendered ${result.nodes} nodes / ${result.edges} edges` +
         (result.truncated ? " (truncated)" : ""),
     );
-    for (const path of result.files) this.log(`Wrote ${path}`);
+    if (result.stdout !== undefined) {
+      process.stdout.write(result.stdout);
+    } else {
+      for (const path of result.files) console.error(`Wrote ${path}`);
+    }
   }
 }

@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { resolveIndexOptions } from "../src/cli/lib/indexer.ts";
+import { renderResolved } from "../src/cli/lib/output.ts";
+import { renderGraph } from "../src/cli/lib/render.ts";
 import { readGraphFile } from "../src/lib/graph/load.ts";
 import { renderGraphSvg } from "../src/lib/graph/svg.ts";
 import type { GraphViewData } from "../src/lib/graph/types";
@@ -43,6 +49,42 @@ describe("CLI graph loading", () => {
     const view = readGraphFile("tui/fixture-graph.json");
     expect(view.nodes.length).toBeGreaterThan(0);
     expect(view.root).toBe("demo.src.features.useAlias");
+  });
+});
+
+describe("CLI output paths", () => {
+  test("both formats use .svg and .txt suffixes", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "code-graph-cli-"));
+    try {
+      const view = readGraphFile("tui/fixture-graph.json");
+      const files = await renderGraph(view, {
+        format: "both",
+        out: join(dir, "code-graph.demo"),
+      });
+      expect(files.svg).toBe(join(dir, "code-graph.demo.svg"));
+      expect(files.orchgraph).toBe(join(dir, "code-graph.demo.txt"));
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("stream mode returns stdout and writes no files", async () => {
+    const result = await renderResolved({
+      root: process.cwd(),
+      backend: "cbm",
+      graph: "tui/fixture-graph.json",
+      depth: 2,
+      direction: "both",
+      maxNodes: 60,
+      format: "orchgraph",
+      out: "/tmp/should-not-be-written",
+      stream: true,
+      layoutDirection: "DOWN",
+      spacing: 3,
+      maxNodeWidth: 32,
+    });
+    expect(result.files).toEqual([]);
+    expect(result.stdout).toContain("main");
   });
 });
 

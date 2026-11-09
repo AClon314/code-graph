@@ -54,10 +54,10 @@ export function resolveIndexOptions(options: IndexOptions): ResolvedIndexOptions
 }
 
 function run(command: Command): boolean {
-  console.log(`+ ${[command.command, ...command.args].join(" ")}`);
+  console.error(`+ ${[command.command, ...command.args].join(" ")}`);
   const result = spawnSync(command.command, command.args, {
     cwd: command.cwd,
-    stdio: "inherit",
+    stdio: ["inherit", 2, 2],
     env: { ...process.env, ...command.env },
   });
   if (result.error) {
@@ -139,10 +139,10 @@ function printConfig(options: ResolvedIndexOptions): void {
   if (options.backend !== "cbm") {
     backends.push(`    "scip": { "project": ${JSON.stringify(options.scipProject)} }`);
   }
-  console.log("\nAdd this to code-graph.config.jsonc:");
-  console.log("{\n  \"backends\": {");
-  console.log(backends.join(",\n"));
-  console.log("  }\n}");
+  console.error("\nAdd this to code-graph.config.jsonc:");
+  console.error("{\n  \"backends\": {");
+  console.error(backends.join(",\n"));
+  console.error("  }\n}");
 }
 
 /** Index one workspace. Returns a process exit code. */

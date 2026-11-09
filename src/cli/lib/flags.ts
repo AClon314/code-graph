@@ -23,10 +23,9 @@ export const graphFlags = {
   "max-nodes": Flags.integer({ default: 60, min: 1, description: "maximum graph nodes" }),
   format: Flags.string({
     options: ["svg", "orchgraph", "both"],
-    default: "both",
-    description: "output format",
+    description: "output format (default: both on TTY, orchgraph when piped)",
   }),
-  out: Flags.string({ description: "output base path (default: code-graph-<project>)" }),
+  out: Flags.string({ description: "output base path (default: code-graph.<project>)" }),
   "layout-direction": Flags.string({
     options: ["DOWN", "UP", "LEFT", "RIGHT"],
     default: "DOWN",

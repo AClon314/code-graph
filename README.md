@@ -168,9 +168,13 @@ bun run render --graph tui/fixture-graph.json --format orchgraph
 
 `graph` indexes first, then renders; `render` expects an existing project.
 Both accept `--depth`, `--direction`, `--max-nodes`, `--cbm`,
-`--layout-direction`, `--spacing`, and `--max-node-width`. The default output
-is `code-graph-<project>.svg` plus `.orchgraph.txt`; `--out` changes the base
-name.
+`--layout-direction`, `--spacing`, and `--max-node-width`. On a TTY the default
+is both formats, written to `code-graph.<project>.svg` and
+`code-graph.<project>.txt`. When stdout is piped, the command streams one
+format to stdout instead (default `orchgraph`) and writes no files; pass
+`--format svg` for SVG, and do not use `--format both` in that mode. `--out`
+sets the base path for file output and is ignored while streaming. Logs always
+go to stderr.
 
 The CLI is runtime code (`bin/run.ts` + `src/cli/`), unlike `test:*` and build
 tooling. For a packaged release, ship the Oclif entry point/binary and keep the
