@@ -8,6 +8,7 @@
     "build": "bun run build:webview && bun run build:extension && bun run build:fresh && bun run verify:runtime",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "test": "bun test tests/*.test.ts",
+    "index": "bun run scripts/index.ts",
     "test:fresh": "bun run build:fresh && bun run tests/fresh/run.ts",
     "test:vscode": "playwright test",
     "test:e2e": "bun run test:fresh && bun run test:vscode",

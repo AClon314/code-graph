@@ -130,6 +130,31 @@ is created.
 or cbm entry-point flag; `/api/symbol` calls it `qn` because cbm identifies any
 node by qualified name.
 
+### Indexing
+
+`project` must name an existing cbm project; it is a database key, not a display
+label. `bun run index` builds the project from this workspace:
+
+```bash
+bun run index --backend cbm    # codebase-memory-mcp indexer
+bun run index --backend scip   # scip-typescript -> scip-cbm-writer
+bun run index --backend both
+```
+
+Defaults:
+
+- cbm project: workspace basename (`graph-ui-svelte`)
+- SCIP project: `<cbm-project>-scip` (`graph-ui-svelte-scip`)
+- cbm mode: `moderate`; use `--mode fast` for the quick filtered index
+
+The SCIP path is intentionally an orchestrator over the two external tools; the
+writer remains outside the cbm core. Re-run the command after source changes,
+then press `r` in the graph panel. Existing project names can be listed with:
+
+```bash
+codebase-memory-mcp cli list_projects --format json
+```
+
 ## Run
 
 ```bash

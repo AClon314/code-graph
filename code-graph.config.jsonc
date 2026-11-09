@@ -1,3 +1,8 @@
 {
-  "priority": 100
+  "priority": 100,
+  "backend": "cbm",
+  "backends": {
+    "cbm": { "project": "graph-ui-svelte" },
+    "scip": { "project": "graph-ui-svelte-scip" }
+  }
 }
