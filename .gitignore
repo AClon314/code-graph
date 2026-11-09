@@ -16,3 +16,9 @@ tui/frame.json
 
 # Personal code-graph overrides (team file is tracked)
 .code-graph.config.jsonc
+
+# test runners
+.termwright/
+termwright-report/
+test-results/
+playwright-report/
