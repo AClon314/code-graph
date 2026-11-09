@@ -1,24 +1,28 @@
 #!/usr/bin/env bun
 /**
- * List explicit entry-point candidates for a cbm project.
+ * List root symbols for a cbm project: entry points, modules and classes.
  *
  *   bun run tui/entries.ts --project fixture-hard-scip
- *   bun run tui/entries.ts --project p --json
+ *   bun run tui/entries.ts --project p --json --write-cache
  *
- * This is a candidate list, not an inference of "the" entry. cbm's
- * is_entry_point is heuristic; Java/Python may have several valid entries.
+ * The list is finite and intentionally not "every symbol": arbitrary QNs
+ * remain valid. `--write-cache` updates .codebase-memory/code-graph/roots.json
+ * so shell completion and the Fresh picker can read it synchronously.
  */
 import { parseArgs } from "node:util";
 
-import { fetchEntryCandidates } from "../src/lib/graph/entries.ts";
+import { fetchRootCandidates } from "../src/lib/graph/roots.ts";
 import { resolveCbmBaseUrl } from "../src/lib/cbm-discovery.ts";
+import { writeRootsCache } from "../src/cli/lib/roots-cache.ts";
 
 const { values } = parseArgs({
   args: process.argv.slice(2),
   options: {
     cbm: { type: "string" },
     project: { type: "string" },
+    root: { type: "string" },
     json: { type: "boolean" },
+    "write-cache": { type: "boolean" },
     limit: { type: "string" },
     help: { type: "boolean", short: "h" },
   },
@@ -30,8 +34,10 @@ if (values.help) {
 
 Options:
   --cbm <url>       explicit local cbm base (testing only)
-  --project <name>  cbm project name
-  --limit <n>       maximum candidates (default: 20)
+  --project <name>  cbm/scip project name
+  --root <path>     workspace root for roots.json (default: cwd)
+  --limit <n>       maximum candidates (default: 50)
+  --write-cache     update .codebase-memory/code-graph/roots.json
   --json            print JSON
   -h, --help        show this help`);
   process.exit(0);
@@ -44,7 +50,7 @@ if (!values.project) {
 
 const endpoint = await resolveCbmBaseUrl(values.cbm);
 const base = endpoint.baseUrl;
-const limit = Number(values.limit ?? "20");
+const limit = Number(values.limit ?? "50");
 if (!Number.isInteger(limit) || limit < 0) {
   console.error("entries: --limit must be a non-negative integer");
   process.exit(2);
@@ -52,16 +58,27 @@ if (!Number.isInteger(limit) || limit < 0) {
 
 let candidates;
 try {
-  candidates = await fetchEntryCandidates(base, values.project, limit);
+  candidates = await fetchRootCandidates(base, values.project, limit);
 } catch (cause) {
   console.error(`entries: ${String(cause)} (project=${values.project})`);
   process.exit(1);
 }
 
+if (values["write-cache"]) {
+  const root = values.root ?? process.cwd();
+  try {
+    const path = writeRootsCache(root, values.project, candidates);
+    if (!values.json) console.error(`entries: wrote ${path}`);
+  } catch (cause) {
+    console.error(`entries: cannot write roots cache: ${String(cause)}`);
+    process.exit(1);
+  }
+}
+
 if (values.json) {
   console.log(JSON.stringify(candidates, null, 2));
 } else if (candidates.length === 0) {
-  console.log("no entry candidates (cbm's is_entry_point is heuristic)");
+  console.log("no root candidates (cbm's is_entry_point is heuristic)");
 } else {
   for (const candidate of candidates) {
     const location = candidate.filePath

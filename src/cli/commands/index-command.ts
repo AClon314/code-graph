@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { indexFlags } from "../lib/flags.ts";
 import { runIndex } from "../lib/indexer.ts";
 import { resolveProject } from "../lib/project.ts";
+import { refreshRootsCache } from "../lib/roots-cache.ts";
 
 export default class IndexCommand extends Command {
   static summary = "Build a cbm-native or SCIP index for the workspace";
@@ -36,5 +37,17 @@ export default class IndexCommand extends Command {
       cacheDir: flags["cache-dir"],
     });
     if (code !== 0) this.exit(code);
+
+    const projects = [
+      ...(flags.backend === "scip" ? [] : [cbm.project]),
+      ...(flags.backend === "cbm" ? [] : [scip.project]),
+    ];
+    for (const project of projects) {
+      try {
+        await refreshRootsCache({ root, project, cbm: flags.cbm });
+      } catch (cause) {
+        console.error(`index: roots cache skipped for ${project}: ${String(cause)}`);
+      }
+    }
   }
 }

@@ -64,6 +64,11 @@ directly. Build output contains only the selected runtime:
 - File tree: **VS Code Explorer**, not a webview. The old tree panel is removed.
 - Graph: D3/SVG or the orchgraph character canvas, with search, depth,
   direction, fit, SVG export / copy.
+- Root picker: **Project roots** is a `vscode-single-select` populated from
+  cbm's repository map (entry points, source modules, exported classes). The
+  **Symbol entry** text field stays editable, so arbitrary QNs and `#id`
+  values still work. `vscode-textfield` is a shadow-DOM input without a
+  `datalist`, so the component pair is deliberate.
 - Details: symbol bundle, callers/callees, **Jump** opens the file at the
   symbol's 1-based line through `ExtensionApi.openLocation`.
 - Workspace Trust: declared supported for untrusted and virtual workspaces, so
@@ -128,7 +133,38 @@ is created.
 
 `symbolEntry` is the qualified name of the graph root. It is not a list, filter,
 or cbm entry-point flag; `/api/symbol` calls it `qn` because cbm identifies any
-node by qualified name.
+node by qualified name. GUI, CLI and TUI also expose a finite project-root
+picker; free-form QNs remain valid.
+
+### Root symbols and roots.json
+
+`bun run entries` asks cbm for a bounded root list: entry functions, source
+modules and exported classes. `--write-cache` writes the synchronous cache used
+by completion and the Fresh picker:
+
+```text
+<workspace>/.codebase-memory/code-graph/roots.json
+```
+
+The cache is keyed by project and merged, so indexing another backend does not
+drop the first project's roots. `index` and `graph` refresh it after a
+successful index; `bun run entries --write-cache` refreshes it on demand.
+
+### Shell completion
+
+Completion uses `@bomb.sh/tab` (zsh, bash, fish, powershell). Oclif remains the
+real command parser; `bin/run.ts` handles `complete -- ...` first:
+
+```bash
+bun link                 # editable global `code-graph` binary
+code-graph complete zsh
+code-graph complete powershell
+```
+
+The generated script calls `code-graph complete -- ...`; `bun run cli` alone
+has no stable executable name and therefore cannot provide shell completion.
+Dynamic `--project` / `--symbol-entry` candidates are read synchronously from
+`roots.json`, never fetched over HTTP during a Tab press.
 
 ### Indexing
 
@@ -162,9 +198,11 @@ around a script:
 bun run graph --backend cbm --format both
 bun run render --project graph-ui-svelte --symbol-entry pkg.main --format svg
 bun run render --graph tui/fixture-graph.json --format orchgraph
+bun run entries --project graph-ui-svelte --json --write-cache
 ```
 
-`bun run cli graph ...` is the equivalent long form.
+`bun run cli graph ...` is the equivalent long form. `entries` is also
+available as `bun run cli entries` and in shell completion.
 
 `graph` indexes first, then renders; `render` expects an existing project.
 Both accept `--depth`, `--direction`, `--max-nodes`, `--cbm`,
@@ -331,9 +369,10 @@ Fresh commands:
 - **Code Graph: Toggle Sync On Workspace Change** (default OFF)
 
 Inside an open graph, the first line is a clickable toolbar:
-`[?] Help`, `[e] Entry`, `[r] Reload`, `[q] Close`. Press `?` for the full
-keyboard/mouse help, `e` to change the root symbol, `r` to reload, and `q` to
-close. The entry can be persisted in `code-graph.config.jsonc`:
+`[H] Help`, `[E] Entry`, `[R] Reload`, `[C] Close`. Press `?` for the full
+keyboard/mouse help, `e` to open the root picker, `r` to reload, and `q` to
+close. The picker supports ↑/↓, Enter, `c` for free-form input and Esc to
+cancel. The entry can be persisted in `code-graph.config.jsonc`:
 
 ```jsonc
 {
@@ -343,12 +382,14 @@ close. The entry can be persisted in `code-graph.config.jsonc`:
 
 or per backend with `backends.cbm.symbolEntry` / `backends.scip.symbolEntry`.
 Config wins on `r`; a prompt/session selection is kept only when config has no
-entry. If no entry is configured, the plugin lists cbm entry candidates.
+entry. If no entry is configured, the plugin reads `roots.json` (or refreshes it
+with `tui/entries.ts --write-cache`) and opens the root picker.
 
 Each window keeps one panel per backend. The frame cache lives in the active
 workspace:
 
 ```text
+<workspace>/.codebase-memory/code-graph/roots.json
 <workspace>/.codebase-memory/code-graph/cbm/frame.json
 <workspace>/.codebase-memory/code-graph/scip/frame.json
 ```
@@ -364,9 +405,9 @@ A convenience link is written to the user cache after a successful render:
 otherwise a missing cache is rendered once with `tui/render.ts`. Local cbm
 discovery first reads `codebase-memory-mcp config get ui_port` (set `CBM_BIN`
 to override the executable), then probes 9749. The root entry comes from `symbolEntry` in project config, or
-`CODE_NAV_ENTRY` / `CODE_NAV_SYMBOL_ENTRY`; if absent the plugin lists cbm entry
-candidates in a prompt and uses the selection for the session. Module/folder
-views are not implemented yet; the default funcs view has no folder root.
+`CODE_NAV_ENTRY` / `CODE_NAV_SYMBOL_ENTRY`; if absent the plugin reads the
+project roots cache and opens the picker. Module roots are now accepted (for
+example `graph-ui-svelte.src.App`); folder views are still not implemented.
 
 - `tui/frame.ts` builds the orchgraph frame.
 - `tui/plugin.ts` paints it and uses the same `ExtensionApi` Fresh host for

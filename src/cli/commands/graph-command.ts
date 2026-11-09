@@ -5,6 +5,7 @@ import { graphFlags, indexTuningFlags } from "../lib/flags.ts";
 import { runIndex } from "../lib/indexer.ts";
 import { renderResolved, resolveOutputMode } from "../lib/output.ts";
 import { resolveProject } from "../lib/project.ts";
+import { refreshRootsCache } from "../lib/roots-cache.ts";
 
 export default class GraphCommand extends Command {
   static summary = "One-click index + SVG/orchgraph render";
@@ -40,6 +41,18 @@ export default class GraphCommand extends Command {
         cacheDir: flags["cache-dir"],
       });
       if (code !== 0) this.exit(code);
+
+      const projects = [
+        ...(backend === "scip" ? [] : [cbm.project]),
+        ...(backend === "cbm" ? [] : [scip.project]),
+      ];
+      for (const project of projects) {
+        try {
+          await refreshRootsCache({ root, project, cbm: flags.cbm });
+        } catch (cause) {
+          console.error(`graph: roots cache skipped for ${project}: ${String(cause)}`);
+        }
+      }
     }
 
     const mode = resolveOutputMode(flags.format);

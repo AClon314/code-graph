@@ -11,6 +11,7 @@
     type FetchLike,
   } from "./lib/cbm-endpoint";
   import { MockSource } from "./lib/graph/mock";
+  import { fetchRootCandidates, type RootCandidate } from "./lib/graph/roots";
   import { graphSvgStyle, SVG_THEME_VARIABLE_NAMES } from "./lib/graph/svg";
   import {
     loadNeighborhood,
@@ -73,6 +74,8 @@
   let renderer = $state<GraphRenderer>("d3");
   let graphView = $state<GraphViewHandle>();
   let pendingLocation: { file: string; line: number } | null = null;
+  let rootCandidates = $state<RootCandidate[]>([]);
+  let rootsLoading = $state(false);
 
   const searchHits = $derived.by(() => {
     const query = search.trim().toLowerCase();
@@ -166,9 +169,11 @@
       graphData = null;
       graphLoading = false;
       graphError = "";
+      rootCandidates = [];
       syncUrl();
       return;
     }
+    void loadRoots();
 
     const source = currentSource();
     const symbolResult = await source.symbol(project, ref).then(
@@ -203,6 +208,31 @@
       graphError = "";
     }
     syncUrl();
+  }
+
+  async function loadRoots(): Promise<void> {
+    if (kind !== "cbm") {
+      rootCandidates = [];
+      return;
+    }
+    rootsLoading = true;
+    try {
+      rootCandidates = await fetchRootCandidates(
+        cbmBaseUrl,
+        project,
+        50,
+        runtime === "webview" ? hostFetch : undefined,
+      );
+    } catch {
+      rootCandidates = [];
+    } finally {
+      rootsLoading = false;
+    }
+  }
+
+  function selectRoot(event: Event): void {
+    const value = textValue(event);
+    if (value) ref = value;
   }
 
   async function ensureCbmEndpoint(): Promise<boolean> {
@@ -589,6 +619,24 @@
         spellcheck="false"
         oninput={(event: Event) => (ref = textValue(event))}
       ></vscode-textfield>
+    </label>
+    <!-- vscode-textfield has no datalist; a native VS Code single-select is
+         the quick root picker, while the text field above remains free-form. -->
+    <!-- svelte-ignore a11y_label_has_associated_control -->
+    <label>
+      Project roots
+      <vscode-single-select
+        value={ref}
+        onchangecapture={(event: Event) => selectRoot(event)}
+      >
+        <vscode-option value="">Custom / manual</vscode-option>
+        {#each rootCandidates as candidate (candidate.qualifiedName)}
+          <vscode-option value={candidate.qualifiedName}>
+            {candidate.qualifiedName}
+          </vscode-option>
+        {/each}
+      </vscode-single-select>
+      {#if rootsLoading}<span class="sub">loading…</span>{/if}
     </label>
         <button class="vscode-button" type="button" onclick={() => void load()} disabled={loading}>
       {loading ? "Loading…" : "Load"}

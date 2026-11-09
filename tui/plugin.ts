@@ -30,6 +30,25 @@ import {
   type ToolbarAction,
 } from "./panel-chrome.ts";
 import type { Frame, NodeBox, NodeMeta } from "./frame-types.ts";
+import type { RootCandidate } from "../src/lib/graph/roots.ts";
+import {
+  acceptRootPicker,
+  cancelRootPicker,
+  chooseRoot as chooseRootFromPicker,
+  customRootEntry,
+  moveRootPicker,
+  paintRootPicker as paintRootPickerContent,
+  pickerIndex,
+  type RootPickerActions,
+  type RootPickerState,
+} from "./root-picker.ts";
+import { loadRoots as loadRootsFromSource } from "./roots-source.ts";
+import { createJumpBridge } from "./jump-bridge.ts";
+import {
+  reportEntryCandidates as reportEntryCandidatesFlow,
+  setEntry as setEntryFlow,
+  type EntryFlowHost,
+} from "./entry-flow.ts";
 import { byteToChar, hexToRgb, utf8Len } from "./text.ts";
 
 const editor = getEditor();
@@ -101,14 +120,12 @@ interface PanelState {
   entry: string;
   helpVisible: boolean;
   headerRows: number;
+  picker: RootPickerState | null;
 }
 
 // ── state ─────────────────────────────────────────────────────────────────
 const panels = new Map<string, PanelState>();
 const lastBackend = new Map<number, Backend>();
-let bridgeInFlight = false;
-let bridgeErrorShown = false;
-let lastJumpKey = "";
 
 function toolbarHit(panel: PanelState, column: number): void {
   const action = toolbarActionAt(panel.helpVisible, column);
@@ -221,6 +238,7 @@ function stateFor(
       existing.entry = CONFIG_ENTRY;
       existing.helpVisible = false;
       existing.headerRows = 0;
+      existing.picker = null;
     }
     existing.root = root;
     existing.framePath = framePath(root, backend);
@@ -242,6 +260,7 @@ function stateFor(
     entry: CONFIG_ENTRY,
     helpVisible: false,
     headerRows: 0,
+    picker: null,
   };
   panels.set(key, created);
   return created;
@@ -296,6 +315,7 @@ function setPanelContent(
 
 function paintHelp(panel: PanelState): void {
   if (panel.bufferId === null) return;
+  panel.picker = null;
   panel.headerRows = HEADER_ROWS;
   panel.selectedNodeId = null;
   const lines = [...headerLines(panel.helpVisible), ...HELP_LINES, ""];
@@ -311,6 +331,40 @@ function toggleHelp(panel: PanelState): void {
   panel.helpVisible = !panel.helpVisible;
   if (panel.helpVisible) paintHelp(panel);
   else renderFrame(panel);
+}
+
+// ── root picker ────────────────────────────────────────────────────────────
+function rootPickerActions(panel: PanelState): RootPickerActions {
+  return {
+    setContent: (lines, entries) => setPanelContent(panel, lines, entries),
+    clearNamespace: () => {
+      if (panel.bufferId !== null) editor.clearNamespace(panel.bufferId, SELECT_NS);
+    },
+    setStatus: (message) => extensionApi.setStatus(message),
+    setEntry: (entry) => {
+      panel.entry = entry;
+    },
+    reload: () => {
+      void reloadFrame(panel);
+    },
+    renderFrame: () => renderFrame(panel),
+    openSelected: openSelectedNode,
+    promptEntry: () => promptEntry(panel),
+  };
+}
+
+async function promptEntry(panel: PanelState): Promise<void> {
+  const picked = await editor.prompt(
+    "Code Graph entry (qualified name)",
+    entryFor(panel),
+  );
+  if (!picked || !picked.trim()) {
+    extensionApi.setStatus("Code Graph: entry unchanged");
+    return;
+  }
+  panel.entry = picked.trim();
+  extensionApi.setStatus("Code Graph: entry = " + panel.entry);
+  await reloadFrame(panel);
 }
 
 function readFrame(path: string): Frame | null {
@@ -335,6 +389,7 @@ function paintError(panel: PanelState, detail: string): void {
   panel.selectedNodeId = null;
   panel.helpVisible = false;
   panel.headerRows = 0;
+  panel.picker = null;
   panel.lineTexts = detail.replace(/\r\n/g, "\n").split("\n");
   panel.lineStarts = computeLineStarts(panel.lineTexts);
   editor.clearNamespace(panel.bufferId, SELECT_NS);
@@ -433,6 +488,7 @@ function renderFrame(panel: PanelState): void {
 
   rebuildIndex(panel, value);
   panel.helpVisible = false;
+  panel.picker = null;
   panel.headerRows = HEADER_ROWS;
   // Content replacement invalidates byte offsets stored in old overlays.
   editor.clearNamespace(panel.bufferId, SELECT_NS);
@@ -639,64 +695,34 @@ async function linkFrameCache(panel: PanelState): Promise<void> {
   }
 }
 
-async function reportEntryCandidates(panel: PanelState): Promise<void> {
-  extensionApi.setStatus(
-    "Code Graph (" +
-      panel.backend +
-      "): no entry configured; looking for candidates…",
+function loadRoots(panel: PanelState): Promise<RootCandidate[]> {
+  return loadRootsFromSource(
+    {
+      readFile: (path) => editor.readFile(path),
+      spawn: (args, cwd) => editor.spawnProcess(BUN, args, cwd) as Promise<any>,
+      setStatus: (message) => extensionApi.setStatus(message),
+    },
+    {
+      script: ENTRY_SCRIPT,
+      root: panel.root,
+      project: projectFor(panel),
+      backend: panel.backend,
+    },
   );
-  const args = [
-    ENTRY_SCRIPT,
-    "--project",
-    projectFor(panel),
-    "--json",
-    "--limit",
-    "8",
-  ];
-  let result: { exit_code?: number; stdout?: string; stderr?: string } | null = null;
-  try {
-    result = (await editor.spawnProcess(BUN, args, panel.root)) as {
-      exit_code?: number;
-      stdout?: string;
-      stderr?: string;
-    };
-  } catch (error) {
-    paintError(panel, errorText(error));
-    return;
-  }
-  if (!result || result.exit_code !== 0) {
-    paintError(panel, (result && result.stderr) || "entry lookup failed without stderr");
-    return;
-  }
-  let candidates: Array<{ qualifiedName?: string }> = [];
-  try {
-    candidates = JSON.parse(result.stdout || "[]") as Array<{ qualifiedName?: string }>;
-  } catch {
-    extensionApi.setStatus("Code Graph: entry lookup returned invalid JSON");
-    return;
-  }
-  const names = candidates
-    .map((candidate) => candidate.qualifiedName)
-    .filter((name): name is string => Boolean(name));
-  if (names.length === 0) {
-    extensionApi.setStatus(
-      "Code Graph: no entry candidates found; set CODE_NAV_ENTRY or CODE_NAV_SYMBOL_ENTRY manually",
-    );
-    return;
-  }
-  const picked = await editor.prompt(
-    "Code Graph entry (qualified name)",
-    names[0] ?? "",
-  );
-  if (!picked || !picked.trim()) {
-    extensionApi.setStatus(
-      "Code Graph: entry not selected · candidates: " + names.slice(0, 6).join(", "),
-    );
-    return;
-  }
-  panel.entry = picked.trim();
-  extensionApi.setStatus("Code Graph: entry = " + panel.entry);
-  await reloadFrame(panel);
+}
+
+function entryFlowHost(panel: PanelState): EntryFlowHost {
+  return {
+    loadRoots: () => loadRoots(panel),
+    paintRoots: (roots) =>
+      paintRootPickerContent(panel, roots, 0, rootPickerActions(panel)),
+    promptEntry: () => promptEntry(panel),
+    setStatus: (message) => extensionApi.setStatus(message),
+  };
+}
+
+function reportEntryCandidates(panel: PanelState): Promise<void> {
+  return reportEntryCandidatesFlow(entryFlowHost(panel));
 }
 
 async function setEntry(): Promise<void> {
@@ -705,17 +731,7 @@ async function setEntry(): Promise<void> {
     extensionApi.setStatus("Code Graph: open a graph panel first");
     return;
   }
-  const picked = await editor.prompt(
-    "Code Graph entry (qualified name)",
-    entryFor(panel),
-  );
-  if (!picked || !picked.trim()) {
-    extensionApi.setStatus("Code Graph: entry unchanged");
-    return;
-  }
-  panel.entry = picked.trim();
-  extensionApi.setStatus("Code Graph: entry = " + panel.entry);
-  await reloadFrame(panel);
+  await setEntryFlow(entryFlowHost(panel));
 }
 
 function activePanel(): PanelState | null {
@@ -724,7 +740,12 @@ function activePanel(): PanelState | null {
 
 function openSelectedNode(): void {
   const panel = activePanel();
-  if (!panel || !panel.frame || !panel.selectedNodeId) {
+  if (!panel) return;
+  if (panel.picker) {
+    chooseRootFromPicker(panel, panel.picker.selected, rootPickerActions(panel));
+    return;
+  }
+  if (!panel.frame || !panel.selectedNodeId) {
     extensionApi.setStatus("Code Graph: click a node first");
     return;
   }
@@ -767,6 +788,13 @@ function onClick(event: {
 
   if (row < panel.headerRows) {
     if (row === 0) toolbarHit(panel, column);
+    return;
+  }
+  if (panel.picker) {
+    const index = pickerIndex(panel, row);
+    if (index !== null) {
+      chooseRootFromPicker(panel, index, rootPickerActions(panel));
+    }
     return;
   }
   if (!panel.frame || panel.helpVisible) return;
@@ -817,92 +845,23 @@ function onActiveWindowChanged(): void {
 }
 
 // ── jump bridge (JSON-RPC via tools/jump-client.ts) ───────────────────────
-function bridgeError(result: { exit_code?: number; stderr?: string } | null): void {
-  if (bridgeErrorShown) return;
-  bridgeErrorShown = true;
-  const detail = result
-    ? "exit " + result.exit_code + (result.stderr ? " " + result.stderr.split("\n")[0] : "")
-    : "transport error";
-  extensionApi.setStatus("Code Graph: jump bridge unavailable (" + detail + ")");
-}
-
-async function pollBridge(): Promise<void> {
-  if (bridgeInFlight) return;
-  bridgeInFlight = true;
-  try {
-    // Fresh's httpFetch is GET-only; a spawned helper performs the JSON-RPC
-    // POST and writes the target (or `null`) atomically to JUMP_TMP.
-    const args = [
-      JUMP_CLIENT,
-      "next",
-      "--client",
-      "fresh",
-      "--wait",
-      "25000",
-      "--base",
-      BRIDGE_URL,
-      "--out",
-      JUMP_TMP,
-    ];
-    const result = (await editor.spawnProcess(BUN, args, activeRoot())) as {
-      exit_code?: number;
-      stderr?: string;
-    };
-    if (!result || result.exit_code !== 0) {
-      bridgeError(result);
-      return;
-    }
-    bridgeErrorShown = false;
-
-    const raw = editor.readFile(JUMP_TMP);
-    if (!raw) return;
-    let parsed: JumpTarget | null;
-    try {
-      parsed = JSON.parse(raw) as JumpTarget | null;
-    } catch {
-      return;
-    }
-    if (!parsed) return; // long-poll elapsed without a target
-    const target = parsed;
-    if (
-      typeof target.path !== "string" ||
-      target.path.length === 0 ||
-      typeof target.line !== "number" ||
-      target.line < 1
-    ) {
-      return;
-    }
-
-    const column = typeof target.column === "number" && target.column > 0 ? target.column : 1;
-    const key = [target.project || "", target.path, target.line, column, target.symbol || ""].join("|");
-    if (key === lastJumpKey) return; // do not reopen the same jump repeatedly
-    lastJumpKey = key;
-
-    (globalThis as any).CODE_NAV_ROOT = activeRoot();
-    extensionApi
-      .openLocation({
+const jumpBridge = createJumpBridge(
+  {
+    spawn: (args, cwd) => editor.spawnProcess(BUN, args, cwd) as Promise<any>,
+    readFile: (path) => editor.readFile(path),
+    activeRoot,
+    setStatus: (message) => extensionApi.setStatus(message),
+    openLocation: (target) =>
+      extensionApi.openLocation({
         project: target.project,
         path: target.path,
         line: target.line,
-        column,
+        column: target.column,
         symbol: target.symbol,
-      })
-      .then(
-        () => extensionApi.setStatus("Code Graph: jumped to " + target.path + ":" + target.line),
-        (error) =>
-          extensionApi.setStatus(
-            "Code Graph: could not open " + target.path + " — " + String(error),
-          ),
-      );
-  } catch (error) {
-    if (!bridgeErrorShown) {
-      bridgeErrorShown = true;
-      extensionApi.setStatus("Code Graph: jump bridge error — " + String(error));
-    }
-  } finally {
-    bridgeInFlight = false;
-  }
-}
+      }),
+  },
+  { client: JUMP_CLIENT, baseUrl: BRIDGE_URL, out: JUMP_TMP },
+);
 
 function toggleSync(): void {
   const current = Boolean(editor.getGlobalState(SYNC_KEY) ?? false);
@@ -922,7 +881,11 @@ editor.defineMode(
     ["r", "code_nav_reload"],
     ["e", "code_nav_set_entry"],
     ["o", "code_nav_open_node"],
-    ["Return", "code_nav_open_node"],
+    ["Return", "code_nav_pick_accept"],
+    ["Up", "code_nav_pick_up"],
+    ["Down", "code_nav_pick_down"],
+    ["c", "code_nav_pick_custom"],
+    ["Esc", "code_nav_pick_cancel"],
   ],
   true,
   false,
@@ -948,10 +911,30 @@ registerHandler("code_nav_help", () => {
   if (panel) toggleHelp(panel);
 });
 registerHandler("code_nav_open_node", openSelectedNode);
+registerHandler("code_nav_pick_accept", () => {
+  const panel = activePanel();
+  if (panel) acceptRootPicker(panel, rootPickerActions(panel));
+});
+registerHandler("code_nav_pick_up", () => {
+  const panel = activePanel();
+  if (panel) moveRootPicker(panel, -1, rootPickerActions(panel));
+});
+registerHandler("code_nav_pick_down", () => {
+  const panel = activePanel();
+  if (panel) moveRootPicker(panel, 1, rootPickerActions(panel));
+});
+registerHandler("code_nav_pick_custom", () => {
+  const panel = activePanel();
+  if (panel) customRootEntry(panel, rootPickerActions(panel));
+});
+registerHandler("code_nav_pick_cancel", () => {
+  const panel = activePanel();
+  if (panel) cancelRootPicker(panel, rootPickerActions(panel));
+});
 registerHandler("code_nav_click", onClick);
 registerHandler("code_nav_closed", onBufferClosed);
 registerHandler("code_nav_active_window", onActiveWindowChanged);
-registerHandler("code_nav_poll", pollBridge);
+registerHandler("code_nav_poll", () => jumpBridge.poll());
 registerHandler("code_nav_toggle_sync", toggleSync);
 
 editor.registerCommand(

@@ -6,6 +6,7 @@
  * for an explicit selection, never as a claim that the repository has one
  * unique entry.
  */
+import type { FetchLike } from "../cbm-endpoint.ts";
 
 export interface RepositoryNode {
   name?: string;
@@ -69,12 +70,12 @@ export function entryCandidates(
 }
 
 /** Fetch and rank entry candidates from a local cbm repository map. */
-export async function fetchEntryCandidates(
+/** Fetch the raw repository-map nodes used by entry/root discovery. */
+export async function fetchRepositoryNodes(
   baseUrl: string,
   project: string,
-  limit = 20,
-  fetchImpl: typeof fetch = fetch,
-): Promise<EntryCandidate[]> {
+  fetchImpl: FetchLike = fetch,
+): Promise<RepositoryNode[]> {
   const url = new URL("/api/repository-map", baseUrl);
   url.searchParams.set("project", project);
   const response = await fetchImpl(url);
@@ -84,5 +85,15 @@ export async function fetchEntryCandidates(
     );
   }
   const payload = (await response.json()) as { nodes?: RepositoryNode[] };
-  return entryCandidates(payload.nodes ?? [], limit);
+  return payload.nodes ?? [];
+}
+
+/** Fetch and rank entry candidates from a local cbm repository map. */
+export async function fetchEntryCandidates(
+  baseUrl: string,
+  project: string,
+  limit = 20,
+  fetchImpl: FetchLike = fetch,
+): Promise<EntryCandidate[]> {
+  return entryCandidates(await fetchRepositoryNodes(baseUrl, project, fetchImpl), limit);
 }

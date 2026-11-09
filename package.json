@@ -9,6 +9,7 @@
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "test": "bun test tests/*.test.ts",
     "index": "bun bin/run.ts index",
+    "entries": "bun bin/run.ts entries",
     "graph": "bun bin/run.ts graph",
     "render": "bun bin/run.ts render",
     "test:fresh": "bun run build:fresh && bun run tests/fresh/run.ts",
@@ -44,6 +45,7 @@
     "vite": "^7.0.0"
   },
   "dependencies": {
+    "@bomb.sh/tab": "^0.0.22",
     "@oclif/core": "^5.1.11",
     "@vscode-elements/elements": "^2.5.1",
     "d3-selection": "^3.0.0",

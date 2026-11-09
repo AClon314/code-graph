@@ -22,7 +22,10 @@ time.
 | --- | --- |
 | `frame.ts` | GraphViewData → orchgraph `GraphDocument` → layout/render → `Frame` |
 | `render.ts` | CLI for fixture files and live cbm data |
-| `entries.ts` | List explicit entry-point candidates from a cbm project |
+| `entries.ts` | List entry/module/class root candidates; `--write-cache` writes roots.json |
+| `root-picker.ts` | Pure picker rendering/hit-testing used by `plugin.ts` |
+| `roots-source.ts` | Read roots.json or refresh it via `entries.ts` |
+| `jump-bridge.ts` | JSON-RPC jump polling extracted from `plugin.ts` |
 | `cache-link.ts` | Link a workspace frame into `~/.cache/code-graph/frames/` |
 | `fixture-graph.json` | Deterministic 6-node fixture used by tests/examples |
 | `plugin.ts` | QuickJS consumer of the frame |
@@ -160,17 +163,25 @@ either the node budget or the depth boundary is hit.
 The graph panel starts with a clickable toolbar:
 
 ```text
-[?] Help  [e] Entry  [r] Reload  [q] Close
+[H] Help  [E] Entry  [R] Reload  [C] Close
 ```
 
 Keys:
 
 - `?` — toggle the help screen
-- `e` — prompt for a new root symbol
+- `e` — open the project-root picker
+- `↑` / `↓` — move in the root picker
+- `Enter` — accept the selected root
+- `c` — custom, free-form root QN
+- `Esc` — cancel the picker
 - `r` — reload config and frame
-- `o` / `Enter` — open the selected node
+- `o` / `Enter` — open the selected node (outside the picker)
 - `q` — close the panel
 - click — select a node; double-click — open it
+
+`e` reads `.codebase-memory/code-graph/roots.json` first and only spawns
+`tui/entries.ts --write-cache` when the cache is missing. The same file feeds
+CLI shell completion.
 
 `Code Graph: Show Keys` and `Code Graph: Set Entry` expose the same actions from
 the command palette.

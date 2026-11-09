@@ -9,6 +9,10 @@ export function frameCachePath(root: string, backend: FrameBackend): string {
   return `${frameCacheDir(root, backend)}/frame.json`;
 }
 
+export function rootsCachePath(root: string): string {
+  return `${root.replace(/\/+$/, "")}/.codebase-memory/code-graph/roots.json`;
+}
+
 export function panelName(backend: FrameBackend): string {
   return backend === "scip" ? " *Code Graph (SCIP)* " : " *Code Graph (cbm)* ";
 }

@@ -2,7 +2,10 @@
   "priority": 100,
   "backend": "cbm",
   "backends": {
-    "cbm": { "project": "graph-ui-svelte" },
+    "cbm": {
+      "project": "graph-ui-svelte",
+      "symbolEntry": "graph-ui-svelte.src.App"
+    },
     "scip": { "project": "graph-ui-svelte-scip" }
   }
 }
