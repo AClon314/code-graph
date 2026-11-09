@@ -25,7 +25,7 @@ export interface GraphLayout {
   edges: LaidOutEdge[];
 }
 
-export type LayoutDirection = "DOWN" | "RIGHT";
+export type LayoutDirection = "DOWN" | "UP" | "LEFT" | "RIGHT";
 
 export const NODE_WIDTH = 180;
 export const NODE_HEIGHT = 64;

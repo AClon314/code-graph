@@ -8,7 +8,7 @@
     "build": "bun run build:webview && bun run build:extension && bun run build:fresh && bun run verify:runtime",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "test": "bun test tests/*.test.ts",
-    "index": "bun run scripts/index.ts",
+    "index": "bun bin/run.ts index",
     "test:fresh": "bun run build:fresh && bun run tests/fresh/run.ts",
     "test:vscode": "playwright test",
     "test:e2e": "bun run test:fresh && bun run test:vscode",
@@ -24,7 +24,8 @@
     "vscode:prepublish": "bun run build",
     "verify:runtime": "bash scripts/verify-runtime.sh",
     "lazy_mkcert": "bun run scripts/lazy-mkcert.ts",
-    "tui": "bun run tui/install.ts && bun run tui/launch.ts"
+    "tui": "bun run tui/install.ts && bun run tui/launch.ts",
+    "cli": "bun bin/run.ts"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1",
@@ -41,6 +42,7 @@
     "vite": "^7.0.0"
   },
   "dependencies": {
+    "@oclif/core": "^5.1.11",
     "@vscode-elements/elements": "^2.5.1",
     "d3-selection": "^3.0.0",
     "d3-zoom": "^3.0.0",
@@ -118,5 +120,17 @@
       "supported": true
     },
     "virtualWorkspaces": true
+  },
+  "bin": {
+    "code-graph": "./bin/run.ts"
+  },
+  "oclif": {
+    "bin": "code-graph",
+    "commands": {
+      "strategy": "explicit",
+      "target": "./src/cli/commands.ts",
+      "identifier": "commands"
+    },
+    "topicSeparator": " "
   }
 }

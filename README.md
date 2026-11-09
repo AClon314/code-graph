@@ -155,6 +155,26 @@ then press `r` in the graph panel. Existing project names can be listed with:
 codebase-memory-mcp cli list_projects --format json
 ```
 
+The Oclif entry point exposes the GUI/TUI inputs without a source checkout
+around a script:
+
+```bash
+bun run cli graph --backend cbm --format both
+bun run cli render --project graph-ui-svelte --symbol-entry pkg.main --format svg
+bun run cli render --graph tui/fixture-graph.json --format orchgraph
+```
+
+`graph` indexes first, then renders; `render` expects an existing project.
+Both accept `--depth`, `--direction`, `--max-nodes`, `--cbm`,
+`--layout-direction`, `--spacing`, and `--max-node-width`. The default output
+is `code-graph-<project>.svg` plus `.orchgraph.txt`; `--out` changes the base
+name.
+
+The CLI is runtime code (`bin/run.ts` + `src/cli/`), unlike `test:*` and build
+tooling. For a packaged release, ship the Oclif entry point/binary and keep the
+`codebase-memory-mcp` binary (and optionally `scip-typescript`) as documented
+runtime prerequisites; do not document `bun run index` for end users.
+
 ## Run
 
 ```bash
