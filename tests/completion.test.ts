@@ -23,11 +23,11 @@ test("completion generates zsh and powershell scripts", () => {
   expect(visible.exitCode).toBe(0);
   expect(visible.stdout).toContain("#compdef code-graph");
 
-  const zsh = run(["complete", "zsh"]);
+  const zsh = run(["completion", "zsh"]);
   expect(zsh.exitCode).toBe(0);
   expect(zsh.stdout).toContain("#compdef code-graph");
 
-  const powershell = run(["complete", "powershell"]);
+  const powershell = run(["completion", "powershell"]);
   expect(powershell.exitCode).toBe(0);
   expect(powershell.stdout.toLowerCase()).toContain("powershell");
 });

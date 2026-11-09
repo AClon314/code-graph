@@ -1,12 +1,9 @@
 #!/usr/bin/env bun
-import { run } from "@oclif/core";
-import { fileURLToPath } from "node:url";
+import { createProgram } from "../src/cli/program.ts";
 
-import { handleCompletion } from "../src/cli/completion.ts";
-
-const argv = process.argv.slice(2);
-if (argv[0] === "complete") {
-  process.exit(handleCompletion(argv));
+try {
+  await createProgram().parseAsync(process.argv);
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exitCode = 1;
 }
-
-await run(argv, fileURLToPath(new URL("..", import.meta.url)));

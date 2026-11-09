@@ -48,8 +48,8 @@
   },
   "dependencies": {
     "@bomb.sh/tab": "^0.0.22",
-    "@oclif/core": "^5.1.11",
     "@vscode-elements/elements": "^2.5.1",
+    "commander": "^15.1.0",
     "d3-selection": "^3.0.0",
     "d3-zoom": "^3.0.0",
     "elkjs": "0.10.2",
@@ -129,14 +129,5 @@
   },
   "bin": {
     "code-graph": "./bin/run.ts"
-  },
-  "oclif": {
-    "bin": "code-graph",
-    "commands": {
-      "strategy": "explicit",
-      "target": "./src/cli/commands.ts",
-      "identifier": "commands"
-    },
-    "topicSeparator": " "
   }
 }

@@ -1,116 +1,90 @@
 /**
- * Shell completion via @bomb.sh/tab.
+ * Shell completion via @bomb.sh/tab's Commander adapter.
  *
- * The generated scripts call `code-graph complete -- <words>`. We answer
- * before Oclif sees the args, so Oclif remains the real parser. Dynamic root
- * completion is intentionally synchronous: read roots.json, never hit cbm.
+ * Commander owns command/flag parsing; the adapter derives the completion
+ * tree from the same definitions and installs the visible `completion` command
+ * plus the hidden `complete -- ...` protocol.
  */
-import tab from "@bomb.sh/tab";
+import tab from "@bomb.sh/tab/commander";
+import type { Command } from "commander";
 import { basename } from "node:path";
 
 import { readRootsCache } from "./lib/roots-cache.ts";
+import {
+  COMPLETION_SHELLS,
+  detectShell,
+  installCompletion,
+  uninstallCompletion,
+  type CompletionShell,
+} from "./lib/completion-install.ts";
 
-const cli = tab;
-
-const entries = cli.command("entries", "List project root symbols");
-addProjectOptions(entries);
-entries.options.delete("symbol-entry");
-entries.option("cbm", "Explicit local cbm base URL");
-entries.option("limit", "Maximum candidates", choice(["10", "25", "50", "100"]));
-entries.option("json", "Print JSON", noValues);
-entries.option("write-cache", "Write roots.json", noValues);
-
-const graph = cli.command("graph", "One-click index + render");
-addProjectOptions(graph);
-addRenderOptions(graph);
-addIndexOptions(graph);
-
-const index = cli.command("index", "Build an index");
-addProjectOptions(index);
-index.options.delete("symbol-entry");
-index.option("backend", "Graph backend", choice(["cbm", "scip", "both"]));
-addIndexOptions(index);
-
-const render = cli.command("render", "Render an existing graph");
-addProjectOptions(render);
-addRenderOptions(render);
-
-const completion = cli.command("completion", "Print or install shell completion");
-completion.argument("action", (complete) => {
-  for (const action of ["install", "uninstall", "zsh", "bash", "fish", "powershell"]) {
-    complete(action, "");
+export function attachCompletion(program: Command): void {
+  const completion = tab(program, { completionCommandName: "completion" });
+  const command = program.commands.find((item) => item.name() === "completion");
+  if (command) {
+    command.description("Print or install shell completion");
+    addManagement(command);
   }
-});
-completion.argument("shell", (complete) => {
-  for (const shell of ["zsh", "bash", "fish", "powershell"]) {
-    complete(shell, "");
-  }
-});
 
-/** Print a completion script; also used by the visible `completion` command. */
-export function printCompletion(shell: string): void {
-  if (!["zsh", "bash", "fish", "powershell"].includes(shell)) {
+  for (const name of ["graph", "index", "render", "entries"]) {
+    const current = completion.commands.get(name);
+    if (!current) continue;
+    const project = current.options.get("project");
+    if (project) project.handler = projectValues;
+    const symbol = current.options.get("symbol-entry");
+    if (symbol) symbol.handler = rootValues;
+  }
+}
+
+function addManagement(command: Command): void {
+  command
+    .command("install")
+    .description("install a marked completion block in the detected shell profile")
+    .argument("[shell]", "zsh, bash, fish or powershell")
+    .option("--dry-run", "show the block without writing")
+    .action((shell: string | undefined, options: { dryRun?: boolean }) => {
+      const result = installCompletion({
+        shell: completionShell(shell),
+        dryRun: options.dryRun,
+      });
+      const verb = result.changed
+        ? options.dryRun
+          ? "Would update"
+          : "Updated"
+        : "No change to";
+      console.log(`${verb} ${result.path}`);
+      if (options.dryRun && result.changed) console.log(result.block);
+    });
+
+  command
+    .command("uninstall")
+    .description("remove only the marked code-graph completion block")
+    .argument("[shell]", "zsh, bash, fish or powershell")
+    .option("--dry-run", "show the change without writing")
+    .action((shell: string | undefined, options: { dryRun?: boolean }) => {
+      const result = uninstallCompletion({
+        shell: completionShell(shell),
+        dryRun: options.dryRun,
+      });
+      console.log(
+        (result.changed ? (options.dryRun ? "Would update " : "Updated ") : "No change to ") +
+          result.path,
+      );
+    });
+
+}
+
+function completionShell(value: string | undefined): CompletionShell {
+  const shell = (value as CompletionShell | undefined) ?? detectShell();
+  if (!shell) {
+    throw new Error(
+      "cannot detect $SHELL; pass one of: " + COMPLETION_SHELLS.join(", "),
+    );
+  }
+  if (!COMPLETION_SHELLS.includes(shell)) {
     throw new Error(`unsupported shell: ${shell}`);
   }
-  tab.setup("code-graph", "code-graph", shell);
-}
-
-/** Handle `code-graph complete ...` before Oclif parses the command. */
-export function handleCompletion(argv: string[] = process.argv.slice(2)): number {
-  const shell = argv[1];
-  if (shell === "--") {
-    tab.parse(argv.slice(2));
-    return 0;
-  }
-  if (shell === undefined) {
-    console.error("completion: expected a shell (zsh, bash, fish, powershell)");
-    return 2;
-  }
-  printCompletion(shell);
-  return 0;
-}
-
-function addProjectOptions(command: ReturnType<typeof cli.command>): void {
-  command.option("backend", "Graph backend", choice(["cbm", "scip"]));
-  command.option("root", "Workspace root");
-  command.option("project", "cbm/scip project name", projectValues);
-  command.option("scip-project", "SCIP project name", projectValues);
-  command.option("symbol-entry", "Root symbol (qn or #id)", rootValues);
-}
-
-function addRenderOptions(command: ReturnType<typeof cli.command>): void {
-  command.option("graph", "GraphViewData fixture");
-  command.option("depth", "BFS depth", choice(["1", "2", "3"]));
-  command.option("direction", "BFS direction", choice(["both", "callers", "callees"]));
-  command.option("format", "Output format", choice(["svg", "orchgraph", "both"]));
-  command.option("out", "Output base path");
-  command.option("layout-direction", "Layout direction", choice(["DOWN", "UP", "LEFT", "RIGHT"]));
-  command.option("spacing", "orchgraph spacing");
-  command.option("max-node-width", "orchgraph node width");
-  command.option("max-nodes", "Maximum graph nodes");
-  command.option("cbm", "Explicit local cbm base URL");
-}
-
-function addIndexOptions(command: ReturnType<typeof cli.command>): void {
-  command.option("mode", "cbm index mode", choice(["fast", "moderate", "full"]));
-  command.option("cbm-bin", "codebase-memory-mcp binary");
-  command.option("bun", "Bun binary");
-  command.option("node", "Node binary");
-  command.option("scip-indexer", "scip-typescript entry point");
-  command.option("writer", "scip-cbm-writer directory");
-  command.option("scip-output", "Keep the .scip file");
-  command.option("cache-dir", "cbm cache directory");
-}
-
-function choice(values: string[]) {
-  return (complete: (value: string, description: string) => void): void => {
-    for (const value of values) complete(value, "");
-  };
-}
-
-function noValues(complete: (value: string, description: string) => void): void {
-  // Boolean flags: let the shell stop offering values after this flag.
-  void complete;
+  return shell;
 }
 
 function projectValues(complete: (value: string, description: string) => void): void {
@@ -128,9 +102,7 @@ function rootValues(complete: (value: string, description: string) => void): voi
   const cache = readRootsCache(root);
   const requested = optionValue("project");
   const project =
-    requested ??
-    Object.keys(cache.projects)[0] ??
-    basename(root);
+    requested ?? Object.keys(cache.projects)[0] ?? basename(root);
   for (const candidate of cache.projects[project]?.roots ?? []) {
     complete(candidate.qualifiedName, candidate.reason || candidate.label);
   }

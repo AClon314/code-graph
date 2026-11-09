@@ -152,8 +152,10 @@ successful index; `bun run entries --write-cache` refreshes it on demand.
 
 ### Shell completion
 
-Completion uses `@bomb.sh/tab` (zsh, bash, fish, powershell). Oclif remains the
-real command parser; `bin/run.ts` handles `complete -- ...` first:
+Completion uses `@bomb.sh/tab`'s Commander adapter (zsh, bash, fish,
+powershell). Commander owns command/flag parsing; the adapter derives the
+completion tree from the same command definitions and installs the visible
+`completion` command plus the hidden `complete -- ...` protocol:
 
 ```bash
 bun link                 # editable global `code-graph` binary
@@ -166,6 +168,8 @@ code-graph completion powershell
 `bun run cli` alone has no stable executable name and therefore cannot provide
 shell completion. Dynamic `--project` / `--symbol-entry` candidates are read
 synchronously from `roots.json`, never fetched over HTTP during a Tab press.
+Static choices (`--backend`, `--format`, `--direction`, `--mode`, etc.) come
+from the Commander option definitions, so they cannot drift from the parser.
 
 For an idempotent managed block:
 
@@ -224,8 +228,8 @@ then press `r` in the graph panel. Existing project names can be listed with:
 codebase-memory-mcp cli list_projects --format json
 ```
 
-The Oclif entry point exposes the GUI/TUI inputs without a source checkout
-around a script:
+The Commander entry point exposes the GUI/TUI inputs without a source
+checkout around a script:
 
 ```bash
 bun run graph --backend cbm --format both
@@ -248,9 +252,10 @@ sets the base path for file output and is ignored while streaming. Logs always
 go to stderr.
 
 The CLI is runtime code (`bin/run.ts` + `src/cli/`), unlike `test:*` and build
-tooling. For a packaged release, ship the Oclif entry point/binary and keep the
-`codebase-memory-mcp` binary (and optionally `scip-typescript`) as documented
-runtime prerequisites; do not document `bun run index` for end users.
+tooling. For a packaged release, ship the Commander entry point/binary and keep
+the `codebase-memory-mcp` binary (and optionally `scip-typescript`) as
+documented runtime prerequisites; do not document `bun run index` for end
+users.
 
 ## Run
 
