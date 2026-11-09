@@ -19,6 +19,10 @@ function run(args: string[]): { stdout: string; stderr: string; exitCode: number
 }
 
 test("completion generates zsh and powershell scripts", () => {
+  const visible = run(["completion", "zsh"]);
+  expect(visible.exitCode).toBe(0);
+  expect(visible.stdout).toContain("#compdef code-graph");
+
   const zsh = run(["complete", "zsh"]);
   expect(zsh.exitCode).toBe(0);
   expect(zsh.stdout).toContain("#compdef code-graph");

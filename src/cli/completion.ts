@@ -35,6 +35,21 @@ const render = cli.command("render", "Render an existing graph");
 addProjectOptions(render);
 addRenderOptions(render);
 
+const completion = cli.command("completion", "Print a shell completion script");
+completion.argument("shell", (complete) => {
+  for (const shell of ["zsh", "bash", "fish", "powershell"]) {
+    complete(shell, "");
+  }
+});
+
+/** Print a completion script; also used by the visible `completion` command. */
+export function printCompletion(shell: string): void {
+  if (!["zsh", "bash", "fish", "powershell"].includes(shell)) {
+    throw new Error(`unsupported shell: ${shell}`);
+  }
+  tab.setup("code-graph", "code-graph", shell);
+}
+
 /** Handle `code-graph complete ...` before Oclif parses the command. */
 export function handleCompletion(argv: string[] = process.argv.slice(2)): number {
   const shell = argv[1];
@@ -46,7 +61,7 @@ export function handleCompletion(argv: string[] = process.argv.slice(2)): number
     console.error("completion: expected a shell (zsh, bash, fish, powershell)");
     return 2;
   }
-  tab.setup("code-graph", "code-graph", shell);
+  printCompletion(shell);
   return 0;
 }
 

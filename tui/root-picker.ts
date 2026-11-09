@@ -17,6 +17,8 @@ export interface RootPickerPanel {
 
 export interface RootPickerActions {
   setContent(lines: string[], entries: Record<string, unknown>[]): void;
+  setCursor(row: number): void;
+  cursorRow(): number | null;
   clearNamespace(): void;
   setStatus(message: string): void;
   setEntry(entry: string): void;
@@ -58,6 +60,7 @@ export function paintRootPicker(
   entries.push({ text: "\n" });
   actions.clearNamespace();
   actions.setContent(lines, entries);
+  actions.setCursor(HEADER_ROWS + index);
   actions.setStatus(
     "Code Graph: pick a root (" +
       roots.length +
@@ -89,6 +92,7 @@ export function moveRootPicker(
     Math.min(panel.picker.roots.length - 1, panel.picker.selected + delta),
   );
   paintRootPicker(panel, panel.picker.roots, next, actions);
+  actions.setCursor(HEADER_ROWS + next);
 }
 
 export function acceptRootPicker(
@@ -99,7 +103,10 @@ export function acceptRootPicker(
     actions.openSelected();
     return;
   }
-  chooseRoot(panel, panel.picker.selected, actions);
+  const cursorRow = actions.cursorRow();
+  const index =
+    cursorRow === null ? null : pickerRowIndex(panel, cursorRow);
+  chooseRoot(panel, index ?? panel.picker.selected, actions);
 }
 
 export function cancelRootPicker(
@@ -121,6 +128,10 @@ export function customRootEntry(
 
 /** Row index into the picker list, or null for the toolbar/instruction rows. */
 export function pickerIndex(panel: RootPickerPanel, row: number): number | null {
+  return pickerRowIndex(panel, row);
+}
+
+function pickerRowIndex(panel: RootPickerPanel, row: number): number | null {
   if (!panel.picker || row < HEADER_ROWS) return null;
   const index = row - HEADER_ROWS;
   return index >= 0 && index < panel.picker.roots.length ? index : null;

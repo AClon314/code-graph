@@ -36,7 +36,6 @@ import {
   cancelRootPicker,
   chooseRoot as chooseRootFromPicker,
   customRootEntry,
-  moveRootPicker,
   paintRootPicker as paintRootPickerContent,
   pickerIndex,
   type RootPickerActions,
@@ -121,6 +120,8 @@ interface PanelState {
   helpVisible: boolean;
   headerRows: number;
   picker: RootPickerState | null;
+  lastClickKey: string;
+  lastClickAt: number;
 }
 
 // ── state ─────────────────────────────────────────────────────────────────
@@ -261,6 +262,8 @@ function stateFor(
     helpVisible: false,
     headerRows: 0,
     picker: null,
+    lastClickKey: "",
+    lastClickAt: 0,
   };
   panels.set(key, created);
   return created;
@@ -337,6 +340,12 @@ function toggleHelp(panel: PanelState): void {
 function rootPickerActions(panel: PanelState): RootPickerActions {
   return {
     setContent: (lines, entries) => setPanelContent(panel, lines, entries),
+    setCursor: (row) => {
+      if (panel.bufferId !== null) {
+        editor.setBufferCursor(panel.bufferId, panel.lineStarts[row] ?? 0);
+      }
+    },
+    cursorRow: () => editor.getPrimaryCursor()?.line ?? null,
     clearNamespace: () => {
       if (panel.bufferId !== null) editor.clearNamespace(panel.bufferId, SELECT_NS);
     },
@@ -742,7 +751,7 @@ function openSelectedNode(): void {
   const panel = activePanel();
   if (!panel) return;
   if (panel.picker) {
-    chooseRootFromPicker(panel, panel.picker.selected, rootPickerActions(panel));
+    chooseRootAtCursor(panel);
     return;
   }
   if (!panel.frame || !panel.selectedNodeId) {
@@ -767,6 +776,14 @@ function openSelectedNode(): void {
 }
 
 // ── click / lifecycle ─────────────────────────────────────────────────────
+function isDoubleClick(panel: PanelState, key: string): boolean {
+  const now = Date.now();
+  const double = panel.lastClickKey === key && now - panel.lastClickAt < 500;
+  panel.lastClickKey = key;
+  panel.lastClickAt = now;
+  return double;
+}
+
 function onClick(event: {
   buffer_id?: number | null;
   bufferId?: number | null;
@@ -792,8 +809,11 @@ function onClick(event: {
   }
   if (panel.picker) {
     const index = pickerIndex(panel, row);
-    if (index !== null) {
+    if (index === null) return;
+    if (isDoubleClick(panel, "root:" + index)) {
       chooseRootFromPicker(panel, index, rootPickerActions(panel));
+    } else {
+      paintRootPickerContent(panel, panel.picker.roots, index, rootPickerActions(panel));
     }
     return;
   }
@@ -820,6 +840,7 @@ function onClick(event: {
     return;
   }
   selectNode(panel, hit.id);
+  if (isDoubleClick(panel, "node:" + hit.id)) openSelectedNode();
 }
 
 function onBufferClosed(event: { buffer_id?: number; bufferId?: number }): void {
@@ -882,8 +903,6 @@ editor.defineMode(
     ["e", "code_nav_set_entry"],
     ["o", "code_nav_open_node"],
     ["Return", "code_nav_pick_accept"],
-    ["Up", "code_nav_pick_up"],
-    ["Down", "code_nav_pick_down"],
     ["c", "code_nav_pick_custom"],
     ["Esc", "code_nav_pick_cancel"],
   ],
@@ -914,14 +933,6 @@ registerHandler("code_nav_open_node", openSelectedNode);
 registerHandler("code_nav_pick_accept", () => {
   const panel = activePanel();
   if (panel) acceptRootPicker(panel, rootPickerActions(panel));
-});
-registerHandler("code_nav_pick_up", () => {
-  const panel = activePanel();
-  if (panel) moveRootPicker(panel, -1, rootPickerActions(panel));
-});
-registerHandler("code_nav_pick_down", () => {
-  const panel = activePanel();
-  if (panel) moveRootPicker(panel, 1, rootPickerActions(panel));
 });
 registerHandler("code_nav_pick_custom", () => {
   const panel = activePanel();

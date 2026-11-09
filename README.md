@@ -157,14 +157,21 @@ real command parser; `bin/run.ts` handles `complete -- ...` first:
 
 ```bash
 bun link                 # editable global `code-graph` binary
-code-graph complete zsh
-code-graph complete powershell
+code-graph completion zsh
+code-graph completion powershell
 ```
 
-The generated script calls `code-graph complete -- ...`; `bun run cli` alone
-has no stable executable name and therefore cannot provide shell completion.
-Dynamic `--project` / `--symbol-entry` candidates are read synchronously from
-`roots.json`, never fetched over HTTP during a Tab press.
+`completion` is the visible helper and prints the same script as the internal
+`complete` protocol. The generated script calls `code-graph complete -- ...`;
+`bun run cli` alone has no stable executable name and therefore cannot provide
+shell completion. Dynamic `--project` / `--symbol-entry` candidates are read
+synchronously from `roots.json`, never fetched over HTTP during a Tab press.
+
+A `postinstall` hook is deliberately not used: global installs, CI, multiple
+shells and unattended package-manager runs make editing `.zshrc` / `$PROFILE`
+unsafe, and uninstall hooks are not a reliable place to remove user config.
+Install the generated script explicitly, or add it under a marked block if you
+want a reproducible uninstall.
 
 ### Indexing
 
@@ -371,8 +378,10 @@ Fresh commands:
 Inside an open graph, the first line is a clickable toolbar:
 `[H] Help`, `[E] Entry`, `[R] Reload`, `[C] Close`. Press `?` for the full
 keyboard/mouse help, `e` to open the root picker, `r` to reload, and `q` to
-close. The picker supports ↑/↓, Enter, `c` for free-form input and Esc to
-cancel. The entry can be persisted in `code-graph.config.jsonc`:
+close. The picker is a cursor-enabled virtual buffer: PageUp/PageDown,
+Home/End and the arrow keys move the native cursor; Enter or `e` accepts the
+root under the cursor, `c` opens free-form input and Esc cancels. Double-click a
+root row to accept it. The entry can be persisted in `code-graph.config.jsonc`:
 
 ```jsonc
 {

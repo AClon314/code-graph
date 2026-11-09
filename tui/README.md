@@ -169,19 +169,24 @@ The graph panel starts with a clickable toolbar:
 Keys:
 
 - `?` — toggle the help screen
-- `e` — open the project-root picker
-- `↑` / `↓` — move in the root picker
-- `Enter` — accept the selected root
+- `e` — open the project-root picker; when it is open, accept the root under
+  the current cursor
+- `↑` / `↓`, `PageUp` / `PageDown`, `Home` / `End` — native cursor movement
+  in the picker
+- `Enter` — accept the root under the current cursor
 - `c` — custom, free-form root QN
 - `Esc` — cancel the picker
 - `r` — reload config and frame
 - `o` / `Enter` — open the selected node (outside the picker)
 - `q` — close the panel
 - click — select a node; double-click — open it
+- in the picker: click moves the cursor; double-click accepts that root
 
 `e` reads `.codebase-memory/code-graph/roots.json` first and only spawns
 `tui/entries.ts --write-cache` when the cache is missing. The same file feeds
-CLI shell completion.
+CLI shell completion. The picker is a normal cursor-enabled virtual buffer:
+PageUp/PageDown and Home/End use Fresh's native cursor movement; accepting
+reads the cursor row, not a separate selection state.
 
 `Code Graph: Show Keys` and `Code Graph: Set Entry` expose the same actions from
 the command palette.

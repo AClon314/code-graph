@@ -41,12 +41,14 @@ function panel(): RootPickerPanel {
   };
 }
 
-function actions(calls: string[]): RootPickerActions {
+function actions(calls: string[], cursorRow = 2): RootPickerActions {
   return {
     setContent: (_lines, entries) => {
       lastEntries = entries;
       calls.push("setContent");
     },
+    setCursor: (row) => calls.push("cursor:" + row),
+    cursorRow: () => cursorRow,
     clearNamespace: () => calls.push("clearNamespace"),
     setStatus: (message) => calls.push("status:" + message),
     setEntry: (entry) => calls.push("entry:" + entry),
@@ -81,4 +83,12 @@ test("root picker accept updates the entry and reloads", () => {
   expect(calls).toContain("entry:p.main");
   expect(calls).toContain("reload");
   expect(state.picker).toBeNull();
+});
+
+test("root picker accept uses the native cursor row", () => {
+  const state = panel();
+  const calls: string[] = [];
+  paintRootPicker(state, roots, 0, actions(calls));
+  acceptRootPicker(state, actions(calls, 3));
+  expect(calls).toContain("entry:p.src.App");
 });
