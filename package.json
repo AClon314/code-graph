@@ -13,7 +13,7 @@
     "build:webview": "vite build",
     "build:extension": "esbuild src/extension/vscode.ts --bundle --format=cjs --platform=node --external:vscode --outfile=out/dist/extension.cjs --sourcemap",
     "build:fresh": "esbuild tui/plugin.ts --bundle --format=iife --platform=browser --alias:#host=./src/extension/hosts/fresh.ts --outfile=out/fresh-plugin/code-graph.js --sourcemap",
-    "cbm": "bun run scripts/cbm.ts",
+    "cbm": "codebase-memory-mcp",
     "gui": "bun run gui:private",
     "gui:private": "bash scripts/gui.sh",
     "gui:public": "HOST=0.0.0.0 AUTH=password PASSWORD=${PASSWORD:-cbm} bash scripts/gui.sh",

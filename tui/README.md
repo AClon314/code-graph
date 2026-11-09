@@ -45,7 +45,7 @@ bridge.
 For a cbm-backed panel, start the local service in another terminal:
 
 ```bash
-bun run cbm
+bun run cbm --ui=true --port=9751
 ```
 
 ## Commands

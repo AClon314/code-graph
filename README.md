@@ -145,21 +145,25 @@ printed by code-server (usually `https://127.0.0.1:8080`).
 `bun run gui` is an alias for `bun run gui:private`:
 `HOST=127.0.0.1 PORT=8080 AUTH=none`.
 
-Neither `gui` nor `gui:public` starts cbm. Start it separately and keep the
-terminal open, or reuse an existing cbm service:
+`bun run cbm` is a direct alias for `codebase-memory-mcp`; it does not add a
+wrapper or start the UI by itself. Start the UI/HTTP listener explicitly:
 
 ```bash
-bun run cbm
+export PATH="$HOME/.bun/bin:$PATH"
+bun i -g codebase-memory-mcp@0.12.1
+
+bun run cbm --ui=true --port=9751
 ```
 
-`bun run cbm` resolves `CBM_BIN`, then `codebase-memory-mcp` on `PATH`
-(for example `bun i -g codebase-memory-mcp@0.12.1`), then the legacy
-`rules/cbm-runtime` path. It reads `CBM_PORT` or
-`codebase-memory-mcp config get ui_port`, prints the URL, and refuses to start
-a second healthy instance. Use `CBM_PORT=9755 bun run cbm` to override the port.
+`bun run gui` and `bun run gui:public` start this listener automatically when
+it is not already healthy. They resolve `CBM_BIN`, then
+`codebase-memory-mcp` on `PATH`, read `CBM_PORT` or
+`codebase-memory-mcp config get ui_port`, and write logs to `out/cbm.log`.
+The `gui` process itself still talks to cbm through the Node extension host.
 
-When the global binary is on `PATH`, `gui` and Fresh inherit it and no
-`CBM_BIN` is needed. If code-server or Fresh is launched from an environment
+`tui` installs the Fresh plugin only; start the cbm listener separately for
+cbm-backed panels. When the global binary is on `PATH`, neither `gui` nor Fresh
+needs `CBM_BIN`. If code-server or Fresh is launched from an environment
 without `~/.bun/bin`, pass the binary explicitly:
 
 ```bash
