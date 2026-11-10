@@ -31,5 +31,13 @@ test("opens the mock Code Graph webview", async ({ page }) => {
   if (!app) throw new Error("Code Graph webview frame not found");
 
   await expect(app.locator("h1")).toHaveText("Code Graph");
-  await expect(app.getByRole("button", { name: "Mock" })).toBeVisible();
+
+  const firstNode = app.locator("[data-node-id]").first();
+  await expect(firstNode).toBeVisible({ timeout: 30_000 });
+  await firstNode.click();
+  await expect(app.getByRole("complementary", { name: "Symbol details" })).toBeVisible();
+  await app.getByRole("button", { name: "Close details" }).click();
+
+  await app.getByRole("button", { name: "Setup", exact: true }).click();
+  await expect(app.getByRole("button", { name: "Mock", exact: true })).toBeVisible();
 });

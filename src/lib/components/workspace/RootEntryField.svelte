@@ -5,9 +5,15 @@
     value?: string;
     roots: RootCandidate[];
     loading?: boolean;
+    label?: string;
   }
 
-  let { value = $bindable(""), roots, loading = false }: Props = $props();
+  let {
+    value = $bindable(""),
+    roots,
+    loading = false,
+    label = "Symbol entry (qualified name or #id)",
+  }: Props = $props();
 
   function textValue(event: Event): string {
     return (event.currentTarget as HTMLElement & { value: string }).value;
@@ -25,27 +31,41 @@
 <!-- vscode-textfield has no datalist support. A native select next to the
      free-form input keeps the arrow-only affordance; its popup still shows
      the full root QNs. -->
-<div class="root-entry">
-  <vscode-textfield
-    value={value}
-    spellcheck="false"
-    oninput={(event: Event) => (value = textValue(event))}
-  ></vscode-textfield>
-  <select
-    class="root-select"
-    aria-label="Choose a project root"
-    title="Choose a project root"
-    onchange={(event: Event) => selectRoot(event)}
-  >
-    <option value=""></option>
-    {#each roots as candidate (candidate.qualifiedName)}
-      <option value={candidate.qualifiedName}>{candidate.qualifiedName}</option>
-    {/each}
-  </select>
+<div class="root-field">
+  <div class="root-entry">
+    <vscode-textfield
+      value={value}
+      aria-label={label}
+      spellcheck="false"
+      oninput={(event: Event) => (value = textValue(event))}
+    ></vscode-textfield>
+    <select
+      class="root-select"
+      aria-label="Choose a project root"
+      title="Choose a project root"
+      onchange={(event: Event) => selectRoot(event)}
+    >
+      <option value=""></option>
+      {#each roots as candidate (candidate.qualifiedName)}
+        <option value={candidate.qualifiedName}>{candidate.qualifiedName}</option>
+      {/each}
+    </select>
+  </div>
+  {#if loading}<span class="root-status">loading roots…</span>{/if}
 </div>
-{#if loading}<span class="sub">loading roots…</span>{/if}
 
 <style>
+  .root-field {
+    display: grid;
+    min-width: 0;
+    gap: 0.15lh;
+  }
+
+  .root-status {
+    color: var(--vscode-descriptionForeground, var(--muted, #9d9d9d));
+    font-size: 0.68rem;
+  }
+
   .root-entry {
     display: flex;
     align-items: stretch;

@@ -3,7 +3,9 @@
 
   import GraphView from "./lib/components/GraphView.svelte";
   import OrchgraphView from "./lib/components/OrchgraphView.svelte";
+  import InspectorPanel from "./lib/components/workspace/InspectorPanel.svelte";
   import RootEntryField from "./lib/components/workspace/RootEntryField.svelte";
+  import SetupPanel from "./lib/components/workspace/SetupPanel.svelte";
   import { CbmHttpSource } from "./lib/graph/cbm-http";
   import {
     DEFAULT_CBM_BASE_URL,
@@ -77,6 +79,14 @@
   let pendingLocation: { file: string; line: number } | null = null;
   let rootCandidates = $state<RootCandidate[]>([]);
   let rootsLoading = $state(false);
+  let setupOpen = $state(false);
+  let inspectorOpen = $state(false);
+  let detailLoading = $state(false);
+  let searchField: HTMLElement | undefined;
+
+  const selectedNode = $derived(
+    graphData?.nodes.find((node) => node.id === selectedId) ?? focusNode,
+  );
 
   const searchHits = $derived.by(() => {
     const query = search.trim().toLowerCase();
@@ -160,6 +170,8 @@
     errorFix = null;
     graphFix = null;
     detailError = "";
+    detailLoading = false;
+    detailRequestId += 1;
     jumpStatus = "";
     jumpError = "";
     exportStatus = "";
@@ -324,9 +336,11 @@
     })();
 
     window.addEventListener("popstate", onPopState);
+    window.addEventListener("keydown", onGlobalKeydown);
     return () => {
       disposed = true;
       window.removeEventListener("popstate", onPopState);
+      window.removeEventListener("keydown", onGlobalKeydown);
     };
   });
 
@@ -409,6 +423,8 @@
 
   function openConnection(qualifiedName: string): void {
     ref = qualifiedName;
+    inspectorOpen = true;
+    setupOpen = false;
     syncUrl();
     void load();
   }
@@ -438,8 +454,12 @@
     selectedId = node.id;
     focusNode = node;
     ref = node.qualifiedName || node.id;
+    inspectorOpen = true;
+    setupOpen = false;
     syncUrl();
+    symbol = null;
     detailError = "";
+    detailLoading = true;
     jumpStatus = "";
     jumpError = "";
     exportStatus = "";
@@ -453,6 +473,68 @@
       if (id !== detailRequestId) return;
       symbol = null;
       detailError = `Could not load symbol details: ${message(cause)}`;
+    } finally {
+      if (id === detailRequestId) detailLoading = false;
+    }
+  }
+
+  function toggleSetup(): void {
+    setupOpen = !setupOpen;
+    if (setupOpen) inspectorOpen = false;
+  }
+
+  function toggleInspector(): void {
+    inspectorOpen = !inspectorOpen;
+    if (inspectorOpen) setupOpen = false;
+  }
+
+  function focusSearch(): void {
+    searchField?.focus();
+    const input = searchField?.shadowRoot?.querySelector("input");
+    input?.focus();
+  }
+
+  function isTypingTarget(event: KeyboardEvent): boolean {
+    return (event.composedPath?.() ?? []).some((node) => {
+      if (!(node instanceof HTMLElement)) return false;
+      return (
+        node.matches("input, textarea, select, [contenteditable='true']") ||
+        node.matches("vscode-textfield, vscode-single-select")
+      );
+    });
+  }
+
+  function onGlobalKeydown(event: KeyboardEvent): void {
+    if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.repeat && event.key !== "Escape") return;
+
+    if (event.key === "Escape") {
+      if (setupOpen) {
+        setupOpen = false;
+        event.preventDefault();
+      } else if (inspectorOpen) {
+        inspectorOpen = false;
+        event.preventDefault();
+      }
+      return;
+    }
+    if (isTypingTarget(event)) return;
+
+    if (event.key === "/") {
+      event.preventDefault();
+      focusSearch();
+    } else if (event.key.toLowerCase() === "r") {
+      event.preventDefault();
+      void reloadGraph();
+    } else if (event.key.toLowerCase() === "d") {
+      event.preventDefault();
+      toggleInspector();
+    } else if (event.key.toLowerCase() === "s") {
+      event.preventDefault();
+      toggleSetup();
+    } else if (event.key.toLowerCase() === "f") {
+      event.preventDefault();
+      graphView?.fit();
     }
   }
 
@@ -555,11 +637,6 @@
     return (event.currentTarget as HTMLElement & { value: string }).value;
   }
 
-  function location(filePath?: string, line?: number): string {
-    if (!filePath) return "unknown location";
-    return line ? `${filePath}:${line}` : filePath;
-  }
-
   function message(cause: unknown): string {
     return cause instanceof Error ? cause.message : String(cause);
   }
@@ -576,176 +653,121 @@
 </script>
 
 <main class="app">
-  <header>
-    <h1>Code Graph</h1>
-    <div class="header-actions">
-      <div class="switcher" aria-label="Graph source">
-                <button
-          class="vscode-button"
-          class:secondary={kind !== "mock"}
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">◈</span>
+      <div class="brand-copy">
+        <h1>Code Graph</h1>
+        <button
+          class="context-chip"
           type="button"
-          onclick={() => setKind("mock")}
-        >Mock</button>
-                <button
-          class="vscode-button"
-          class:secondary={kind !== "cbm"}
-          type="button"
-          onclick={() => setKind("cbm")}
-        >cbm HTTP</button>
+          aria-expanded={setupOpen}
+          title="Project and source setup"
+          onclick={toggleSetup}
+        >
+          {project}<span class="context-kind">{kind === "mock" ? "mock" : backend}</span>
+        </button>
       </div>
-      <span class="runtime">{runtime} · {backend}</span>
+    </div>
+
+    <div class="entry-bar">
+      <RootEntryField
+        bind:value={ref}
+        roots={rootCandidates}
+        loading={rootsLoading}
+        label="Symbol entry (qualified name or #id)"
+      />
+      <button
+        class="vscode-button load-button"
+        type="button"
+        onclick={() => void load()}
+        disabled={loading}
+        title="Load this symbol entry"
+      >{loading ? "Loading…" : "Load"}</button>
+    </div>
+
+    <!-- svelte-ignore a11y_label_has_associated_control -->
+    <label class="searchbox">
+      <span class="sr-only">Search graph</span>
+      <vscode-textfield
+        bind:this={searchField}
+        value={search}
+        oninput={(event: Event) => (search = textValue(event))}
+        onkeydown={onSearchKeydown}
+        role="searchbox"
+        aria-label="Search graph"
+        aria-keyshortcuts="/"
+        tabindex="0"
+        placeholder="Search graph"
+        title="Search graph; Enter selects the first hit"
+        spellcheck="false"
+        autocomplete="off"
+      ></vscode-textfield>
+    </label>
+
+    <div class="top-actions" aria-label="Graph actions">
+      {#if graphData && renderer === "d3"}
+        <button
+          class="vscode-button secondary tool-button"
+          type="button"
+          onclick={() => graphView?.fit()}
+          title="Fit graph (F)"
+          aria-keyshortcuts="F"
+        >Fit</button>
+      {/if}
+      {#if renderer === "orchgraph"}
+        <button
+          class="vscode-button secondary tool-button"
+          type="button"
+          onclick={() => void copyTerminalArt()}
+          disabled={!graphData}
+          title="Copy the character-art graph"
+        >Copy</button>
+      {:else}
+        <button
+          class="vscode-button secondary tool-button"
+          type="button"
+          onclick={() => graphView?.triggerExport?.()}
+          disabled={!graphData}
+          title="Export SVG"
+        >SVG</button>
+      {/if}
+      <button
+        class="vscode-button secondary tool-button"
+        class:active={inspectorOpen}
+        type="button"
+        aria-pressed={inspectorOpen}
+        aria-keyshortcuts="D"
+        title="Toggle symbol details (D)"
+        onclick={toggleInspector}
+      >Details</button>
+      <button
+        class="vscode-button secondary tool-button"
+        class:active={setupOpen}
+        type="button"
+        aria-pressed={setupOpen}
+        aria-keyshortcuts="S"
+        title="Toggle source and project setup (S)"
+        onclick={toggleSetup}
+      >Setup</button>
     </div>
   </header>
 
-  <section class="controls" aria-label="Query">
-    <!-- svelte-ignore a11y_label_has_associated_control -->
-    <label>
-      Project
-      <vscode-textfield
-        value={project}
-        spellcheck="false"
-        oninput={(event: Event) => (project = textValue(event))}
-      ></vscode-textfield>
-    </label>
-    <!-- svelte-ignore a11y_label_has_associated_control -->
-    <label>
-      Symbol entry (qn or #id)
-      <RootEntryField bind:value={ref} roots={rootCandidates} loading={rootsLoading} />
-    </label>
-        <button class="vscode-button" type="button" onclick={() => void load()} disabled={loading}>
-      {loading ? "Loading…" : "Load"}
-    </button>
-  </section>
+  <div class="workbench">
+    {#if setupOpen}
+      <SetupPanel
+        {kind}
+        {project}
+        {runtime}
+        {backend}
+        onsource={setKind}
+        onproject={(value) => (project = value)}
+        onclose={() => (setupOpen = false)}
+      />
+    {/if}
 
-  {#if error}
-    <div class="error-panel">
-      <p class="error">{error}</p>
-      {#if errorFix}
-        <button
-          class="vscode-button secondary fix-button"
-          type="button"
-          onclick={() => void openFix(errorFix)}
-        >{errorFix.label}</button>
-      {/if}
-    </div>
-  {/if}
-
-  <div class="board">
-    <div class="graph-column">
-      <section class="card graph-card" aria-label="Call graph">
-        <div class="graph-toolbar">
-          <!-- svelte-ignore a11y_label_has_associated_control -->
-          <label class="search-field">
-            Search graph
-            <vscode-textfield
-              value={search}
-              oninput={(event: Event) => (search = textValue(event))}
-              onkeydown={onSearchKeydown}
-              role="searchbox"
-              tabindex="0"
-              placeholder="name or qualified name"
-              spellcheck="false"
-              autocomplete="off"
-            ></vscode-textfield>
-          </label>
-          <!-- vscode-single-select dispatches a non-bubbling `change`; the
-               capture listener is required for Svelte's delegated events. -->
-          <!-- svelte-ignore a11y_label_has_associated_control -->
-          <label>
-            Depth
-            <vscode-single-select
-              value={String(depth)}
-              onchangecapture={(event: Event) => changeDepth(textValue(event))}
-            >
-              <vscode-option value="1">1 hop</vscode-option>
-              <vscode-option value="2">2 hops</vscode-option>
-              <vscode-option value="3">3 hops</vscode-option>
-            </vscode-single-select>
-          </label>
-          <!-- svelte-ignore a11y_label_has_associated_control -->
-          <label>
-            Direction
-            <vscode-single-select
-              value={direction}
-              onchangecapture={(event: Event) => changeDirection(textValue(event))}
-            >
-              <vscode-option value="both">both</vscode-option>
-              <vscode-option value="callers">callers</vscode-option>
-              <vscode-option value="callees">callees</vscode-option>
-            </vscode-single-select>
-          </label>
-          <!-- svelte-ignore a11y_label_has_associated_control -->
-          <label>
-            Renderer
-            <vscode-single-select
-              value={renderer}
-              onchangecapture={(event: Event) => changeRenderer(textValue(event))}
-            >
-              <vscode-option value="d3">D3</vscode-option>
-              <vscode-option value="orchgraph">orchgraph</vscode-option>
-            </vscode-single-select>
-          </label>
-          {#if renderer === "d3"}
-                        <button
-              class="vscode-button secondary"
-              type="button"
-              onclick={() => graphView?.fit()}
-              disabled={!graphData}
-            >Fit</button>
-          {/if}
-          {#if renderer === "orchgraph"}
-                        <button
-              class="vscode-button secondary"
-              type="button"
-              onclick={() => void copyTerminalArt()}
-              disabled={!graphData}
-              title="Copy the character-art graph"
-            >Copy</button>
-          {:else}
-                        <button
-              class="vscode-button secondary"
-              type="button"
-              onclick={() => graphView?.triggerExport?.()}
-              disabled={!graphData}
-            >Export SVG</button>
-          {/if}
-        </div>
-
-        <div class="graph-summary">
-          <span>
-            {graphData
-              ? `${graphData.nodes.length} nodes · ${graphData.edges.length} edges`
-              : graphLoading
-                ? "Loading graph…"
-                : "No graph"}
-          </span>
-          {#if graphData?.truncated}
-            <span class="badge">truncated</span>
-          {/if}
-          {#if searchHits.size > 0}
-            <span class="sub">
-              {searchHits.size} search {searchHits.size === 1 ? "hit" : "hits"} · Enter selects
-              first
-            </span>
-          {/if}
-          {#if exportStatus}
-            <span class="sub">{exportStatus}</span>
-          {/if}
-        </div>
-
-        {#if graphError}
-          <div class="error-panel">
-            <p class="error compact">Neighborhood failed: {graphError}</p>
-            {#if graphFix}
-              <button
-                class="vscode-button secondary fix-button"
-                type="button"
-                onclick={() => void openFix(graphFix)}
-              >{graphFix.label}</button>
-            {/if}
-          </div>
-        {/if}
-
+    <section class="graph-stage" aria-label="Call graph">
+      <div class="graph-frame">
         {#if graphData}
           {#if renderer === "orchgraph"}
             <OrchgraphView
@@ -768,103 +790,127 @@
             />
           {/if}
         {:else}
-          <div class="graph-board graph-board-empty">
-            <p class="graph-overlay">
-              {graphLoading ? "Loading neighborhood…" : "No graph loaded."}
+          <div class="graph-empty">
+            <p class="graph-empty-title">
+              {graphLoading || loading ? "Loading neighborhood…" : "No graph loaded"}
             </p>
+            <p class="sub">Choose a symbol entry above, or open Setup to pick a source.</p>
           </div>
         {/if}
-      </section>
+      </div>
 
-      <section class="card detail" aria-label="Symbol details">
-        {#if detailError}
-          <p class="error compact">{detailError}</p>
-        {/if}
+      {#if graphLoading && graphData}
+        <div class="graph-busy" role="status">Updating graph…</div>
+      {/if}
 
-        {#if symbol}
-          <div class="detail-head">
-            <div>
-              <h2>{symbol.node.name}</h2>
-              <div class="qn">{symbol.node.qualifiedName}</div>
-              <div class="meta">
-                {symbol.node.label} · {location(symbol.node.filePath, symbol.node.startLine)}
-              </div>
+      {#if error || graphError}
+        <div class="canvas-alerts">
+          {#if error}
+            <div class="canvas-alert" role="alert">
+              <p class="error compact">{error}</p>
+              {#if errorFix}
+                <button
+                  class="vscode-button secondary fix-button"
+                  type="button"
+                  onclick={() => void openFix(errorFix)}
+                >{errorFix.label}</button>
+              {/if}
             </div>
-            <div class="detail-actions">
-                            <button class="vscode-button" type="button" onclick={() => void jump()}>
-                Jump
-              </button>
-            </div>
-          </div>
-
-          {#if symbol.node.docstring}
-            <p>{symbol.node.docstring}</p>
           {/if}
+          {#if graphError}
+            <div class="canvas-alert" role="alert">
+              <p class="error compact">Neighborhood failed: {graphError}</p>
+              {#if graphFix}
+                <button
+                  class="vscode-button secondary fix-button"
+                  type="button"
+                  onclick={() => void openFix(graphFix)}
+                >{graphFix.label}</button>
+              {/if}
+            </div>
+          {/if}
+        </div>
+      {/if}
 
-          <div class="columns">
-            <div>
-              <h3>Callers ({symbol.callers.length})</h3>
-              <ul>
-                {#each symbol.callers as caller (caller.qualifiedName)}
-                  <li>
-                    <button class="link" type="button" onclick={() => openConnection(caller.qualifiedName)}>
-                      {caller.name}
-                    </button>
-                    <div class="qn">{caller.qualifiedName}</div>
-                    <div class="meta">{location(caller.filePath, caller.startLine)}</div>
-                  </li>
-                {/each}
-                {#if symbol.callers.length === 0}
-                  <li class="sub">none</li>
-                {/if}
-              </ul>
-            </div>
+      <footer class="statusbar">
+        <div class="status-left">
+          {#if graphData}
+            <span>{graphData.nodes.length} nodes · {graphData.edges.length} edges</span>
+            {#if graphData.truncated}<span class="badge">truncated</span>{/if}
+            {#if selectedNode}
+              <span class="status-selection" title={selectedNode.qualifiedName}>{selectedNode.name}</span>
+            {/if}
+          {:else}
+            <span>{loading || graphLoading ? "Loading…" : "No graph"}</span>
+          {/if}
+        </div>
 
-            <div>
-              <h3>Callees ({symbol.callees.length})</h3>
-              <ul>
-                {#each symbol.callees as callee (callee.qualifiedName)}
-                  <li>
-                    <button class="link" type="button" onclick={() => openConnection(callee.qualifiedName)}>
-                      {callee.name}
-                    </button>
-                    <div class="qn">{callee.qualifiedName}</div>
-                    <div class="meta">{location(callee.filePath, callee.startLine)}</div>
-                  </li>
-                {/each}
-                {#if symbol.callees.length === 0}
-                  <li class="sub">none</li>
-                {/if}
-              </ul>
-            </div>
-          </div>
-        {:else if focusNode}
-          <div class="detail-head">
-            <div>
-              <h2>{focusNode.name}</h2>
-              <div class="qn">{focusNode.qualifiedName}</div>
-              <div class="meta">
-                {focusNode.label} · {location(focusNode.filePath, focusNode.startLine)}
-              </div>
-            </div>
-            <div class="detail-actions">
-                            <button class="vscode-button" type="button" onclick={() => void jump(focusNode)}>
-                Jump
-              </button>
-            </div>
-          </div>
-          <p class="sub">Bundle details are unavailable for this graph node.</p>
-        {:else}
-          <p class="sub">Pick a symbol (or use Mock) to see its bundle and local call graph.</p>
-        {/if}
+        <div class="view-controls" aria-label="View options">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
+          <label class="view-control" title="Neighborhood depth">
+            <span>depth</span>
+            <vscode-single-select
+              class="depth-select"
+              value={String(depth)}
+              aria-label="Neighborhood depth"
+              onchangecapture={(event: Event) => changeDepth(textValue(event))}
+            >
+              <vscode-option value="1">1</vscode-option>
+              <vscode-option value="2">2</vscode-option>
+              <vscode-option value="3">3</vscode-option>
+            </vscode-single-select>
+          </label>
+          <!-- svelte-ignore a11y_label_has_associated_control -->
+          <label class="view-control" title="Edge direction">
+            <span>edges</span>
+            <vscode-single-select
+              class="direction-select"
+              value={direction}
+              aria-label="Edge direction"
+              onchangecapture={(event: Event) => changeDirection(textValue(event))}
+            >
+              <vscode-option value="both">both</vscode-option>
+              <vscode-option value="callers">callers</vscode-option>
+              <vscode-option value="callees">callees</vscode-option>
+            </vscode-single-select>
+          </label>
+          <!-- svelte-ignore a11y_label_has_associated_control -->
+          <label class="view-control" title="Graph renderer">
+            <span>view</span>
+            <vscode-single-select
+              class="renderer-select"
+              value={renderer}
+              aria-label="Graph renderer"
+              onchangecapture={(event: Event) => changeRenderer(textValue(event))}
+            >
+              <vscode-option value="d3">D3</vscode-option>
+              <vscode-option value="orchgraph">orchgraph</vscode-option>
+            </vscode-single-select>
+          </label>
+        </div>
 
-        {#if jumpStatus}
-          <p class="status">{jumpStatus}</p>
-        {/if}
-        {#if jumpError}
-          <p class="error compact">{jumpError}</p>
-        {/if}
-      </section>
-    </div>
+        <div class="status-right">
+          {#if searchHits.size > 0}
+            <span>{searchHits.size} {searchHits.size === 1 ? "hit" : "hits"}</span>
+          {/if}
+          {#if exportStatus}<span class="status-message" title={exportStatus}>{exportStatus}</span>{/if}
+          <span class="runtime">{runtime} · {backend}</span>
+        </div>
+      </footer>
+    </section>
+
+    {#if inspectorOpen}
+      <InspectorPanel
+        {symbol}
+        {focusNode}
+        loading={detailLoading}
+        error={detailError}
+        {jumpStatus}
+        {jumpError}
+        onclose={() => (inspectorOpen = false)}
+        onjump={() => void jump()}
+        onopen={openConnection}
+      />
+    {/if}
   </div>
 </main>

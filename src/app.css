@@ -31,11 +31,12 @@
 html,
 body,
 #app {
-  min-height: 100%;
+  height: 100%;
   margin: 0;
 }
 
 body {
+  overflow: hidden;
   background: var(--bg);
   color: var(--text);
 }
@@ -46,57 +47,39 @@ select {
   font: inherit;
 }
 
-.app {
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  gap: 0.65lh;
-  padding: 0.8lh 1.5ch;
-  max-width: 1200px;
-  margin: 0 auto;
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1ch;
-}
-
-h1 {
+h1,
+h2,
+h3 {
   margin: 0;
-  font-size: 1.05rem;
-  letter-spacing: -0.02em;
   font-weight: 600;
 }
 
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 1ch;
-}
-
-.runtime {
-  border: 1px solid var(--vscode-badge-background, var(--line));
-  border-radius: 999px;
-  padding: 0.1lh 0.8ch;
-  background: var(--vscode-badge-background, var(--panel));
-  color: var(--vscode-badge-foreground, var(--muted));
-  font-size: 0.7rem;
+h1 {
+  font-size: 0.9rem;
+  letter-spacing: -0.02em;
 }
 
 h2,
 h3 {
-  margin: 0;
   font-size: 0.95rem;
-  font-weight: 600;
 }
 
 .sub,
 .meta,
 .qn {
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
 }
 
 .qn {
@@ -104,19 +87,137 @@ h3 {
   overflow-wrap: anywhere;
 }
 
-.switcher {
-  display: inline-flex;
-  gap: 0.5ch;
+/* ---- shell ------------------------------------------------------------- */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
 }
 
-/* Native buttons using VS Code's own button tokens; the web components below
-   cover text fields and dropdowns, where VS Code's interaction model matters. */
+.topbar {
+  z-index: 2;
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-areas: "brand entry search actions";
+  grid-template-columns: minmax(14ch, auto) minmax(22ch, 1.8fr) minmax(16ch, 0.9fr) auto;
+  align-items: center;
+  gap: 0.8ch;
+  padding: 0.45lh 1ch;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.brand {
+  display: flex;
+  grid-area: brand;
+  align-items: center;
+  gap: 0.7ch;
+  min-width: 0;
+}
+
+.brand-mark {
+  color: var(--vscode-focusBorder, var(--accent));
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.brand-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.05lh;
+  line-height: 1.1;
+}
+
+.context-chip {
+  display: flex;
+  max-width: 22ch;
+  align-items: center;
+  gap: 0.45ch;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.7rem;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.context-chip:hover,
+.context-chip:focus-visible {
+  color: var(--text);
+  outline: none;
+}
+
+.context-chip:focus-visible {
+  text-decoration: underline;
+}
+
+.context-kind {
+  flex: none;
+  padding: 0 0.45ch;
+  border-radius: 999px;
+  background: var(--vscode-badge-background, #4d4d4d);
+  color: var(--vscode-badge-foreground, #ffffff);
+  font-size: 0.62rem;
+  line-height: 1.5;
+}
+
+.entry-bar {
+  display: flex;
+  grid-area: entry;
+  align-items: center;
+  gap: 0.5ch;
+  min-width: 0;
+}
+
+.entry-bar .root-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.entry-bar .load-button {
+  flex: none;
+}
+
+.searchbox {
+  display: block;
+  grid-area: search;
+  min-width: 0;
+}
+
+.top-actions {
+  display: flex;
+  grid-area: actions;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35ch;
+}
+
+.entry-bar vscode-textfield,
+.searchbox vscode-textfield,
+.field vscode-textfield {
+  display: block;
+  width: 100%;
+  --vscode-settings-textInputBorder: var(--vscode-input-border, var(--line));
+  --vscode-settings-textInputBackground: var(--vscode-input-background, var(--panel));
+  --vscode-settings-textInputForeground: var(--vscode-input-foreground, var(--text));
+}
+
+/* ---- controls ---------------------------------------------------------- */
+
 .vscode-button {
   border: 1px solid var(--vscode-button-border, transparent);
-  border-radius: 0.4rem;
-  padding: 0.3lh 0.9ch;
+  border-radius: 0.35rem;
+  padding: 0.3lh 0.8ch;
   background: var(--vscode-button-background, #0e639c);
   color: var(--vscode-button-foreground, #ffffff);
+  font-size: 0.78rem;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -130,8 +231,13 @@ h3 {
   color: var(--vscode-button-secondaryForeground, #ffffff);
 }
 
-.vscode-button.secondary:hover:not(:disabled) {
+.vscode-button.secondary:hover:not(:disabled),
+.vscode-button.secondary.active {
   background: var(--vscode-button-secondaryHoverBackground, #45494e);
+}
+
+.vscode-button.active {
+  border-color: var(--vscode-focusBorder, var(--accent));
 }
 
 .vscode-button:focus-visible {
@@ -140,40 +246,334 @@ h3 {
 }
 
 .vscode-button:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: default;
 }
 
-.controls {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) auto;
-  gap: 1ch;
-  align-items: end;
+.tool-button {
+  padding: 0.28lh 0.65ch;
+  font-size: 0.74rem;
 }
 
-label {
+.icon-button {
   display: grid;
-  gap: 0.35lh;
-  font-size: 0.75rem;
+  flex: none;
+  width: 2ch;
+  height: 2lh;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0.25rem;
+  background: transparent;
   color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
 }
 
-.controls vscode-textfield,
-.graph-toolbar .search-field vscode-textfield {
-  display: block;
-  width: 100%;
-  --vscode-settings-textInputBorder: var(--vscode-input-border, var(--line));
-  --vscode-settings-textInputBackground: var(--vscode-input-background, var(--panel));
-  --vscode-settings-textInputForeground: var(--vscode-input-foreground, var(--text));
-}
-
-.controls > button {
-  align-self: end;
+.icon-button:hover,
+.icon-button:focus-visible {
+  background: var(--vscode-toolbar-hoverBackground, color-mix(in srgb, var(--text) 10%, transparent));
+  color: var(--text);
+  outline: none;
 }
 
 vscode-single-select {
   min-width: 10ch;
 }
+
+/* ---- edge panels ------------------------------------------------------- */
+
+.workbench {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.edge-panel {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--panel);
+}
+
+.setup-panel {
+  width: clamp(23ch, 23vw, 28ch);
+  border-right: 1px solid var(--line);
+}
+
+.inspector-panel {
+  width: clamp(28ch, 28vw, 36ch);
+  border-left: 1px solid var(--line);
+}
+
+.panel-head {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1ch;
+  padding: 0.6lh 1ch;
+  border-bottom: 1px solid var(--line);
+}
+
+.panel-head h2 {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.panel-head .sub {
+  display: block;
+  margin-top: 0.1lh;
+  font-size: 0.7rem;
+}
+
+.setup-body,
+.inspector-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  gap: 0.8lh;
+  overflow: auto;
+  padding: 0.8lh 1ch;
+}
+
+.field {
+  display: grid;
+  gap: 0.3lh;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.field-label {
+  color: var(--muted);
+}
+
+.segmented {
+  display: inline-flex;
+  overflow: hidden;
+  width: fit-content;
+  border: 1px solid var(--vscode-input-border, var(--line));
+  border-radius: 0.35rem;
+}
+
+.segmented-button {
+  min-width: 6ch;
+  padding: 0.3lh 0.65ch;
+  border: 0;
+  border-right: 1px solid var(--vscode-input-border, var(--line));
+  background: transparent;
+  color: var(--text);
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+
+.segmented-button:last-child {
+  border-right: 0;
+}
+
+.segmented-button:hover {
+  background: var(--vscode-toolbar-hoverBackground, color-mix(in srgb, var(--text) 10%, transparent));
+}
+
+.segmented-button.active {
+  background: var(--vscode-button-background, #0e639c);
+  color: var(--vscode-button-foreground, #ffffff);
+}
+
+.setup-meta {
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--font-code);
+  font-size: 0.7rem;
+}
+
+.hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+/* ---- graph stage ------------------------------------------------------- */
+
+.graph-stage {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--graph-bg);
+}
+
+.graph-frame {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.graph-frame .graph-board {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+.graph-empty {
+  display: grid;
+  height: 100%;
+  place-content: center;
+  justify-items: center;
+  gap: 0.3lh;
+  padding: 2ch;
+  text-align: center;
+}
+
+.graph-empty-title {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.graph-busy {
+  position: absolute;
+  top: 1ch;
+  left: 1ch;
+  z-index: 3;
+  padding: 0.25lh 0.7ch;
+  border: 1px solid var(--line);
+  border-radius: 0.35rem;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 0.72rem;
+  pointer-events: none;
+}
+
+.canvas-alerts {
+  position: absolute;
+  top: 1ch;
+  left: 50%;
+  z-index: 4;
+  display: grid;
+  gap: 0.4lh;
+  width: min(64ch, calc(100% - 2ch));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.canvas-alert {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1ch;
+  padding: 0.4lh 0.6ch;
+  border: 1px solid var(--vscode-inputValidation-errorBorder, #be1100);
+  border-radius: 0.45rem;
+  background: var(--panel);
+  box-shadow: 0 0.4lh 1.2lh color-mix(in srgb, #000 28%, transparent);
+  pointer-events: auto;
+}
+
+.canvas-alert .error {
+  flex: 1;
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+/* ---- status bar -------------------------------------------------------- */
+
+.statusbar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 1ch;
+  min-height: 2.25lh;
+  padding: 0.2lh 1ch;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.status-left,
+.status-right {
+  display: flex;
+  align-items: center;
+  gap: 0.7ch;
+  min-width: 0;
+}
+
+.status-right {
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
+.status-selection {
+  padding-left: 0.7ch;
+  border-left: 1px solid var(--line);
+}
+
+.status-selection,
+.status-message {
+  max-width: 24ch;
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-message {
+  color: var(--muted);
+}
+
+.view-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.35ch;
+  margin-left: auto;
+}
+
+.view-control {
+  display: flex;
+  align-items: center;
+  gap: 0.3ch;
+  color: var(--muted);
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.view-control .depth-select {
+  width: 8ch;
+  min-width: 8ch;
+}
+
+.view-control .direction-select {
+  width: 20ch;
+  min-width: 20ch;
+  font-size: 0.75rem;
+}
+
+.view-control .renderer-select {
+  width: 22ch;
+  min-width: 22ch;
+  font-size: 0.75rem;
+}
+
+.runtime {
+  flex: none;
+  font-size: 0.68rem;
+  opacity: 0.8;
+}
+
+/* ---- shared bits ------------------------------------------------------- */
 
 .error {
   margin: 0;
@@ -191,330 +591,144 @@ vscode-single-select {
   padding: 0.35lh 0.8ch;
 }
 
-.error-panel {
-  display: grid;
-  gap: 0.35lh;
-  justify-items: start;
-}
-
 .fix-button {
-  font-size: 0.78rem;
-  padding: 0.2lh 0.8ch;
+  flex: none;
+  font-size: 0.75rem;
+  padding: 0.2lh 0.7ch;
 }
 
 .badge {
+  padding: 0.1lh 0.7ch;
   border: 1px solid transparent;
   border-radius: 999px;
-  padding: 0.1lh 0.8ch;
   background: var(--vscode-badge-background, #4d4d4d);
   color: var(--vscode-badge-foreground, #ffffff);
-  font-size: 0.7rem;
+  font-size: 0.68rem;
 }
 
 .status {
   margin: 0;
-  color: var(--vscode-descriptionForeground, var(--muted));
-  font-size: 0.8rem;
+  color: var(--muted);
+  font-size: 0.78rem;
 }
 
-.graph-column {
-  display: flex;
-  flex-direction: column;
+/* ---- symbol inspector -------------------------------------------------- */
+
+.inspector-title {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
   gap: 1ch;
-  min-width: 0;
 }
 
-.graph-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6lh;
-  min-width: 0;
+.inspector-title h3 {
+  margin: 0.15lh 0 0;
+  overflow-wrap: anywhere;
 }
 
-.graph-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: end;
-  gap: 0.8ch;
+.kind {
+  display: inline-block;
+  color: var(--vscode-focusBorder, var(--accent));
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-.graph-toolbar label {
+.inspector-title .vscode-button {
+  padding: 0.2lh 0.7ch;
+  font-size: 0.75rem;
+}
+
+.doc {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.inspector-section {
+  border-top: 1px solid var(--line);
+  padding-top: 0.35lh;
+}
+
+.inspector-section summary {
   display: flex;
   align-items: center;
   gap: 0.5ch;
-  font-size: 0.72rem;
-  white-space: nowrap;
-}
-
-.graph-toolbar .search-field {
-  flex: 1 1 18ch;
-}
-
-.graph-toolbar vscode-single-select {
-  width: 16ch;
-  min-width: 16ch;
-}
-
-.graph-summary {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 1ch;
-  font-size: 0.78rem;
   color: var(--muted);
-  min-height: 1.2lh;
-}
-
-.graph-board {
-  position: relative;
-  width: 100%;
-  height: clamp(360px, 52vh, 760px);
-  min-height: 360px;
-  border: 1px solid var(--line);
-  border-radius: 0.5rem;
-  background: var(--graph-bg);
-  overflow: hidden;
-}
-
-.graph-board-empty {
-  display: grid;
-  place-items: center;
-}
-
-.terminal-board {
-  height: clamp(380px, 68vh, 900px);
-}
-
-.terminal-art-shell {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-}
-
-.terminal-art {
-  position: relative;
-  flex: none;
-  font-family: var(--font-code);
-  font-size: 14px;
-  line-height: 1;
-  transform-origin: center center;
-}
-
-.terminal-art-text {
-  margin: 0;
-  color: var(--text);
-  font-family: var(--font-code);
-  font-size: 14px;
-  line-height: 1;
-  font-variant-ligatures: none;
-  font-feature-settings: "liga" 0, "calt" 0;
-  white-space: pre;
-  user-select: text;
-}
-
-.terminal-node-hit {
-  position: absolute;
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  border: 1px solid transparent;
-  border-radius: 0.2rem;
-  background: transparent;
-  font: inherit;
-  line-height: 1;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  list-style: none;
+  text-transform: uppercase;
   cursor: pointer;
-  outline: none;
-}
-
-.terminal-node-hit:hover,
-.terminal-node-hit:focus-visible {
-  border-color: var(--vscode-focusBorder, var(--accent));
-}
-
-.terminal-node-hit.is-search-hit {
-  border-color: var(--hit);
-  background: color-mix(in srgb, var(--hit) 10%, transparent);
-}
-
-.terminal-node-hit.is-selected {
-  border-color: var(--vscode-focusBorder, var(--accent));
-  border-width: 2px;
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
-}
-
-.graph-svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  cursor: grab;
-  touch-action: none;
   user-select: none;
 }
 
-.graph-svg:active {
-  cursor: grabbing;
+.inspector-section summary::-webkit-details-marker {
+  display: none;
 }
 
-.graph-svg.has-search-hits .orchgraph-node:not(.is-search-hit) {
-  opacity: 0.35;
-}
-
-.graph-overlay {
-  position: absolute;
-  inset: 50% auto auto 50%;
-  transform: translate(-50%, -50%);
-  margin: 0;
-  padding: 0.5lh 1ch;
-  border-radius: 0.45rem;
-  background: var(--panel);
+.inspector-section summary::before {
+  content: "›";
+  display: inline-block;
   color: var(--muted);
-  font-size: 0.82rem;
-  pointer-events: none;
-  white-space: nowrap;
+  transition: transform 80ms ease;
 }
 
-.orchgraph-edge {
-  fill: none;
-  stroke: var(--edge);
-  stroke-width: 1.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  pointer-events: none;
+.inspector-section[open] summary::before {
+  transform: rotate(90deg);
 }
 
-.orchgraph-arrow {
-  fill: var(--edge);
+.inspector-section .count {
+  margin-left: auto;
+  font-weight: 400;
+  letter-spacing: 0;
 }
 
-.orchgraph-node {
-  cursor: pointer;
-  outline: none;
-}
-
-.orchgraph-node rect {
-  fill: var(--node-bg);
-  stroke: var(--node-line);
-  stroke-width: 1.25;
-  transition: stroke 80ms ease, stroke-width 80ms ease;
-}
-
-.orchgraph-node:hover rect {
-  stroke: var(--vscode-focusBorder, var(--accent));
-}
-
-.orchgraph-node:focus-visible rect {
-  stroke: var(--vscode-focusBorder, var(--accent));
-  stroke-width: 2.5;
-}
-
-.orchgraph-node-label {
-  fill: var(--text);
-  font: 600 14px var(--font-code);
-  pointer-events: none;
-}
-
-.orchgraph-node-detail {
-  fill: var(--muted);
-  font: 10px var(--font-code);
-  pointer-events: none;
-}
-
-.orchgraph-node-kind {
-  fill: var(--muted);
-  font: 600 9px var(--font-code);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  pointer-events: none;
-}
-
-.orchgraph-node-state {
-  fill: var(--muted);
-  font: 700 12px var(--font-code);
-  pointer-events: none;
-}
-
-.orchgraph-edge-label {
-  fill: var(--muted);
-  font: 10px var(--font-code);
-  text-anchor: middle;
-  pointer-events: none;
-}
-
-.orchgraph-node.is-search-hit rect {
-  stroke: var(--hit);
-  stroke-width: 2;
-}
-
-.orchgraph-node.is-selected rect {
-  stroke: var(--vscode-focusBorder, var(--accent));
-  stroke-width: 2.5;
-}
-
-.board {
-  flex: 1;
-  display: block;
-  min-height: 0;
-}
-
-.card {
-  border: 1px solid var(--line);
-  border-radius: 0.6rem;
-  background: var(--panel);
-  padding: 1ch;
-  min-width: 0;
-}
-
-.detail {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6lh;
-  overflow: auto;
-}
-
-.detail-head {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 1ch;
-}
-
-.detail-actions {
-  display: flex;
-  gap: 0.5ch;
-  flex: 0 0 auto;
-}
-
-.columns {
+.inspector-section ul {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1ch;
-}
-
-.columns ul {
-  margin: 0.4lh 0 0;
+  gap: 0.25lh;
+  margin: 0.35lh 0 0;
   padding: 0;
   list-style: none;
-  display: grid;
-  gap: 0.4lh;
 }
 
-.columns li {
-  border-top: 1px solid var(--line);
-  padding-top: 0.4lh;
+.inspector-section li {
+  padding-top: 0.35lh;
+  border-top: 1px solid color-mix(in srgb, var(--line) 65%, transparent);
+}
+
+.inspector-section li:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.inspector-section .qn {
+  font-size: 0.7rem;
+}
+
+.inspector-section .meta {
+  font-size: 0.7rem;
+}
+
+.inspector-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
 }
 
 .link {
   display: block;
-  border: 0;
-  border-radius: 0.35rem;
   margin: 0;
-  padding: 0.15lh 0.3ch;
+  padding: 0.1lh 0.2ch;
+  border: 0;
+  border-radius: 0.25rem;
   background: transparent;
   color: var(--vscode-textLink-foreground, var(--accent));
+  font-size: 0.78rem;
   text-align: left;
   cursor: pointer;
 }
@@ -526,27 +740,91 @@ vscode-single-select {
   outline: none;
 }
 
-@media (max-width: 700px) {
-  .app {
-    padding: 1ch;
+@media (max-width: 980px) {
+  .topbar {
+    grid-template-areas:
+      "brand actions"
+      "entry entry"
+      "search search";
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 0.35lh;
   }
 
-  .controls,
-  .columns {
-    grid-template-columns: 1fr;
+  .top-actions {
+    justify-content: flex-end;
   }
 
-  .graph-board {
-    height: 55vh;
-    min-height: 55vh;
+  .workbench {
+    position: relative;
   }
 
-  .graph-toolbar .search-field {
-    flex-basis: 100%;
+  .edge-panel {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 5;
+    width: min(34ch, 92vw);
+    box-shadow: 0 0 2lh color-mix(in srgb, #000 35%, transparent);
   }
 
-  .detail-head {
-    align-items: stretch;
-    flex-direction: column;
+  .setup-panel {
+    left: 0;
+  }
+
+  .inspector-panel {
+    right: 0;
+  }
+
+  .statusbar {
+    flex-wrap: wrap;
+    row-gap: 0.15lh;
+  }
+
+  .status-left,
+  .status-right {
+    min-height: 1.2lh;
+  }
+}
+
+@media (max-width: 620px) {
+  .brand-mark {
+    display: none;
+  }
+
+  .topbar {
+    padding: 0.4lh 0.8ch;
+  }
+
+  .entry-bar .load-button {
+    padding-inline: 0.6ch;
+  }
+
+  .view-control > span {
+    display: none;
+  }
+
+  .view-control .depth-select {
+    width: 8ch;
+    min-width: 8ch;
+  }
+
+  .view-control .direction-select {
+    width: 18ch;
+    min-width: 18ch;
+  }
+
+  .view-control .renderer-select {
+    width: 20ch;
+    min-width: 20ch;
+  }
+
+  .statusbar {
+    padding-inline: 0.8ch;
+    font-size: 0.68rem;
+  }
+
+  .status-selection,
+  .status-message {
+    max-width: 16ch;
   }
 }

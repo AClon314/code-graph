@@ -30,6 +30,8 @@
   let transform = $state<ZoomTransform>(zoomIdentity);
   let zoomReady = $state(false);
   let zoomBehavior: ZoomBehavior<SVGSVGElement, unknown> | null = null;
+  let userAdjusted = false;
+  let resizeFrame = 0;
 
   const markerId = "orchgraph-arrow";
   const nodeById = $derived(new Map(data.nodes.map((node) => [node.id, node])));
@@ -74,6 +76,7 @@
       })
       .on("zoom", (event) => {
         transform = event.transform;
+        if (event.sourceEvent) userAdjusted = true;
       });
 
     zoomBehavior = behavior;
@@ -81,9 +84,20 @@
     selection.call(behavior);
     // Double-click on a node means "jump", not "zoom in".
     selection.on("dblclick.zoom", null);
+
+    // Side panels change the canvas size. Keep an untouched graph fitted;
+    // never override a viewport the user has already panned or zoomed.
+    const resizeObserver = new ResizeObserver(() => {
+      if (!layout || !zoomBehavior || userAdjusted) return;
+      cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(() => fit());
+    });
+    resizeObserver.observe(svgEl);
     zoomReady = true;
 
     return () => {
+      resizeObserver.disconnect();
+      cancelAnimationFrame(resizeFrame);
       selection.on(".zoom", null);
       zoomBehavior = null;
       zoomReady = false;
@@ -109,6 +123,7 @@
     const clamped = Math.max(0.08, scale);
     const x = (width - graphWidth * clamped) / 2;
     const y = (height - graphHeight * clamped) / 2;
+    userAdjusted = false;
     select(svgEl).call(
       zoomBehavior.transform,
       zoomIdentity.translate(x, y).scale(clamped),

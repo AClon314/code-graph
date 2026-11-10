@@ -62,15 +62,26 @@ directly. Build output contains only the selected runtime:
 - Each backend opens its own editor tab; invoking the same command again
   reveals that tab. The two tabs can be compared side by side.
 - File tree: **VS Code Explorer**, not a webview. The old tree panel is removed.
-- Graph: D3/SVG or the orchgraph character canvas, with search, depth,
-  direction, fit, SVG export / copy.
-- Root picker: the **Symbol entry** row is a free-form `vscode-textfield` plus
-  an arrow-only native `<select>` populated from cbm's repository map (entry
-  points, source modules, exported classes). The input stays editable, so
-  arbitrary QNs and `#id` values still work; selecting a root fills the input.
-  `vscode-textfield` has no `datalist`, hence the adjacent select.
-- Details: symbol bundle, callers/callees, **Jump** opens the file at the
-  symbol's 1-based line through `ExtensionApi.openLocation`.
+- Layout: the graph is the full workbench. A compact command bar carries the
+  entry/load/search fields and global actions; **Setup** and **Details** are
+  edge panels, closed by default and mutually exclusive. The bottom status bar
+  holds depth/direction/renderer plus graph counts and transient messages.
+- Graph: D3/SVG or the orchgraph character canvas, with search, fit, and SVG
+  export / copy. Graph controls stay out of the canvas; opening an edge panel
+  only resizes the graph, and an untouched graph re-fits itself.
+- Root picker: the **Symbol entry** field in the command bar is a free-form
+  `vscode-textfield` plus an arrow-only native `<select>` populated from cbm's
+  repository map (entry points, source modules, exported classes). The input
+  stays editable, so arbitrary QNs and `#id` values still work; selecting a
+  root fills the input. `vscode-textfield` has no `datalist`, hence the
+  adjacent select.
+- Details: **Details** opens an edge inspector with the symbol bundle;
+  callers/callees are collapsible sections. Selecting a graph node opens it
+  automatically. **Jump** opens the file at the symbol's 1-based line through
+  `ExtensionApi.openLocation`.
+- Progressive disclosure: source/project live under **Setup** instead of the
+  main toolbar. Keyboard shortcuts for experienced users: `/` search, `f` fit,
+  `r` reload graph, `d` details, `s` setup, `Esc` close panel.
 - Workspace Trust: declared supported for untrusted and virtual workspaces, so
   the graph viewer is usable in Restricted Mode. cbm requests are made by the
   Node extension host, not the webview.

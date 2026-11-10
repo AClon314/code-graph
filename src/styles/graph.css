@@ -1,0 +1,183 @@
+/* ---- graph renderers --------------------------------------------------- */
+
+.graph-board {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--graph-bg);
+}
+
+.terminal-board {
+  position: relative;
+}
+
+.terminal-art-shell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.terminal-art {
+  position: relative;
+  flex: none;
+  font-family: var(--font-code);
+  font-size: 14px;
+  line-height: 1;
+  transform-origin: center center;
+}
+
+.terminal-art-text {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--font-code);
+  font-size: 14px;
+  line-height: 1;
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "calt" 0;
+  white-space: pre;
+  user-select: text;
+}
+
+.terminal-node-hit {
+  position: absolute;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 0.2rem;
+  background: transparent;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+  outline: none;
+}
+
+.terminal-node-hit:hover,
+.terminal-node-hit:focus-visible {
+  border-color: var(--vscode-focusBorder, var(--accent));
+}
+
+.terminal-node-hit.is-search-hit {
+  border-color: var(--hit);
+  background: color-mix(in srgb, var(--hit) 10%, transparent);
+}
+
+.terminal-node-hit.is-selected {
+  border-color: var(--vscode-focusBorder, var(--accent));
+  border-width: 2px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.graph-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.graph-svg:active {
+  cursor: grabbing;
+}
+
+.graph-svg.has-search-hits .orchgraph-node:not(.is-search-hit) {
+  opacity: 0.35;
+}
+
+.graph-overlay {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  padding: 0.5lh 1ch;
+  border-radius: 0.45rem;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 0.82rem;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.orchgraph-edge {
+  fill: none;
+  stroke: var(--edge);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.orchgraph-arrow {
+  fill: var(--edge);
+}
+
+.orchgraph-node {
+  cursor: pointer;
+  outline: none;
+}
+
+.orchgraph-node rect {
+  fill: var(--node-bg);
+  stroke: var(--node-line);
+  stroke-width: 1.25;
+  transition: stroke 80ms ease, stroke-width 80ms ease;
+}
+
+.orchgraph-node:hover rect {
+  stroke: var(--vscode-focusBorder, var(--accent));
+}
+
+.orchgraph-node:focus-visible rect {
+  stroke: var(--vscode-focusBorder, var(--accent));
+  stroke-width: 2.5;
+}
+
+.orchgraph-node-label {
+  fill: var(--text);
+  font: 600 14px var(--font-code);
+  pointer-events: none;
+}
+
+.orchgraph-node-detail {
+  fill: var(--muted);
+  font: 10px var(--font-code);
+  pointer-events: none;
+}
+
+.orchgraph-node-kind {
+  fill: var(--muted);
+  font: 600 9px var(--font-code);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.orchgraph-node-state {
+  fill: var(--muted);
+  font: 700 12px var(--font-code);
+  pointer-events: none;
+}
+
+.orchgraph-edge-label {
+  fill: var(--muted);
+  font: 10px var(--font-code);
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+.orchgraph-node.is-search-hit rect {
+  stroke: var(--hit);
+  stroke-width: 2;
+}
+
+.orchgraph-node.is-selected rect {
+  stroke: var(--vscode-focusBorder, var(--accent));
+  stroke-width: 2.5;
+}

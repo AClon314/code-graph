@@ -4,6 +4,7 @@ import "@vscode-elements/elements/dist/vscode-textfield/index.js";
 import { mount } from "svelte";
 
 import App from "./App.svelte";
+import "./styles/graph.css";
 import "./app.css";
 import { installFontFallback } from "./lib/fonts";
 
