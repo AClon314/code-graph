@@ -6,6 +6,10 @@
 #   WORKSPACE=/path/to/repo bun run gui
 #   HOST=0.0.0.0 PASSWORD=secret bun run gui   # remote, password auth
 #
+# code-server otherwise redirects "/" to the last folder stored in coder.json;
+# --ignore-last-opened keeps the explicit WORKSPACE (current cwd by default)
+# authoritative across restarts.
+#
 # Requires code-server on PATH. This is intentionally a development harness,
 # not a packaging step.
 set -euo pipefail
@@ -116,5 +120,6 @@ exec code-server \
   --extensions-dir "$EXT_DIR" \
   --disable-telemetry \
   --disable-update-check \
+  --ignore-last-opened \
   "$@" \
   "$WORKSPACE"

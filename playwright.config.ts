@@ -5,6 +5,9 @@ import { fileURLToPath } from "node:url";
 
 const port = Number(process.env.CODE_SERVER_TEST_PORT || "8099");
 const e2eWorkspace = fileURLToPath(new URL("./out/e2e-workspace", import.meta.url));
+// Keep the e2e code-server profile disjoint from the manual one under
+// .code-server, so tests cannot overwrite its last-opened folder.
+const e2eProfile = fileURLToPath(new URL("./out/e2e-code-server", import.meta.url));
 
 // Keep the e2e workspace out of the source tree: write only the files the
 // smoke test needs, with mock source configured.
@@ -48,6 +51,8 @@ export default defineConfig({
       AUTH: "none",
       CBM_AUTOSTART: "0",
       WORKSPACE: e2eWorkspace,
+      CODE_SERVER_DATA_DIR: join(e2eProfile, "data"),
+      CODE_SERVER_EXTENSIONS_DIR: join(e2eProfile, "extensions"),
     },
   },
 });

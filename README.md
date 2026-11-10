@@ -270,6 +270,11 @@ error if not), installs this extension into an isolated profile under
 printed by code-server (usually `https://127.0.0.1:8080`). Use
 `WORKSPACE=/path/to/repo bun run gui` to open a different workspace.
 
+The launcher passes `--ignore-last-opened`; without it, code-server redirects
+bare `/` to the folder saved in its profile (which is how an e2e run can leave
+you in `out/e2e-workspace`). The e2e profile is now kept separately under
+`out/e2e-code-server`.
+
 `bun run gui` is an alias for `bun run gui:private`:
 `HOST=127.0.0.1 PORT=8080 AUTH=none`.
 

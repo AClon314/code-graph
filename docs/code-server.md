@@ -20,6 +20,10 @@ The script:
    generated certificate, and the caller's current directory. Override it with
    `WORKSPACE=/path/to/repo bun run gui`.
 
+The launcher passes `--ignore-last-opened`, so the explicit workspace wins even
+if code-server previously stored another folder in `.code-server/data/coder.json`
+(for example after opening the e2e workspace).
+
 `bun run gui` is `gui:private` (`HOST=127.0.0.1`, `PORT=8080`,
 `AUTH=none`). Open the URL printed by code-server.
 
@@ -58,6 +62,12 @@ code-server --log debug ...   # or -vvv
 
 Also check `~/.local/share/code-server/coder-logs` (or the isolated profile's
 logs).
+
+The extension is installed globally for the whole code-server process in
+`.code-server/extensions`; switching folders should not remove its commands.
+If **Code Graph** disappears, check that you are still on this profile/port
+(`--extensions-dir` above) and run **Developer: Reload Window**. A different
+code-server instance using the default extension directory will not have it.
 
 ## Workspace Trust / Restricted Mode
 
