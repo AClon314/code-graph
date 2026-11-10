@@ -28,10 +28,15 @@
   } from "./lib/graph/types";
   import { extensionApi } from "./extension/host";
   import type { GraphBackend } from "./extension/api";
-
-  type SourceKind = "mock" | "cbm";
-  type GraphRenderer = "d3" | "orchgraph";
-  type Depth = 1 | 2 | 3;
+  import {
+    SOURCE_DEFAULTS,
+    formatGraphUrl,
+    parseGraphUrl,
+    type Depth,
+    type GraphRenderer,
+    type SourceKind,
+  } from "./lib/graph/url-state";
+  import { resolveShortcut } from "./lib/shortcuts";
   interface GraphViewHandle {
     fit(): void;
     triggerExport?(): void;
@@ -346,30 +351,21 @@
 
   function applyUrl(): void {
     if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    const source = params.get("source");
-    if (source === "mock" || source === "cbm") kind = source;
-    if (source === "cbm") {
-      project = params.get("project") ?? "fixture-hard-scip";
-      ref = params.get("symbol") ?? "fixture-hard-scip.src.features.useAlias";
-    } else if (source === "mock") {
-      project = params.get("project") ?? "demo";
-      ref = params.get("symbol") ?? "demo.src.features.useAlias";
-    } else {
-      if (params.get("project")) project = params.get("project")!;
-      if (params.get("symbol")) ref = params.get("symbol")!;
-    }
-    const nextRenderer = params.get("renderer");
-    if (nextRenderer === "d3" || nextRenderer === "orchgraph") renderer = nextRenderer;
-    const nextDepth = Number(params.get("depth"));
-    if (nextDepth === 1 || nextDepth === 2 || nextDepth === 3) depth = nextDepth;
-    const nextDirection = params.get("direction");
-    if (nextDirection === "both" || nextDirection === "callers" || nextDirection === "callees") {
-      direction = nextDirection;
-    }
-    const file = params.get("file");
-    const line = Number(params.get("line"));
-    pendingLocation = file && Number.isFinite(line) && line > 0 ? { file, line } : null;
+    const next = parseGraphUrl(window.location.search, {
+      source: kind,
+      project,
+      symbol: ref,
+      renderer,
+      depth,
+      direction,
+    });
+    kind = next.source;
+    project = next.project;
+    ref = next.symbol;
+    renderer = next.renderer;
+    depth = next.depth;
+    direction = next.direction;
+    pendingLocation = next.location;
   }
 
   function onPopState(): void {
@@ -379,18 +375,12 @@
 
   function syncUrl(): void {
     if (typeof window === "undefined") return;
-    const params = new URLSearchParams();
-    params.set("source", kind);
-    params.set("project", project);
-    params.set("symbol", ref);
-    params.set("renderer", renderer);
-    params.set("depth", String(depth));
-    params.set("direction", direction);
     const file = focusNode?.filePath ?? symbol?.node.filePath;
     const line = focusNode?.startLine ?? symbol?.node.startLine;
-    if (file) params.set("file", file);
-    if (line) params.set("line", String(line));
-    const search = `?${params.toString()}`;
+    const search = formatGraphUrl(
+      { source: kind, project, symbol: ref, renderer, depth, direction },
+      file && line ? { file, line } : null,
+    );
     if (window.location.search !== search) {
       window.history.replaceState(null, "", `${window.location.pathname}${search}${window.location.hash}`);
     }
@@ -411,13 +401,9 @@
 
   function setKind(next: SourceKind): void {
     kind = next;
-    if (next === "mock") {
-      project = "demo";
-      ref = "demo.src.features.useAlias";
-    } else {
-      project = "fixture-hard-scip";
-      ref = "fixture-hard-scip.src.features.useAlias";
-    }
+    const defaults = SOURCE_DEFAULTS[next];
+    project = defaults.project;
+    ref = defaults.symbol;
     void load();
   }
 
@@ -494,47 +480,33 @@
     input?.focus();
   }
 
-  function isTypingTarget(event: KeyboardEvent): boolean {
-    return (event.composedPath?.() ?? []).some((node) => {
-      if (!(node instanceof HTMLElement)) return false;
-      return (
-        node.matches("input, textarea, select, [contenteditable='true']") ||
-        node.matches("vscode-textfield, vscode-single-select")
-      );
-    });
-  }
-
   function onGlobalKeydown(event: KeyboardEvent): void {
-    if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
-    if (event.repeat && event.key !== "Escape") return;
+    const action = resolveShortcut(event, { setupOpen, inspectorOpen });
+    if (!action) return;
+    event.preventDefault();
 
-    if (event.key === "Escape") {
-      if (setupOpen) {
+    switch (action) {
+      case "search":
+        focusSearch();
+        break;
+      case "reload":
+        void reloadGraph();
+        break;
+      case "toggle-details":
+        toggleInspector();
+        break;
+      case "toggle-setup":
+        toggleSetup();
+        break;
+      case "fit":
+        graphView?.fit();
+        break;
+      case "close-setup":
         setupOpen = false;
-        event.preventDefault();
-      } else if (inspectorOpen) {
+        break;
+      case "close-details":
         inspectorOpen = false;
-        event.preventDefault();
-      }
-      return;
-    }
-    if (isTypingTarget(event)) return;
-
-    if (event.key === "/") {
-      event.preventDefault();
-      focusSearch();
-    } else if (event.key.toLowerCase() === "r") {
-      event.preventDefault();
-      void reloadGraph();
-    } else if (event.key.toLowerCase() === "d") {
-      event.preventDefault();
-      toggleInspector();
-    } else if (event.key.toLowerCase() === "s") {
-      event.preventDefault();
-      toggleSetup();
-    } else if (event.key.toLowerCase() === "f") {
-      event.preventDefault();
-      graphView?.fit();
+        break;
     }
   }
 
