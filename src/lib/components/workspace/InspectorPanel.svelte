@@ -8,8 +8,12 @@
     error: string;
     jumpStatus: string;
     jumpError: string;
+    copyStatus: string;
+    copyError: string;
+    workspaceRoot: string;
     onclose: () => void;
     onjump: () => void;
+    oncopy: (kind: "relative" | "absolute" | "both") => void;
     onopen: (qualifiedName: string) => void;
   }
 
@@ -20,14 +24,18 @@
     error,
     jumpStatus,
     jumpError,
+    copyStatus,
+    copyError,
+    workspaceRoot,
     onclose,
     onjump,
+    oncopy,
     onopen,
   }: Props = $props();
 
-  function location(filePath?: string, line?: number): string {
+  function location(filePath?: string, line?: number, column?: number): string {
     if (!filePath) return "unknown location";
-    return line ? `${filePath}:${line}` : filePath;
+    return `${filePath}:${line ?? 1}:${column ?? 1}`;
   }
 </script>
 
@@ -51,9 +59,29 @@
           <span class="kind">{symbol.node.label}</span>
           <h3>{symbol.node.name}</h3>
           <div class="qn">{symbol.node.qualifiedName}</div>
-          <div class="meta">{location(symbol.node.filePath, symbol.node.startLine)}</div>
+          <div class="meta">{location(symbol.node.filePath, symbol.node.startLine, symbol.node.startColumn)}</div>
         </div>
+      </div>
+      <div class="inspector-actions">
         <button class="vscode-button" type="button" onclick={onjump}>Jump</button>
+        <button
+          class="vscode-button secondary"
+          type="button"
+          title="Copy relative path with line and column"
+          onclick={() => oncopy("relative")}
+        >Copy rel</button>
+        <button
+          class="vscode-button secondary"
+          type="button"
+          title="Copy absolute path with line and column"
+          onclick={() => oncopy("absolute")}
+        >Copy abs</button>
+        <button
+          class="vscode-button secondary"
+          type="button"
+          title="Copy relative and absolute paths with line and column"
+          onclick={() => oncopy("both")}
+        >Copy both</button>
       </div>
 
       {#if symbol.node.docstring}
@@ -72,7 +100,7 @@
                 {caller.name}
               </button>
               <div class="qn">{caller.qualifiedName}</div>
-              <div class="meta">{location(caller.filePath, caller.startLine)}</div>
+              <div class="meta">{location(caller.filePath, caller.startLine, caller.startColumn)}</div>
             </li>
           {/each}
           {#if symbol.callers.length === 0}
@@ -93,7 +121,7 @@
                 {callee.name}
               </button>
               <div class="qn">{callee.qualifiedName}</div>
-              <div class="meta">{location(callee.filePath, callee.startLine)}</div>
+              <div class="meta">{location(callee.filePath, callee.startLine, callee.startColumn)}</div>
             </li>
           {/each}
           {#if symbol.callees.length === 0}
@@ -107,9 +135,29 @@
           <span class="kind">{focusNode.label}</span>
           <h3>{focusNode.name}</h3>
           <div class="qn">{focusNode.qualifiedName}</div>
-          <div class="meta">{location(focusNode.filePath, focusNode.startLine)}</div>
+          <div class="meta">{location(focusNode.filePath, focusNode.startLine, focusNode.startColumn)}</div>
         </div>
+      </div>
+      <div class="inspector-actions">
         <button class="vscode-button" type="button" onclick={onjump}>Jump</button>
+        <button
+          class="vscode-button secondary"
+          type="button"
+          title="Copy relative path with line and column"
+          onclick={() => oncopy("relative")}
+        >Copy rel</button>
+        <button
+          class="vscode-button secondary"
+          type="button"
+          title="Copy absolute path with line and column"
+          onclick={() => oncopy("absolute")}
+        >Copy abs</button>
+        <button
+          class="vscode-button secondary"
+          type="button"
+          title="Copy relative and absolute paths with line and column"
+          onclick={() => oncopy("both")}
+        >Copy both</button>
       </div>
       <p class="sub">
         {loading ? "Loading symbol details…" : "Bundle details are unavailable for this graph node."}
@@ -126,5 +174,36 @@
     {#if jumpError}
       <p class="error compact">{jumpError}</p>
     {/if}
+    {#if copyStatus}
+      <p class="status">{copyStatus}</p>
+    {/if}
+    {#if copyError}
+      <p class="error compact">{copyError}</p>
+    {/if}
+    <p
+      class="path-hint"
+      title={workspaceRoot ? `Workspace root: ${workspaceRoot}` : "Workspace root unavailable"}
+    >Copied paths use <code>path:line:column</code>; absolute paths are resolved from the workspace root.</p>
   </div>
 </aside>
+
+<style>
+  .inspector-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4ch;
+  }
+
+  .inspector-actions :global(.vscode-button) {
+    padding: 0.2lh 0.7ch;
+    font-size: 0.72rem;
+  }
+
+  .path-hint {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.68rem;
+    line-height: 1.4;
+  }
+</style>

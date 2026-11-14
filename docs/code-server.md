@@ -1,4 +1,4 @@
-# code-server as the GUI harness
+# code-server as the Code GUI harness
 
 `code-server` is the supported remote GUI harness. The extension has a Node
 `main` host, so cbm requests run on the code-server machine and the webview only
@@ -8,7 +8,7 @@ receives `postMessage` responses. The remote browser never fetches cbm directly.
 
 ```bash
 cd /home/n/document/code/gpen/gpen-js/rules/cbm/graph-ui-svelte
-bun run gui
+bun run code
 ```
 
 The script:
@@ -18,27 +18,27 @@ The script:
 3. symlinks this repo into `.code-server/extensions/<publisher>.<name>-<version>`;
 4. starts code-server with an isolated `.code-server/data` profile, the
    generated certificate, and the caller's current directory. Override it with
-   `WORKSPACE=/path/to/repo bun run gui`.
+   `WORKSPACE=/path/to/repo bun run code`.
 
 The launcher passes `--ignore-last-opened`, so the explicit workspace wins even
 if code-server previously stored another folder in `.code-server/data/coder.json`
 (for example after opening the e2e workspace).
 
-`bun run gui` is `gui:private` (`HOST=127.0.0.1`, `PORT=8080`,
+`bun run code` is the local mode (`HOST=127.0.0.1`, `PORT=8080`,
 `AUTH=none`). Open the URL printed by code-server.
 
 For LAN/public access:
 
 ```bash
-bun run gui:public
-# HOST=0.0.0.0 AUTH=password PASSWORD=cbm bash scripts/gui.sh
-PASSWORD=... bun run gui:public
+bun run code:public
+# HOST=0.0.0.0 AUTH=password PASSWORD=cbm bash scripts/code.sh
+PASSWORD=... bun run code:public
 ```
 
 The default password `cbm` is a convenience, not a secret. Change it before
 exposing the server beyond a trusted network.
 
-`scripts/gui.sh` runs `bun run lazy_mkcert` and passes `out/certs/pub.pem` /
+`scripts/code.sh` runs `bun run lazy_mkcert` and passes `out/certs/pub.pem` /
 `out/certs/key.pem` to code-server. The certificate covers `localhost`, loopback
 addresses, and addresses reported by `ip -j addr`. Existing files are reused;
 `bun run lazy_mkcert --force` regenerates them.

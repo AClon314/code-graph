@@ -7,7 +7,7 @@ import {
 } from "../src/lib/graph/url-state";
 
 const fallback: GraphUrlState = {
-  source: "mock",
+  source: "computed",
   project: "current-project",
   symbol: "current.symbol",
   renderer: "d3",
@@ -16,10 +16,17 @@ const fallback: GraphUrlState = {
 };
 
 test("source defaults supply project and symbol", () => {
+  expect(parseGraphUrl("?source=computed", fallback)).toEqual({
+    ...fallback,
+    project: "demo",
+    symbol: "src/main.ts",
+    location: null,
+  });
+  // Old bookmarks and settings used `mock`; keep them working.
   expect(parseGraphUrl("?source=mock", fallback)).toEqual({
     ...fallback,
     project: "demo",
-    symbol: "demo.src.features.useAlias",
+    symbol: "src/main.ts",
     location: null,
   });
 

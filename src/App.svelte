@@ -13,7 +13,11 @@
     formatCbmEndpointError,
     type FetchLike,
   } from "./lib/cbm-endpoint";
-  import { MockSource } from "./lib/graph/mock";
+  import {
+    ComputedSource,
+    computedDisplayRef,
+    computedRootCandidates,
+  } from "./lib/graph/computed";
   import { fetchRootCandidates, type RootCandidate } from "./lib/graph/roots";
   import { graphSvgStyle, SVG_THEME_VARIABLE_NAMES } from "./lib/graph/svg";
   import {
@@ -37,6 +41,8 @@
     type SourceKind,
   } from "./lib/graph/url-state";
   import { resolveShortcut } from "./lib/shortcuts";
+  import { copyPathText, pathFormats, type PathCopyKind } from "./lib/path-location";
+  import { writeClipboard } from "./lib/clipboard";
   interface GraphViewHandle {
     fit(): void;
     triggerExport?(): void;
@@ -46,16 +52,18 @@
   type JumpRow = {
     filePath?: string;
     startLine?: number;
+    startColumn?: number;
     qualifiedName?: string;
     name?: string;
   };
 
-  const mock = new MockSource();
+  const computedSource = new ComputedSource();
 
-  let kind = $state<SourceKind>("mock");
+  let kind = $state<SourceKind>("computed");
   let project = $state("demo");
-  let ref = $state("demo.src.features.useAlias");
+  let ref = $state("src/main.ts");
   let cbmBaseUrl = $state("http://127.0.0.1:9749");
+  let workspaceRoot = $state("");
   let runtime = $state(extensionApi.runtime);
   let backend = $state<GraphBackend>("cbm");
   let symbol = $state<SymbolBundle | null>(null);
@@ -78,6 +86,8 @@
   let detailRequestId = 0;
   let jumpStatus = $state("");
   let jumpError = $state("");
+  let copyStatus = $state("");
+  let copyError = $state("");
   let exportStatus = $state("");
   let renderer = $state<GraphRenderer>("d3");
   let graphView = $state<GraphViewHandle>();
@@ -128,8 +138,8 @@
   };
 
   function currentSource(): GraphSource {
-    return kind === "mock"
-      ? mock
+    return kind === "computed"
+      ? computedSource
       : new CbmHttpSource({
           baseUrl: cbmBaseUrl,
           project,
@@ -179,6 +189,8 @@
     detailRequestId += 1;
     jumpStatus = "";
     jumpError = "";
+    copyStatus = "";
+    copyError = "";
     exportStatus = "";
 
     if (kind === "cbm" && !(await ensureCbmEndpoint())) {
@@ -229,8 +241,9 @@
   }
 
   async function loadRoots(): Promise<void> {
-    if (kind !== "cbm") {
-      rootCandidates = [];
+    if (kind === "computed") {
+      rootCandidates = computedRootCandidates();
+      rootsLoading = false;
       return;
     }
     rootsLoading = true;
@@ -325,8 +338,9 @@
         if (disposed) return;
         runtime = extensionApi.runtime;
         backend = config.backend;
-        if (config.source === "mock" || config.source === "cbm") kind = config.source;
+        if (config.source === "computed" || config.source === "cbm") kind = config.source;
         cbmBaseUrl = config.cbmBaseUrl;
+        workspaceRoot = config.workspaceRoot;
         if (config.project) project = config.project;
         if (config.symbolEntry) ref = config.symbolEntry;
       } catch (cause) {
@@ -361,7 +375,7 @@
     });
     kind = next.source;
     project = next.project;
-    ref = next.symbol;
+    ref = kind === "computed" ? computedDisplayRef(next.symbol) : next.symbol;
     renderer = next.renderer;
     depth = next.depth;
     direction = next.direction;
@@ -395,7 +409,7 @@
     pendingLocation = null;
     selectedId = match.id;
     focusNode = match;
-    ref = match.qualifiedName || match.id;
+    ref = rootRefFor(match);
     void selectGraphNode(match);
   }
 
@@ -407,8 +421,14 @@
     void load();
   }
 
+  function rootRefFor(node: { filePath?: string; qualifiedName?: string; id?: string }): string {
+    if (kind === "computed") return node.filePath || node.qualifiedName || node.id || "";
+    return node.qualifiedName || node.id || "";
+  }
+
   function openConnection(qualifiedName: string): void {
-    ref = qualifiedName;
+    const node = graphData?.nodes.find((candidate) => candidate.qualifiedName === qualifiedName);
+    ref = node ? rootRefFor(node) : qualifiedName;
     inspectorOpen = true;
     setupOpen = false;
     syncUrl();
@@ -439,7 +459,7 @@
   async function selectGraphNode(node: GraphViewNode): Promise<void> {
     selectedId = node.id;
     focusNode = node;
-    ref = node.qualifiedName || node.id;
+    ref = rootRefFor(node);
     inspectorOpen = true;
     setupOpen = false;
     syncUrl();
@@ -448,6 +468,8 @@
     detailLoading = true;
     jumpStatus = "";
     jumpError = "";
+    copyStatus = "";
+    copyError = "";
     exportStatus = "";
 
     const id = ++detailRequestId;
@@ -538,15 +560,17 @@
     }
 
     const line = row.startLine ?? 1;
-    jumpStatus = `Opening ${row.filePath}:${line}…`;
+    const column = row.startColumn ?? 1;
+    jumpStatus = `Opening ${row.filePath}:${line}:${column}…`;
     try {
       await extensionApi.openLocation({
         project,
         path: row.filePath,
         line,
+        column,
         symbol: row.qualifiedName ?? row.name,
       });
-      jumpStatus = `Opened ${row.filePath}:${line}`;
+      jumpStatus = `Opened ${row.filePath}:${line}:${column}`;
     } catch (cause) {
       jumpStatus = "";
       jumpError = `Open failed: ${message(cause)}`;
@@ -557,6 +581,37 @@
     selectedId = node.id;
     focusNode = node;
     void jump(node);
+  }
+
+  async function copyPath(kind: PathCopyKind): Promise<void> {
+    copyStatus = "";
+    copyError = "";
+    const row = jumpRow();
+    if (!row?.filePath) {
+      copyError = "This symbol has no file path to copy.";
+      return;
+    }
+
+    const text = copyPathText(
+      kind,
+      pathFormats(row.filePath, workspaceRoot),
+      row.startLine,
+      row.startColumn,
+    );
+    if (!text) {
+      copyError =
+        kind === "absolute" || kind === "both"
+          ? "Absolute path unavailable: no workspace root."
+          : "Relative path unavailable for this file.";
+      return;
+    }
+
+    try {
+      await writeClipboard(text);
+      copyStatus = kind === "both" ? "Copied relative + absolute paths" : `Copied ${kind} path`;
+    } catch (cause) {
+      copyError = `Copy failed: ${message(cause)}`;
+    }
   }
 
   async function copyTerminalArt(): Promise<void> {
@@ -637,7 +692,7 @@
           title="Project and source setup"
           onclick={toggleSetup}
         >
-          {project}<span class="context-kind">{kind === "mock" ? "mock" : backend}</span>
+          {project}<span class="context-kind">{kind === "computed" ? "computed" : backend}</span>
         </button>
       </div>
     </div>
@@ -647,15 +702,16 @@
         bind:value={ref}
         roots={rootCandidates}
         loading={rootsLoading}
-        label="Symbol entry (qualified name or #id)"
+        label={kind === "computed" ? "File, folder, or symbol path" : "Symbol entry (qualified name or #id)"}
+        placeholder={kind === "computed" ? "src/features.ts, src/lib, or a qualified name" : "Qualified name or #id"}
       />
       <button
         class="vscode-button load-button"
         type="button"
         onclick={() => void load()}
         disabled={loading}
-        title="Load this symbol entry"
-      >{loading ? "Loading…" : "Load"}</button>
+        title={kind === "computed" ? "Open this file, folder, or symbol" : "Load this symbol entry"}
+      >{loading ? "Loading…" : kind === "computed" ? "Open" : "Load"}</button>
     </div>
 
     <!-- svelte-ignore a11y_label_has_associated_control -->
@@ -766,7 +822,11 @@
             <p class="graph-empty-title">
               {graphLoading || loading ? "Loading neighborhood…" : "No graph loaded"}
             </p>
-            <p class="sub">Choose a symbol entry above, or open Setup to pick a source.</p>
+            <p class="sub">
+              {kind === "computed"
+                ? "Open a file or folder above, or pick one from the arrow menu."
+                : "Choose a symbol entry above, or open Setup to pick a source."}
+            </p>
           </div>
         {/if}
       </div>
@@ -866,7 +926,7 @@
             <span>{searchHits.size} {searchHits.size === 1 ? "hit" : "hits"}</span>
           {/if}
           {#if exportStatus}<span class="status-message" title={exportStatus}>{exportStatus}</span>{/if}
-          <span class="runtime">{runtime} · {backend}</span>
+          <span class="runtime">{runtime} · {kind === "computed" ? "computed" : backend}</span>
         </div>
       </footer>
     </section>
@@ -879,8 +939,12 @@
         error={detailError}
         {jumpStatus}
         {jumpError}
+        {copyStatus}
+        {copyError}
+        {workspaceRoot}
         onclose={() => (inspectorOpen = false)}
         onjump={() => void jump()}
+        oncopy={(kind) => void copyPath(kind)}
         onopen={openConnection}
       />
     {/if}

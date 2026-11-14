@@ -16,6 +16,7 @@ interface CbmNode {
   qualified_name?: string;
   file_path?: string;
   start_line?: number;
+  start_column?: number;
   end_line?: number;
   docstring?: string;
   is_entry?: boolean;
@@ -83,6 +84,7 @@ function mapNode(node: CbmNode): SymbolNode {
     qualifiedName: node.qualified_name ?? "?",
     filePath: node.file_path,
     startLine: node.start_line,
+    startColumn: node.start_column,
     endLine: node.end_line,
     docstring: node.docstring,
     isEntry: node.is_entry,
@@ -100,5 +102,6 @@ function mapConnection(row: CbmConnection): SymbolConnection {
     qualifiedName: row.qualified_name ?? "?",
     filePath: row.file_path,
     startLine: row.start_line,
+    startColumn: row.start_column,
   };
 }

@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 
 const workspace = fileURLToPath(new URL("../../out/e2e-workspace", import.meta.url));
 
-test("opens the mock Code Graph webview", async ({ page }) => {
+test("opens the computed Code Graph webview", async ({ page }) => {
   await page.goto(`/?folder=${encodeURIComponent(workspace)}`);
   await page.waitForSelector(".monaco-workbench", { timeout: 30_000 });
 
@@ -23,11 +23,11 @@ test("opens the mock Code Graph webview", async ({ page }) => {
 
   // The app runs in a nested vscode-webview iframe whose URL is the Svelte app.
   await expect
-    .poll(() => page.frames().some((frame) => frame.url().includes("source=mock")), {
+    .poll(() => page.frames().some((frame) => frame.url().includes("source=computed")), {
       timeout: 30_000,
     })
     .toBe(true);
-  const app = page.frames().find((frame) => frame.url().includes("source=mock"));
+  const app = page.frames().find((frame) => frame.url().includes("source=computed"));
   if (!app) throw new Error("Code Graph webview frame not found");
 
   await expect(app.locator("h1")).toHaveText("Code Graph");
@@ -39,5 +39,5 @@ test("opens the mock Code Graph webview", async ({ page }) => {
   await app.getByRole("button", { name: "Close details" }).click();
 
   await app.getByRole("button", { name: "Setup", exact: true }).click();
-  await expect(app.getByRole("button", { name: "Mock", exact: true })).toBeVisible();
+  await expect(app.getByRole("button", { name: "Computed", exact: true })).toBeVisible();
 });

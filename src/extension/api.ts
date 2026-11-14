@@ -8,7 +8,7 @@
 
 export type Runtime = "vscode" | "fresh" | "webview" | "browser";
 
-export type GraphSourceKind = "mock" | "cbm";
+export type GraphSourceKind = "computed" | "cbm";
 export type GraphBackend = "cbm" | "scip";
 
 /** A 1-based source location. Paths are workspace-relative when possible. */
@@ -26,6 +26,8 @@ export interface ExtensionConfig {
   cbmBaseUrl: string;
   project: string;
   symbolEntry: string;
+  /** Absolute workspace root used to format copied absolute paths. */
+  workspaceRoot: string;
 }
 
 import type { CbmHttpRequest, CbmHttpResponse } from "../lib/cbm-request";
@@ -42,8 +44,9 @@ export interface ExtensionApi {
 
 export const DEFAULT_CONFIG: ExtensionConfig = {
   backend: "cbm",
-  source: "mock",
+  source: "computed",
   cbmBaseUrl: "http://127.0.0.1:9749",
   project: "demo",
-  symbolEntry: "demo.src.features.useAlias",
+  symbolEntry: "src/main.ts",
+  workspaceRoot: "",
 };

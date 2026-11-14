@@ -1,6 +1,6 @@
 import type { NeighborhoodDirection } from "./neighborhood";
 
-export type SourceKind = "mock" | "cbm";
+export type SourceKind = "computed" | "cbm";
 export type GraphRenderer = "d3" | "orchgraph";
 export type Depth = 1 | 2 | 3;
 
@@ -11,9 +11,9 @@ export interface SourceDefaults {
 
 /** URL defaults for a source, also used when switching source at runtime. */
 export const SOURCE_DEFAULTS: Record<SourceKind, SourceDefaults> = {
-  mock: {
+  computed: {
     project: "demo",
-    symbol: "demo.src.features.useAlias",
+    symbol: "src/main.ts",
   },
   cbm: {
     project: "fixture-hard-scip",
@@ -42,8 +42,11 @@ export interface ParsedGraphUrl extends GraphUrlState {
 const RENDERERS: readonly GraphRenderer[] = ["d3", "orchgraph"];
 const DIRECTIONS: readonly NeighborhoodDirection[] = ["both", "callers", "callees"];
 
-function isSource(value: string | null): value is SourceKind {
-  return value === "mock" || value === "cbm";
+/** `mock` is the pre-rename URL/config value; keep old links working. */
+function parseSource(value: string | null): SourceKind | null {
+  if (value === "computed" || value === "mock") return "computed";
+  if (value === "cbm") return "cbm";
+  return null;
 }
 
 function isRenderer(value: string | null): value is GraphRenderer {
@@ -73,8 +76,9 @@ function parseLocation(params: URLSearchParams): GraphUrlLocation | null {
 export function parseGraphUrl(search: string, fallback: GraphUrlState): ParsedGraphUrl {
   const params = new URLSearchParams(search);
   const sourceParam = params.get("source");
-  const hasSource = isSource(sourceParam);
-  const source = hasSource ? sourceParam : fallback.source;
+  const parsedSource = parseSource(sourceParam);
+  const hasSource = parsedSource !== null;
+  const source = parsedSource ?? fallback.source;
   const defaults = SOURCE_DEFAULTS[source];
   const project = params.get("project") || (hasSource ? defaults.project : fallback.project);
   const symbol = params.get("symbol") || (hasSource ? defaults.symbol : fallback.symbol);

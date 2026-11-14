@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { GraphBackend } from "../../../extension/api";
-
-  type SourceKind = "mock" | "cbm";
+  import type { SourceKind } from "../../graph/url-state";
 
   interface Props {
     kind: SourceKind;
@@ -35,11 +34,11 @@
       <div class="segmented" role="group" aria-label="Graph source">
         <button
           class="segmented-button"
-          class:active={kind === "mock"}
+          class:active={kind === "computed"}
           type="button"
-          aria-pressed={kind === "mock"}
-          onclick={() => onsource("mock")}
-        >Mock</button>
+          aria-pressed={kind === "computed"}
+          onclick={() => onsource("computed")}
+        >Computed</button>
         <button
           class="segmented-button"
           class:active={kind === "cbm"}
@@ -60,10 +59,10 @@
       ></vscode-textfield>
     </label>
 
-    <p class="setup-meta">{runtime} · {backend}</p>
+    <p class="setup-meta">{runtime} · {kind === "computed" ? "computed" : backend}</p>
     <p class="hint">
-      Mock works offline. cbm reads a local Codebase Memory listener; the
-      project name must already exist in it.
+      Computed opens a file or folder path in the offline sample. cbm reads a
+      local Codebase Memory listener; the project name must already exist in it.
     </p>
   </div>
 </aside>

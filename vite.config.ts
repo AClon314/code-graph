@@ -15,6 +15,13 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [svelte()],
+    define: {
+      // The browser host has no Node `process`; bake the caller's cwd in so
+      // copied absolute paths are meaningful in `bun run web`.
+      __CODE_GRAPH_WORKSPACE_ROOT__: JSON.stringify(
+        process.env.CODE_GRAPH_WORKSPACE_ROOT ?? process.cwd(),
+      ),
+    },
     resolve: {
       alias: {
         "#host": host,

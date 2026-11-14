@@ -36,6 +36,7 @@ export function createExtensionApi(): ExtensionApi {
         cbmBaseUrl: DEFAULT_CONFIG.cbmBaseUrl,
         project: globals.CODE_NAV_PROJECT ?? DEFAULT_CONFIG.project,
         symbolEntry: globals.CODE_NAV_SYMBOL_ENTRY ?? DEFAULT_CONFIG.symbolEntry,
+        workspaceRoot: globals.CODE_NAV_ROOT ?? "",
       };
     },
     async fetchCbm(request) {

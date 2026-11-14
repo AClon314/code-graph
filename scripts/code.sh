@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Start the local GUI harness: build, install this extension into an isolated
-# code-server profile, and run code-server on the caller's cwd.
+# Start the local code-server harness: build, install this extension into an
+# isolated profile, and run code-server on the caller's cwd.
 #
-#   bun run gui
-#   WORKSPACE=/path/to/repo bun run gui
-#   HOST=0.0.0.0 PASSWORD=secret bun run gui   # remote, password auth
+#   bun run code
+#   WORKSPACE=/path/to/repo bun run code
+#   HOST=0.0.0.0 PASSWORD=secret bun run code   # remote, password auth
 #
 # code-server otherwise redirects "/" to the last folder stored in coder.json;
 # --ignore-last-opened keeps the explicit WORKSPACE (current cwd by default)
@@ -25,7 +25,7 @@ cd "$REPO"
 
 if ! command -v code-server >/dev/null 2>&1; then
   echo "error: code-server is not installed or not on PATH" >&2
-  echo "       install it first; bun run gui has no test-web fallback" >&2
+  echo "       install it first; bun run code has no test-web fallback" >&2
   exit 127
 fi
 

@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "bun run web",
+    "web": "vite --host 127.0.0.1",
+    "web:public": "vite --host 0.0.0.0",
     "build": "bun run build:webview && bun run build:extension && bun run build:fresh && bun run verify:runtime",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "test": "bun test tests/*.test.ts",
@@ -21,9 +23,11 @@
     "build:extension": "esbuild src/extension/vscode.ts --bundle --format=cjs --platform=node --external:vscode --outfile=out/dist/extension.cjs --sourcemap",
     "build:fresh": "esbuild tui/plugin.ts --bundle --format=iife --platform=browser --alias:#host=./src/extension/hosts/fresh.ts --outfile=out/fresh-plugin/code-graph.js --sourcemap",
     "cbm": "codebase-memory-mcp",
-    "gui": "bun run gui:private",
-    "gui:private": "bash scripts/gui.sh",
-    "gui:public": "HOST=0.0.0.0 AUTH=password PASSWORD=${PASSWORD:-cbm} bash scripts/gui.sh",
+    "code": "bash scripts/code.sh",
+    "code:public": "HOST=0.0.0.0 AUTH=password PASSWORD=${PASSWORD:-cbm} bash scripts/code.sh",
+    "gui": "bun run code",
+    "gui:private": "bun run code",
+    "gui:public": "bun run code:public",
     "vscode:prepublish": "bun run build",
     "verify:runtime": "bash scripts/verify-runtime.sh",
     "lazy_mkcert": "bun run scripts/lazy-mkcert.ts",
@@ -89,11 +93,11 @@
         "codeGraph.source": {
           "type": "string",
           "enum": [
-            "mock",
+            "computed",
             "cbm"
           ],
           "default": "cbm",
-          "description": "Graph source. Mock works without a running cbm server."
+          "description": "Graph source. Computed works without a running cbm server."
         },
         "codeGraph.cbmBaseUrl": {
           "type": "string",

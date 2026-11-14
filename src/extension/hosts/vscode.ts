@@ -53,7 +53,10 @@ export function createExtensionApi(backend: GraphBackend = "cbm"): ExtensionApi 
       );
       const projectConfig = await readProjectConfig();
       const resolved = backendConfig(projectConfig, backend);
-      const source = configuration.get<ExtensionConfig["source"]>("source", "cbm");
+      const configuredSource = configuration.get<string>("source", "cbm");
+      // `mock` is the legacy value; map it instead of leaving a stale panel empty.
+      const source: ExtensionConfig["source"] =
+        configuredSource === "cbm" ? "cbm" : "computed";
       const configured = configuration.get<string>("cbmBaseUrl", DEFAULT_CONFIG.cbmBaseUrl);
       const cbmBaseUrl =
         source === "cbm" ? await localEndpoint(configured) : configured;
@@ -67,6 +70,7 @@ export function createExtensionApi(backend: GraphBackend = "cbm"): ExtensionApi 
         symbolEntry:
           resolved.symbolEntry ||
           configuration.get<string>("symbolEntry", DEFAULT_CONFIG.symbolEntry),
+        workspaceRoot: activeWorkspaceFolder()?.uri.fsPath ?? "",
       };
     },
     async fetchCbm(request: CbmHttpRequest): Promise<CbmHttpResponse> {

@@ -6,6 +6,7 @@
     roots: RootCandidate[];
     loading?: boolean;
     label?: string;
+    placeholder?: string;
   }
 
   let {
@@ -13,6 +14,7 @@
     roots,
     loading = false,
     label = "Symbol entry (qualified name or #id)",
+    placeholder = "Qualified name or #id",
   }: Props = $props();
 
   function textValue(event: Event): string {
@@ -30,24 +32,27 @@
 
 <!-- vscode-textfield has no datalist support. A native select next to the
      free-form input keeps the arrow-only affordance; its popup still shows
-     the full root QNs. -->
+     the full paths/QNs. -->
 <div class="root-field">
   <div class="root-entry">
     <vscode-textfield
       value={value}
       aria-label={label}
+      placeholder={placeholder}
       spellcheck="false"
       oninput={(event: Event) => (value = textValue(event))}
     ></vscode-textfield>
     <select
       class="root-select"
-      aria-label="Choose a project root"
-      title="Choose a project root"
+      aria-label="Open a path or project root"
+      title="Open a path or project root"
       onchange={(event: Event) => selectRoot(event)}
     >
       <option value=""></option>
-      {#each roots as candidate (candidate.qualifiedName)}
-        <option value={candidate.qualifiedName}>{candidate.qualifiedName}</option>
+      {#each roots as candidate (candidate.value ?? candidate.qualifiedName)}
+        <option value={candidate.value ?? candidate.qualifiedName}>
+          {candidate.display ?? candidate.qualifiedName}
+        </option>
       {/each}
     </select>
   </div>

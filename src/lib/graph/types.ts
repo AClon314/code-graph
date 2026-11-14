@@ -1,7 +1,7 @@
 /**
  * GraphSource is the only contract the UI knows about.
  *
- * `CbmHttpSource` adapts codebase-memory-mcp's HTTP API; `MockSource` keeps the
+ * `CbmHttpSource` adapts codebase-memory-mcp's HTTP API; `ComputedSource` keeps the
  * shell testable without a running daemon. Keep this file free of Svelte and
  * CodeMirror imports so editors/LSP clients can share the same types later.
  *
@@ -16,6 +16,7 @@ export interface SymbolNode {
   qualifiedName: string;
   filePath?: string;
   startLine?: number;
+  startColumn?: number;
   endLine?: number;
   docstring?: string;
   isEntry?: boolean;
@@ -31,6 +32,7 @@ export interface SymbolConnection {
   qualifiedName: string;
   filePath?: string;
   startLine?: number;
+  startColumn?: number;
 }
 
 export interface SymbolBundle {

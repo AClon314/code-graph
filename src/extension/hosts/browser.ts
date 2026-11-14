@@ -24,6 +24,11 @@ export function createExtensionApi(): ExtensionApi {
         cbmBaseUrl: env.VITE_CBM_BASE ?? DEFAULT_CONFIG.cbmBaseUrl,
         project: env.VITE_PROJECT ?? DEFAULT_CONFIG.project,
         symbolEntry: env.VITE_SYMBOL_ENTRY ?? DEFAULT_CONFIG.symbolEntry,
+        workspaceRoot:
+          env.VITE_WORKSPACE_ROOT ??
+          (typeof __CODE_GRAPH_WORKSPACE_ROOT__ === "string"
+            ? __CODE_GRAPH_WORKSPACE_ROOT__
+            : ""),
       } satisfies ExtensionConfig;
     },
     async fetchCbm(request) {

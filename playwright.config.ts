@@ -10,16 +10,16 @@ const e2eWorkspace = fileURLToPath(new URL("./out/e2e-workspace", import.meta.ur
 const e2eProfile = fileURLToPath(new URL("./out/e2e-code-server", import.meta.url));
 
 // Keep the e2e workspace out of the source tree: write only the files the
-// smoke test needs, with mock source configured.
+// smoke test needs, with computed source configured.
 mkdirSync(join(e2eWorkspace, ".vscode"), { recursive: true });
 writeFileSync(join(e2eWorkspace, "README.md"), "# fixture\n");
 writeFileSync(
   join(e2eWorkspace, ".vscode", "settings.json"),
   `${JSON.stringify(
     {
-      "codeGraph.source": "mock",
+      "codeGraph.source": "computed",
       "codeGraph.project": "demo",
-      "codeGraph.symbolEntry": "demo.src.features.useAlias",
+      "codeGraph.symbolEntry": "src/main.ts",
     },
     null,
     2,
@@ -40,7 +40,7 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    command: "bun run gui:private",
+    command: "bun run code",
     url: `https://127.0.0.1:${port}/`,
     timeout: 180_000,
     reuseExistingServer: !process.env.CI,

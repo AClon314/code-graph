@@ -15,6 +15,10 @@ export type RootKind = "entry" | "module" | "class";
 
 export interface RootCandidate extends EntryCandidate {
   kind: RootKind;
+  /** Value inserted into the root field; defaults to `qualifiedName`. */
+  value?: string;
+  /** Human-facing picker label; defaults to `qualifiedName`. */
+  display?: string;
 }
 
 export interface RootsCacheProject {

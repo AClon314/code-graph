@@ -1,10 +1,13 @@
 # code-graph
 
-Call-graph UI for codebase-memory-mcp, delivered two ways from one graph core:
+Call-graph UI for codebase-memory-mcp, delivered from one graph core:
 
-- **GUI (HTML)**: a VS Code Node extension. `Code Graph: Open (cbm)` and
+- **Web GUI**: standalone browser shell (`bun run web`) for the computed
+  offline sample or a local cbm listener.
+- **Code GUI**: a VS Code Node extension. `Code Graph: Open (cbm)` and
   `Code Graph: Open (SCIP)` create separate editor tabs and mount the Svelte
-  GUI in a webview. cbm requests are proxied by the extension host.
+  GUI in a webview. cbm requests are proxied by the extension host. Run it
+  locally or through code-server (`bun run code`).
 - **TUI**: unchanged. Fresh consumes a precomputed orchgraph frame through the
   Fresh API.
 
@@ -14,10 +17,10 @@ The old standalone Svelte shell (with its own file tree) is preserved on the
 ## Architecture
 
 ```text
-              ┌──────────────────────────────┐
-              │ src/lib/graph (pure graph)   │
-              │ MockSource / CbmHttpSource   │
-              └──────────────┬───────────────┘
+              ┌──────────────────────────────────┐
+              │ src/lib/graph (pure graph)       │
+              │ ComputedSource / CbmHttpSource   │
+              └──────────────┬───────────────────┘
                              │
         ┌────────────────────┼────────────────────┐
         │                    │                    │
@@ -70,15 +73,17 @@ directly. Build output contains only the selected runtime:
   export / copy. Graph controls stay out of the canvas; opening an edge panel
   only resizes the graph, and an untouched graph re-fits itself.
 - Root picker: the **Symbol entry** field in the command bar is a free-form
-  `vscode-textfield` plus an arrow-only native `<select>` populated from cbm's
-  repository map (entry points, source modules, exported classes). The input
-  stays editable, so arbitrary QNs and `#id` values still work; selecting a
-  root fills the input. `vscode-textfield` has no `datalist`, hence the
-  adjacent select.
+  `vscode-textfield` plus an arrow-only native `<select>`. In `computed` mode
+  it opens a file, folder or symbol path (for example `src/features.ts` or
+  `src/lib`); in `cbm` mode it is populated from cbm's repository map (entry
+  points, source modules, exported classes). The input stays editable, so
+  arbitrary paths, QNs and `#id` values still work. `vscode-textfield` has no
+  `datalist`, hence the adjacent select.
 - Details: **Details** opens an edge inspector with the symbol bundle;
   callers/callees are collapsible sections. Selecting a graph node opens it
-  automatically. **Jump** opens the file at the symbol's 1-based line through
-  `ExtensionApi.openLocation`.
+  automatically. **Jump** opens the file at the symbol's line/column through
+  `ExtensionApi.openLocation`. **Copy rel**, **Copy abs** and **Copy both**
+  copy `path:line:column` (absolute paths are resolved from the workspace root).
 - Progressive disclosure: source/project live under **Setup** instead of the
   main toolbar. Keyboard shortcuts for experienced users: `/` search, `f` fit,
   `r` reload graph, `d` details, `s` setup, `Esc` close panel.
@@ -94,14 +99,14 @@ directly. Build output contains only the selected runtime:
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `codeGraph.source` | `cbm` | `mock` or `cbm` |
+| `codeGraph.source` | `cbm` | `computed` or `cbm` |
 | `codeGraph.cbmBaseUrl` | `http://127.0.0.1:9749` | local cbm HTTP base; remote/cross-origin is unsupported |
 | `codeGraph.project` | `demo` | fallback project for both backends |
 | `codeGraph.cbmProject` | `codeGraph.project` | cbm-native project for `(cbm)` |
 | `codeGraph.scipProject` | `codeGraph.project` | scip-cbm-writer project for `(SCIP)` |
 | `codeGraph.symbolEntry` | `demo.src.features.useAlias` | initial graph root symbol entry (qualified name or `#id`) |
 
-Mock works without a daemon. For `cbm`, the Node extension host runs
+Computed works without a daemon. For `cbm`, the Node extension host runs
 `config get ui_port`, probes that endpoint, then `codeGraph.cbmBaseUrl`, then
 `http://127.0.0.1:9749` (duplicates are skipped). The webview only talks to the
 host; it never fetches cbm directly. Remote/cross-origin cbm is not supported.
@@ -270,24 +275,32 @@ users.
 
 ## Run
 
+Two shells share the same Svelte workbench:
+
 ```bash
 bun install
-bun run gui
+bun run web    # standalone browser GUI, http://127.0.0.1:5173
+bun run code   # code-server with the extension installed, https://127.0.0.1:8080
 ```
 
-`gui` builds all bundles, checks `code-server` is on `PATH` (it exits with an
-error if not), installs this extension into an isolated profile under
+`bun run web` is the lightweight browser shell; it uses the computed offline
+sample unless `VITE_SOURCE=cbm` points it at a local cbm listener. Use
+`bun run web:public` to bind Vite to `0.0.0.0`.
+
+`bun run code` builds all bundles, checks `code-server` is on `PATH` (it exits
+with an error if not), installs this extension into an isolated profile under
 `.code-server/`, and starts code-server on the current directory. Open the URL
-printed by code-server (usually `https://127.0.0.1:8080`). Use
-`WORKSPACE=/path/to/repo bun run gui` to open a different workspace.
+printed by code-server. Use `WORKSPACE=/path/to/repo bun run code` to open a
+different workspace.
 
 The launcher passes `--ignore-last-opened`; without it, code-server redirects
 bare `/` to the folder saved in its profile (which is how an e2e run can leave
 you in `out/e2e-workspace`). The e2e profile is now kept separately under
 `out/e2e-code-server`.
 
-`bun run gui` is an alias for `bun run gui:private`:
-`HOST=127.0.0.1 PORT=8080 AUTH=none`.
+`bun run code` is the local mode: `HOST=127.0.0.1 PORT=8080 AUTH=none`.
+`bun run code:public` binds `0.0.0.0` with password auth. The old `gui`,
+`gui:private` and `gui:public` commands remain aliases.
 
 `bun run cbm` is a direct alias for `codebase-memory-mcp`; it does not add a
 wrapper or start the UI by itself. Start the UI/HTTP listener explicitly:
@@ -299,26 +312,26 @@ bun i -g codebase-memory-mcp@0.12.1
 bun run cbm --ui=true --port=9751
 ```
 
-`bun run gui` and `bun run gui:public` start this listener automatically when
+`bun run code` and `bun run code:public` start this listener automatically when
 it is not already healthy. They resolve `CBM_BIN`, then
 `codebase-memory-mcp` on `PATH`, read `CBM_PORT` or
 `codebase-memory-mcp config get ui_port`, and write logs to `out/cbm.log`.
-The `gui` process itself still talks to cbm through the Node extension host.
+The `code` process itself still talks to cbm through the Node extension host.
 
 `tui` installs the Fresh plugin only; start the cbm listener separately for
-cbm-backed panels. When the global binary is on `PATH`, neither `gui` nor Fresh
+cbm-backed panels. When the global binary is on `PATH`, neither `code` nor Fresh
 needs `CBM_BIN`. If code-server or Fresh is launched from an environment
 without `~/.bun/bin`, pass the binary explicitly:
 
 ```bash
-CBM_BIN="$(command -v codebase-memory-mcp)" bun run gui
+CBM_BIN="$(command -v codebase-memory-mcp)" bun run code
 CBM_BIN="$(command -v codebase-memory-mcp)" fresh
 ```
 
 If cbm is already running, verify it with
 `curl http://127.0.0.1:9751/api/ui-config` instead of starting a second process.
 
-`gui` first runs `bun run lazy_mkcert`, which writes `out/certs/pub.pem` and
+`code` first runs `bun run lazy_mkcert`, which writes `out/certs/pub.pem` and
 `out/certs/key.pem` and gives code-server a browser-trusted certificate for
 `localhost`, the loopback addresses, and every address reported by
 `ip -j addr`. Existing certificates are kept; use `bun run lazy_mkcert --force`
@@ -351,9 +364,9 @@ out/certs/                   generated TLS certificate and key
 Public/LAN mode:
 
 ```bash
-bun run gui:public
+bun run code:public
 # HOST=0.0.0.0 PORT=8080 AUTH=password PASSWORD=cbm
-PASSWORD=... bun run gui:public   # override the default password
+PASSWORD=... bun run code:public   # override the default password
 ```
 
 The harness does not fall back to `@vscode/test-web`. See
@@ -363,11 +376,11 @@ the cbm network caveat.
 Standalone webview development (no VS Code shell):
 
 ```bash
-bun run dev
+bun run web
 # http://127.0.0.1:5173
 ```
 
-`vite dev` uses the browser host; Jump goes through the JSON-RPC bridge:
+`web` uses the browser host; Jump goes through the JSON-RPC bridge:
 
 ```bash
 bun run jump:bridge
@@ -495,7 +508,7 @@ Termwright, and `tests/vscode/` for Playwright. Termwright needs Node 22 or 24;
 - **Remote/cross-origin cbm is unsupported.** cbm is expected on the same
   machine as the extension host (desktop local or the code-server server).
 - No embedded code editor; navigation is `openLocation`.
-- `bun run gui` is a code-server development harness, not a packaged VSIX
+- `bun run code` is a code-server development harness, not a packaged VSIX
   workflow. It requires `code-server` on `PATH`.
 - `deprecated-svelteUI` keeps the old shell for reference; do not add features
   there.

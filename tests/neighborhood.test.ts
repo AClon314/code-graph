@@ -1,16 +1,16 @@
 import { expect, test } from "bun:test";
 
 import { loadNeighborhood } from "../src/lib/graph/neighborhood";
-import { MockSource } from "../src/lib/graph/mock";
+import { ComputedSource } from "../src/lib/graph/computed";
 import type {
   GraphSource,
   SymbolBundle,
   SymbolConnection,
 } from "../src/lib/graph/types";
 
-test("MockSource neighborhood renders root, callers and callees", async () => {
+test("ComputedSource neighborhood renders root, callers and callees", async () => {
   const data = await loadNeighborhood(
-    new MockSource(),
+    new ComputedSource(),
     "demo",
     "demo.src.features.useAlias",
     { depth: 1, direction: "both" },
