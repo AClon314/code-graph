@@ -8,11 +8,21 @@
     runtime: string;
     backend: GraphBackend;
     onsource: (kind: SourceKind) => void;
+    onbackend: (backend: GraphBackend) => void;
     onproject: (value: string) => void;
     onclose: () => void;
   }
 
-  let { kind, project, runtime, backend, onsource, onproject, onclose }: Props = $props();
+  let {
+    kind,
+    project,
+    runtime,
+    backend,
+    onsource,
+    onbackend,
+    onproject,
+    onclose,
+  }: Props = $props();
 
   function textValue(event: Event): string {
     return (event.currentTarget as HTMLElement & { value: string }).value;
@@ -48,6 +58,28 @@
         >cbm</button>
       </div>
     </div>
+
+    {#if kind === "cbm"}
+      <div class="field">
+        <span class="field-label">Backend</span>
+        <div class="segmented" role="group" aria-label="Graph backend">
+          <button
+            class="segmented-button"
+            class:active={backend === "cbm"}
+            type="button"
+            aria-pressed={backend === "cbm"}
+            onclick={() => onbackend("cbm")}
+          >cbm</button>
+          <button
+            class="segmented-button"
+            class:active={backend === "scip"}
+            type="button"
+            aria-pressed={backend === "scip"}
+            onclick={() => onbackend("scip")}
+          >SCIP</button>
+        </div>
+      </div>
+    {/if}
 
     <!-- svelte-ignore a11y_label_has_associated_control -->
     <label class="field">

@@ -68,10 +68,11 @@
     const behavior = zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.08, 4])
       .extent(() => {
-        const rect = svgEl?.getBoundingClientRect();
+        // clientWidth/Height are local CSS px; getBoundingClientRect would
+        // include the host's DPI zoom and make fit() over-shrink the graph.
         return [
           [0, 0],
-          [rect?.width || 800, rect?.height || 500],
+          [svgEl?.clientWidth || 800, svgEl?.clientHeight || 500],
         ];
       })
       .on("zoom", (event) => {
@@ -112,9 +113,8 @@
       return;
     }
 
-    const rect = svgEl.getBoundingClientRect();
-    const width = rect.width || svgEl.clientWidth || 800;
-    const height = rect.height || svgEl.clientHeight || 500;
+    const width = svgEl.clientWidth || 800;
+    const height = svgEl.clientHeight || 500;
     if (width <= 0 || height <= 0) return;
 
     const graphWidth = Math.max(layout.width, 1);

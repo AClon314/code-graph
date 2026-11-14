@@ -9,15 +9,22 @@ test("opens the computed Code Graph webview", async ({ page }) => {
   await page.waitForSelector(".monaco-workbench", { timeout: 30_000 });
 
   await page.keyboard.press("Control+Shift+P");
-  await page.keyboard.type("Code Graph: Open (cbm)");
+  await page.keyboard.type("Code Graph: Open in New Tab");
+  await expect(
+    page.getByRole("option", { name: "Code Graph: Open in New Tab", exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  await page.keyboard.press("Control+Shift+P");
+  await page.keyboard.type("Code Graph: Open");
   const command = page.getByRole("option", {
-    name: "Code Graph: Open (cbm)",
+    name: "Code Graph: Open",
     exact: true,
   });
   await expect(command).toBeVisible();
   await command.click();
 
-  await expect(page.getByRole("tab", { name: /Code Graph \(cbm\)/ })).toBeVisible({
+  await expect(page.getByRole("tab", { name: "Code Graph", exact: true })).toBeVisible({
     timeout: 30_000,
   });
 

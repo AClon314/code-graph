@@ -76,8 +76,8 @@ window.addEventListener("message", (event: MessageEvent<HostResponse>) => {
 export function createExtensionApi(): ExtensionApi {
   return {
     runtime: "webview",
-    async getConfig() {
-      return request(configPending, (id) => ({ type: "getConfig", id }));
+    async getConfig(backend) {
+      return request(configPending, (id) => ({ type: "getConfig", id, backend }));
     },
     async fetchCbm(cbmRequest: CbmHttpRequest) {
       return request(cbmPending, (id) => ({ type: "cbmFetch", id, request: cbmRequest }));

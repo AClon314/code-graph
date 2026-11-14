@@ -28,10 +28,10 @@ type FreshGlobals = {
 export function createExtensionApi(): ExtensionApi {
   return {
     runtime: "fresh",
-    async getConfig() {
+    async getConfig(requestedBackend?: ExtensionConfig["backend"]) {
       const globals = globalThis as unknown as FreshGlobals;
       return {
-        backend: globals.CODE_NAV_BACKEND ?? DEFAULT_CONFIG.backend,
+        backend: requestedBackend ?? globals.CODE_NAV_BACKEND ?? DEFAULT_CONFIG.backend,
         source: globals.CODE_NAV_SOURCE ?? DEFAULT_CONFIG.source,
         cbmBaseUrl: DEFAULT_CONFIG.cbmBaseUrl,
         project: globals.CODE_NAV_PROJECT ?? DEFAULT_CONFIG.project,

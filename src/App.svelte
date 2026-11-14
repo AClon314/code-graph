@@ -387,10 +387,19 @@
     if (typeof window === "undefined") return;
     const file = focusNode?.filePath ?? symbol?.node.filePath;
     const line = focusNode?.startLine ?? symbol?.node.startLine;
-    const search = formatGraphUrl(
-      { source: kind, project, symbol: ref, renderer, depth, direction },
-      file && line ? { file, line } : null,
+    const params = new URLSearchParams(
+      formatGraphUrl(
+        { source: kind, project, symbol: ref, renderer, depth, direction },
+        file && line ? { file, line } : null,
+      ),
     );
+    // Keep embed-only knobs that are not part of the graph state.
+    const current = new URLSearchParams(window.location.search);
+    for (const key of ["scale", "theme"]) {
+      const value = current.get(key);
+      if (value) params.set(key, value);
+    }
+    const search = `?${params.toString()}`;
     if (window.location.search !== search) {
       window.history.replaceState(null, "", `${window.location.pathname}${search}${window.location.hash}`);
     }
@@ -409,12 +418,40 @@
     void selectGraphNode(match);
   }
 
-  function setKind(next: SourceKind): void {
+  async function setKind(next: SourceKind): Promise<void> {
     kind = next;
-    const defaults = SOURCE_DEFAULTS[next];
-    project = defaults.project;
-    ref = defaults.symbol;
-    void load();
+    if (next === "computed") {
+      const defaults = SOURCE_DEFAULTS.computed;
+      project = defaults.project;
+      ref = defaults.symbol;
+    } else {
+      try {
+        const config = await extensionApi.getConfig(backend);
+        project = config.project;
+        ref = config.symbolEntry;
+      } catch (cause) {
+        error = `Backend setup failed: ${message(cause)}`;
+        return;
+      }
+    }
+    await load();
+  }
+
+  async function setBackend(next: GraphBackend): Promise<void> {
+    if (next === backend) return;
+    backend = next;
+    if (kind !== "cbm") return;
+
+    try {
+      const config = await extensionApi.getConfig(next);
+      project = config.project;
+      ref = config.symbolEntry;
+      cbmBaseUrl = config.cbmBaseUrl;
+      workspaceRoot = config.workspaceRoot;
+      await load();
+    } catch (cause) {
+      error = `Backend switch failed: ${message(cause)}`;
+    }
   }
 
   function openConnection(qualifiedName: string): void {
@@ -778,6 +815,7 @@
         {runtime}
         {backend}
         onsource={setKind}
+        onbackend={setBackend}
         onproject={(value) => (project = value)}
         onclose={() => (setupOpen = false)}
       />

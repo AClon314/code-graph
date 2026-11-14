@@ -32,6 +32,12 @@ export default defineConfig(({ mode }) => {
       host: "0.0.0.0",
       allowedHosts: true,
       port: 5173,
+      // code-server/e2e profiles symlink this repo into themselves. Following
+      // that link makes the watcher walk its own output tree forever (CPU/OOM).
+      watch: {
+        ignored: ["**/.code-server/**", "**/out/**", "**/.git/**"],
+        followSymlinks: false,
+      },
       proxy: {
         "/api": {
           target: process.env.CBM_HTTP ?? "http://127.0.0.1:9749",

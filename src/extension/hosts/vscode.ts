@@ -45,14 +45,15 @@ function forgetEndpoint(configured: string): void {
 export function createExtensionApi(backend: GraphBackend = "cbm"): ExtensionApi {
   return {
     runtime: "vscode",
-    async getConfig() {
+    async getConfig(requestedBackend?: GraphBackend) {
+      const activeBackend = requestedBackend ?? backend;
       const configuration = vscode.workspace.getConfiguration("codeGraph");
       const fallbackProject = configuration.get<string>(
         "project",
         DEFAULT_CONFIG.project,
       );
       const projectConfig = await readProjectConfig();
-      const resolved = backendConfig(projectConfig, backend);
+      const resolved = backendConfig(projectConfig, activeBackend);
       const configuredSource = configuration.get<string>("source", "cbm");
       const source: ExtensionConfig["source"] =
         configuredSource === "computed" ? "computed" : "cbm";
@@ -60,12 +61,12 @@ export function createExtensionApi(backend: GraphBackend = "cbm"): ExtensionApi 
       const cbmBaseUrl =
         source === "cbm" ? await localEndpoint(configured) : configured;
       return {
-        backend,
+        backend: activeBackend,
         source,
         cbmBaseUrl,
         project:
           resolved.project ||
-          configuration.get<string>(`${backend}Project`, fallbackProject),
+          configuration.get<string>(`${activeBackend}Project`, fallbackProject),
         symbolEntry:
           resolved.symbolEntry ||
           configuration.get<string>("symbolEntry", DEFAULT_CONFIG.symbolEntry),

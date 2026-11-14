@@ -1,0 +1,103 @@
+/*
+ * code-graph theme tokens and DPI scale.
+ *
+ * Same shape as gpen-js themes: `light-dark()` picks a branch from
+ * `color-scheme`; `data-code-graph-theme="light|dark"` pins it manually.
+ * There is intentionally no `prefers-color-scheme` override block: an
+ * attribute must be able to beat the system preference.
+ *
+ * Host integration: real VS Code tokens (`--vscode-*`) win when present, so
+ * the extension keeps the user's editor theme. The light-dark fallbacks make
+ * the standalone web shell usable without any editor tokens.
+ *
+ * Third-party embedding: set `--code-graph-scale` on the root/host element.
+ * `--code-graph-zoom` clamps it to a safe range and is the only value consumed
+ * by layout. The shell applies it as CSS `zoom`; percentage boxes resolve in
+ * local px, so the app still fills the visual viewport.
+ */
+:root,
+:host {
+  color-scheme: light dark;
+
+  --code-graph-scale: 1;
+  --code-graph-zoom: clamp(0.25, var(--code-graph-scale), 4);
+
+  --cg-font-sans: var(--vscode-font-family, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif);
+  --cg-font-mono: "Maple Mono NF CN", var(--vscode-editor-font-family, "UbuntuMono Nerd Font", monospace);
+  --cg-font-size: calc(var(--vscode-font-size, 13px) + 2px);
+
+  --cg-bg: var(--vscode-editor-background, #ffffff);
+  --cg-bg: var(--vscode-editor-background, light-dark(#ffffff, #1e1e1e));
+  --cg-panel: var(--vscode-sideBar-background, var(--vscode-editorWidget-background, #f3f3f3));
+  --cg-panel: var(--vscode-sideBar-background, var(--vscode-editorWidget-background, light-dark(#f3f3f3, #252526)));
+  --cg-line: var(--vscode-widget-border, var(--vscode-panel-border, #d4d4d4));
+  --cg-line: var(--vscode-widget-border, var(--vscode-panel-border, light-dark(#d4d4d4, #3c3c3c)));
+  --cg-text: var(--vscode-foreground, #1f1f1f);
+  --cg-text: var(--vscode-foreground, light-dark(#1f1f1f, #cccccc));
+  --cg-muted: var(--vscode-descriptionForeground, #6f6f6f);
+  --cg-muted: var(--vscode-descriptionForeground, light-dark(#6f6f6f, #9d9d9d));
+  --cg-accent: var(--vscode-button-background, #0e639c);
+  --cg-accent: var(--vscode-button-background, light-dark(#0e639c, #0e639c));
+  --cg-accent-fg: var(--vscode-button-foreground, #ffffff);
+  --cg-graph-bg: var(--vscode-editor-background, #ffffff);
+  --cg-graph-bg: var(--vscode-editor-background, light-dark(#ffffff, #1e1e1e));
+  --cg-node-bg: var(--vscode-editorWidget-background, #ffffff);
+  --cg-node-bg: var(--vscode-editorWidget-background, light-dark(#ffffff, #252526));
+  --cg-node-line: var(--vscode-input-border, #c8c8c8);
+  --cg-node-line: var(--vscode-input-border, light-dark(#c8c8c8, #3c3c3c));
+  --cg-edge: var(--vscode-editorLineNumber-foreground, #999999);
+  --cg-edge: var(--vscode-editorLineNumber-foreground, light-dark(#999999, #858585));
+  --cg-hit: var(--vscode-editorWarning-foreground, #bf8803);
+  --cg-hit: var(--vscode-editorWarning-foreground, light-dark(#bf8803, #cca700));
+}
+
+/*
+ * VS Code webview tokens are provided by the editor host. The standalone web
+ * shell has no host, so give @vscode-elements the same light/dark fallbacks
+ * instead of letting it render its default dark controls on a light page.
+ */
+:root[data-code-graph-standalone] {
+  --vscode-font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --vscode-font-size: 15px;
+  --cg-font-size: 15px;
+  --vscode-editor-background: light-dark(#ffffff, #1e1e1e);
+  --vscode-sideBar-background: light-dark(#f3f3f3, #252526);
+  --vscode-editorWidget-background: light-dark(#ffffff, #252526);
+  --vscode-widget-border: light-dark(#d4d4d4, #3c3c3c);
+  --vscode-panel-border: light-dark(#d4d4d4, #3c3c3c);
+  --vscode-foreground: light-dark(#1f1f1f, #cccccc);
+  --vscode-descriptionForeground: light-dark(#6f6f6f, #9d9d9d);
+  --vscode-button-background: #0e639c;
+  --vscode-button-foreground: #ffffff;
+  --vscode-button-hoverBackground: #1177bb;
+  --vscode-button-secondaryBackground: light-dark(#e5e5e5, #3a3d41);
+  --vscode-button-secondaryForeground: light-dark(#1f1f1f, #ffffff);
+  --vscode-button-secondaryHoverBackground: light-dark(#d6d6d6, #45494e);
+  --vscode-input-background: light-dark(#ffffff, #3c3c3c);
+  --vscode-input-foreground: light-dark(#1f1f1f, #cccccc);
+  --vscode-input-border: light-dark(#c8c8c8, #3c3c3c);
+  --vscode-dropdown-background: light-dark(#ffffff, #3c3c3c);
+  --vscode-dropdown-foreground: light-dark(#1f1f1f, #cccccc);
+  --vscode-dropdown-border: light-dark(#c8c8c8, #3c3c3c);
+  --vscode-settings-dropdownBackground: light-dark(#ffffff, #3c3c3c);
+  --vscode-settings-dropdownForeground: light-dark(#1f1f1f, #cccccc);
+  --vscode-settings-dropdownBorder: light-dark(#c8c8c8, #3c3c3c);
+  --vscode-settings-dropdownListBorder: light-dark(#d4d4d4, #454545);
+  --vscode-list-hoverBackground: light-dark(#e8e8e8, #2a2d2e);
+  --vscode-list-hoverForeground: light-dark(#1f1f1f, #ffffff);
+  --vscode-list-activeSelectionBackground: light-dark(#0060c0, #04395e);
+  --vscode-list-activeSelectionForeground: #ffffff;
+  --vscode-focusBorder: #0078d4;
+  --vscode-editorLineNumber-foreground: light-dark(#999999, #858585);
+  --vscode-editorWarning-foreground: light-dark(#bf8803, #cca700);
+}
+
+:root[data-code-graph-theme="light"],
+:host([data-code-graph-theme="light"]) {
+  color-scheme: light;
+}
+
+:root[data-code-graph-theme="dark"],
+:host([data-code-graph-theme="dark"]) {
+  color-scheme: dark;
+}

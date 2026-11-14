@@ -6,7 +6,7 @@ import type {
 } from "./api";
 
 export type HostRequest =
-  | { type: "getConfig"; id: number }
+  | { type: "getConfig"; id: number; backend?: "cbm" | "scip" }
   | { type: "cbmFetch"; id: number; request: CbmHttpRequest }
   | { type: "openLocation"; id: number; location: SourceLocation }
   | { type: "openSettings"; id: number; query: string }

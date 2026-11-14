@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 
-import type { ExtensionApi, GraphBackend } from "./api";
+import type { ExtensionApi } from "./api";
 import type { HostRequest, HostResponse } from "./protocol";
 
 const FONT_CDN = "https://fontsapi.zeoseven.com";
@@ -9,9 +9,8 @@ const FONT_CDN = "https://fontsapi.zeoseven.com";
 export function createGraphPanel(
   context: vscode.ExtensionContext,
   api: ExtensionApi,
-  backend: GraphBackend = "cbm",
 ): vscode.WebviewPanel {
-  const title = backend === "scip" ? "Code Graph (SCIP)" : "Code Graph (cbm)";
+  const title = "Code Graph";
   const panel = vscode.window.createWebviewPanel(
     "codeGraph.graph",
     title,
@@ -80,7 +79,7 @@ async function handleMessage(
       post(panel, {
         type: "config",
         id: message.id,
-        config: await api.getConfig(),
+        config: await api.getConfig(message.backend),
       });
       return;
     }

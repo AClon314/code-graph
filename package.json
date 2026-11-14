@@ -68,20 +68,20 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:codeGraph.openCbm",
-    "onCommand:codeGraph.openScip"
+    "onCommand:codeGraph.open",
+    "onCommand:codeGraph.openNew"
   ],
   "main": "./out/dist/extension.cjs",
   "contributes": {
     "commands": [
       {
-        "command": "codeGraph.openCbm",
-        "title": "Open (cbm)",
+        "command": "codeGraph.open",
+        "title": "Open",
         "category": "Code Graph"
       },
       {
-        "command": "codeGraph.openScip",
-        "title": "Open (SCIP)",
+        "command": "codeGraph.openNew",
+        "title": "Open in New Tab",
         "category": "Code Graph"
       }
     ],

@@ -33,6 +33,7 @@ test("Fresh host resolves workspace-relative paths and opens 1-based locations",
   expect(calls[1]).toEqual({ path: "/abs/b.ts", line: 1, column: 1 });
 
   expect((await api.getConfig()).workspaceRoot).toBe("/repo/");
+  expect((await api.getConfig("scip")).backend).toBe("scip");
 });
 
 test("Fresh host forwards status messages to the editor", () => {

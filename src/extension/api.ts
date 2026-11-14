@@ -35,7 +35,7 @@ export type { CbmHttpRequest, CbmHttpResponse } from "../lib/cbm-request";
 
 export interface ExtensionApi {
   readonly runtime: Runtime;
-  getConfig(): Promise<ExtensionConfig>;
+  getConfig(backend?: GraphBackend): Promise<ExtensionConfig>;
   fetchCbm(request: CbmHttpRequest): Promise<CbmHttpResponse>;
   openLocation(location: SourceLocation): Promise<void>;
   openSettings(query: string): Promise<void>;

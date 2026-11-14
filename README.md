@@ -4,10 +4,11 @@ Call-graph UI for codebase-memory-mcp, delivered from one graph core:
 
 - **Web GUI**: standalone browser shell (`bun run web`) for the computed
   offline sample or a local cbm listener.
-- **Code GUI**: a VS Code Node extension. `Code Graph: Open (cbm)` and
-  `Code Graph: Open (SCIP)` create separate editor tabs and mount the Svelte
-  GUI in a webview. cbm requests are proxied by the extension host. Run it
-  locally or through code-server (`bun run code`).
+- **Code GUI**: a VS Code Node extension. **Code Graph: Open** reveals the
+  existing graph tab; **Code Graph: Open in New Tab** creates another. Both
+  mount the Svelte GUI in a webview, and the cbm/SCIP backend is switched from
+  Setup inside that page. cbm requests are proxied by the extension host. Run
+  it locally or through code-server (`bun run code`).
 - **TUI**: unchanged. Fresh consumes a precomputed orchgraph frame through the
   Fresh API.
 
@@ -60,10 +61,11 @@ directly. Build output contains only the selected runtime:
 
 ## GUI
 
-- Commands: **Code Graph: Open (cbm)** (`codeGraph.openCbm`) and
-  **Code Graph: Open (SCIP)** (`codeGraph.openScip`).
-- Each backend opens its own editor tab; invoking the same command again
-  reveals that tab. The two tabs can be compared side by side.
+- Commands: **Code Graph: Open** (`codeGraph.open`) and
+  **Code Graph: Open in New Tab** (`codeGraph.openNew`).
+- Both open the same workbench; switch between **cbm** and **SCIP** under
+  **Setup**. Use Open in New Tab to compare two projects or backends side by
+  side.
 - File tree: **VS Code Explorer**, not a webview. The old tree panel is removed.
 - Layout: the graph is the full workbench. A compact command bar carries the
   entry/load/search fields and global actions; **Setup** and **Details** are
@@ -89,16 +91,20 @@ directly. Build output contains only the selected runtime:
 - Workspace Trust: declared supported for untrusted and virtual workspaces, so
   the graph viewer is usable in Restricted Mode. cbm requests are made by the
   Node extension host, not the webview.
-- Styling: VS Code `--vscode-*` theme tokens. `@vscode-elements/elements`
+- Styling: a `--cg-*` theme palette layered over VS Code `--vscode-*` theme
+  tokens; see [`docs/theme.md`](docs/theme.md). `@vscode-elements/elements`
   provides `vscode-textfield` / `vscode-single-select`; buttons are native
   `<button>` elements using `--vscode-button-*`. The archived
   `@vscode/webview-ui-toolkit` is not used.
+- DPI: `--code-graph-scale` (or `?scale=`) scales the whole shell for
+  third-party embeds. `?theme=light|dark` sets the manual theme without
+  touching the page CSS.
 
 ### Settings
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `codeGraph.source` | `cbm` | `computed` or `cbm` |
+| `codeGraph.source` | `cbm` | initial source (`computed` or `cbm`); backend switches live in Setup |
 | `codeGraph.cbmBaseUrl` | `http://127.0.0.1:9749` | local cbm HTTP base; remote/cross-origin is unsupported |
 | `codeGraph.project` | `demo` | fallback project for both backends |
 | `codeGraph.cbmProject` | `codeGraph.project` | cbm-native project for `(cbm)` |
@@ -285,7 +291,10 @@ bun run code   # code-server with the extension installed, https://127.0.0.1:808
 `bun run web` is the lightweight browser shell; it uses the computed offline
 sample unless `VITE_SOURCE=cbm` points it at a local cbm listener.
 `bun run web:public` builds the standalone browser bundle and serves it with
-`vite preview` on `0.0.0.0`; it deliberately avoids the dev server's HMR load.
+`vite preview` on `0.0.0.0`. The dev watcher ignores `.code-server/`, `out/` and
+`.git/` and does not follow symlinks: code-server profiles symlink this repo
+back into itself, and following that link can walk the output tree forever
+(CPU spike/OOM).
 
 `bun run code` builds all bundles, checks `code-server` is on `PATH` (it exits
 with an error if not), installs this extension into an isolated profile under
@@ -500,6 +509,14 @@ bun run verify:runtime  # assert each bundle contains only its host
 Tests live under `tests/`: unit tests at the root, `tests/fresh/` for
 Termwright, and `tests/vscode/` for Playwright. Termwright needs Node 22 or 24;
 `tests/fresh/run.ts` resolves one automatically or accepts `NODE_BIN`.
+
+## Offline mode
+
+Offline mode targets large repositories: precompute every expensive stage
+(indexing, BFS, SCIP import, ELK layout, terminal frame) and let the viewer
+consume the artifact. This also leaves room for future consumers such as a
+three.js animation, static reports, or a dashboard embed. See
+[`docs/offline.md`](docs/offline.md) for the boundary and current gaps.
 
 ## LIMITATIONS
 
