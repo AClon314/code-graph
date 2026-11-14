@@ -47,6 +47,6 @@ export const DEFAULT_CONFIG: ExtensionConfig = {
   source: "computed",
   cbmBaseUrl: "http://127.0.0.1:9749",
   project: "demo",
-  symbolEntry: "src/main.ts",
+  symbolEntry: "demo.src.features.useAlias",
   workspaceRoot: "",
 };

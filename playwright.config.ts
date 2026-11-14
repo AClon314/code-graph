@@ -19,7 +19,7 @@ writeFileSync(
     {
       "codeGraph.source": "computed",
       "codeGraph.project": "demo",
-      "codeGraph.symbolEntry": "src/main.ts",
+      "codeGraph.symbolEntry": "demo.src.features.useAlias",
     },
     null,
     2,

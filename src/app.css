@@ -21,7 +21,9 @@
   --font-code: "Maple Mono NF CN", var(--vscode-editor-font-family, "UbuntuMono Nerd Font", monospace);
 
   font-family: var(--vscode-font-family, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif);
-  font-size: var(--vscode-font-size, 13px);
+  /* Keep VS Code's font preference, but make the standalone/web workbench
+     legible without zooming. */
+  font-size: calc(var(--vscode-font-size, 13px) + 2px);
 }
 
 * {

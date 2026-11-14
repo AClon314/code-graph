@@ -36,11 +36,11 @@ export const GRAPH_SVG_RULES = `
 .orchgraph-edge { fill: none; stroke: var(--edge, #888888); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .orchgraph-arrow { fill: var(--edge, #888888); }
 .orchgraph-node rect { fill: var(--node-bg, #ffffff); stroke: var(--node-line, #999999); stroke-width: 1.25; }
-.orchgraph-node-kind { fill: var(--muted, #666666); font: 600 9px var(--font-code, ui-monospace, monospace); letter-spacing: .04em; text-transform: uppercase; }
-.orchgraph-node-label { fill: var(--text, #111111); font: 600 14px var(--font-code, ui-monospace, monospace); }
-.orchgraph-node-detail { fill: var(--muted, #666666); font: 10px var(--font-code, ui-monospace, monospace); }
-.orchgraph-node-state { fill: var(--muted, #666666); font: 700 12px var(--font-code, ui-monospace, monospace); }
-.orchgraph-edge-label { fill: var(--muted, #666666); font: 10px var(--font-code, ui-monospace, monospace); text-anchor: middle; }
+.orchgraph-node-kind { fill: var(--muted, #666666); font: 600 10px var(--font-code, ui-monospace, monospace); letter-spacing: .04em; text-transform: uppercase; }
+.orchgraph-node-label { fill: var(--text, #111111); font: 600 15px var(--font-code, ui-monospace, monospace); }
+.orchgraph-node-detail { fill: var(--muted, #666666); font: 11px var(--font-code, ui-monospace, monospace); }
+.orchgraph-node-state { fill: var(--muted, #666666); font: 700 13px var(--font-code, ui-monospace, monospace); }
+.orchgraph-edge-label { fill: var(--muted, #666666); font: 11px var(--font-code, ui-monospace, monospace); text-anchor: middle; }
 .orchgraph-node.is-search-hit rect { stroke: var(--hit, #c98a00); stroke-width: 2; }
 .orchgraph-node.is-selected rect { stroke: var(--accent, #176b5a); stroke-width: 2.5; }
 `.trim();

@@ -4,9 +4,10 @@ import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { defineConfig } from "vite";
 
 export default defineConfig(({ mode }) => {
+  const standalone = mode === "development" || mode === "web";
   const host = fileURLToPath(
     new URL(
-      mode === "development"
+      standalone
         ? "./src/extension/hosts/browser.ts"
         : "./src/extension/hosts/webview.ts",
       import.meta.url,
@@ -43,12 +44,14 @@ export default defineConfig(({ mode }) => {
       allowedHosts: true,
     },
     build: {
-      outDir: "out/dist/webview",
+      outDir: standalone ? "out/dist/web" : "out/dist/webview",
       emptyOutDir: true,
       // The code-server harness debugs this bundle in Chrome DevTools.
       sourcemap: true,
       rollupOptions: {
-        input: fileURLToPath(new URL("./src/main.ts", import.meta.url)),
+        input: fileURLToPath(
+          new URL(standalone ? "./index.html" : "./src/main.ts", import.meta.url),
+        ),
         output: {
           entryFileNames: "assets/webview.js",
           chunkFileNames: "assets/[name].js",

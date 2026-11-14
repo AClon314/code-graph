@@ -6,7 +6,6 @@
     roots: RootCandidate[];
     loading?: boolean;
     label?: string;
-    placeholder?: string;
   }
 
   let {
@@ -14,7 +13,6 @@
     roots,
     loading = false,
     label = "Symbol entry (qualified name or #id)",
-    placeholder = "Qualified name or #id",
   }: Props = $props();
 
   function textValue(event: Event): string {
@@ -38,7 +36,6 @@
     <vscode-textfield
       value={value}
       aria-label={label}
-      placeholder={placeholder}
       spellcheck="false"
       oninput={(event: Event) => (value = textValue(event))}
     ></vscode-textfield>
@@ -49,10 +46,8 @@
       onchange={(event: Event) => selectRoot(event)}
     >
       <option value=""></option>
-      {#each roots as candidate (candidate.value ?? candidate.qualifiedName)}
-        <option value={candidate.value ?? candidate.qualifiedName}>
-          {candidate.display ?? candidate.qualifiedName}
-        </option>
+      {#each roots as candidate (candidate.qualifiedName)}
+        <option value={candidate.qualifiedName}>{candidate.qualifiedName}</option>
       {/each}
     </select>
   </div>

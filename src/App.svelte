@@ -13,11 +13,7 @@
     formatCbmEndpointError,
     type FetchLike,
   } from "./lib/cbm-endpoint";
-  import {
-    ComputedSource,
-    computedDisplayRef,
-    computedRootCandidates,
-  } from "./lib/graph/computed";
+  import { ComputedSource } from "./lib/graph/computed";
   import { fetchRootCandidates, type RootCandidate } from "./lib/graph/roots";
   import { graphSvgStyle, SVG_THEME_VARIABLE_NAMES } from "./lib/graph/svg";
   import {
@@ -61,7 +57,7 @@
 
   let kind = $state<SourceKind>("computed");
   let project = $state("demo");
-  let ref = $state("src/main.ts");
+  let ref = $state("demo.src.features.useAlias");
   let cbmBaseUrl = $state("http://127.0.0.1:9749");
   let workspaceRoot = $state("");
   let runtime = $state(extensionApi.runtime);
@@ -241,8 +237,8 @@
   }
 
   async function loadRoots(): Promise<void> {
-    if (kind === "computed") {
-      rootCandidates = computedRootCandidates();
+    if (kind !== "cbm") {
+      rootCandidates = [];
       rootsLoading = false;
       return;
     }
@@ -375,7 +371,7 @@
     });
     kind = next.source;
     project = next.project;
-    ref = kind === "computed" ? computedDisplayRef(next.symbol) : next.symbol;
+    ref = next.symbol;
     renderer = next.renderer;
     depth = next.depth;
     direction = next.direction;
@@ -409,7 +405,7 @@
     pendingLocation = null;
     selectedId = match.id;
     focusNode = match;
-    ref = rootRefFor(match);
+    ref = match.qualifiedName || match.id;
     void selectGraphNode(match);
   }
 
@@ -421,14 +417,8 @@
     void load();
   }
 
-  function rootRefFor(node: { filePath?: string; qualifiedName?: string; id?: string }): string {
-    if (kind === "computed") return node.filePath || node.qualifiedName || node.id || "";
-    return node.qualifiedName || node.id || "";
-  }
-
   function openConnection(qualifiedName: string): void {
-    const node = graphData?.nodes.find((candidate) => candidate.qualifiedName === qualifiedName);
-    ref = node ? rootRefFor(node) : qualifiedName;
+    ref = qualifiedName;
     inspectorOpen = true;
     setupOpen = false;
     syncUrl();
@@ -459,7 +449,7 @@
   async function selectGraphNode(node: GraphViewNode): Promise<void> {
     selectedId = node.id;
     focusNode = node;
-    ref = rootRefFor(node);
+    ref = node.qualifiedName || node.id;
     inspectorOpen = true;
     setupOpen = false;
     syncUrl();
@@ -702,16 +692,15 @@
         bind:value={ref}
         roots={rootCandidates}
         loading={rootsLoading}
-        label={kind === "computed" ? "File, folder, or symbol path" : "Symbol entry (qualified name or #id)"}
-        placeholder={kind === "computed" ? "src/features.ts, src/lib, or a qualified name" : "Qualified name or #id"}
+        label="Symbol entry (qualified name or #id)"
       />
       <button
         class="vscode-button load-button"
         type="button"
         onclick={() => void load()}
         disabled={loading}
-        title={kind === "computed" ? "Open this file, folder, or symbol" : "Load this symbol entry"}
-      >{loading ? "Loading…" : kind === "computed" ? "Open" : "Load"}</button>
+        title="Load this symbol entry"
+      >{loading ? "Loading…" : "Load"}</button>
     </div>
 
     <!-- svelte-ignore a11y_label_has_associated_control -->
@@ -822,11 +811,7 @@
             <p class="graph-empty-title">
               {graphLoading || loading ? "Loading neighborhood…" : "No graph loaded"}
             </p>
-            <p class="sub">
-              {kind === "computed"
-                ? "Open a file or folder above, or pick one from the arrow menu."
-                : "Choose a symbol entry above, or open Setup to pick a source."}
-            </p>
+            <p class="sub">Choose a symbol entry above, or open Setup to pick a source.</p>
           </div>
         {/if}
       </div>

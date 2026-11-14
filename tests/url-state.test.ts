@@ -19,14 +19,7 @@ test("source defaults supply project and symbol", () => {
   expect(parseGraphUrl("?source=computed", fallback)).toEqual({
     ...fallback,
     project: "demo",
-    symbol: "src/main.ts",
-    location: null,
-  });
-  // Old bookmarks and settings used `mock`; keep them working.
-  expect(parseGraphUrl("?source=mock", fallback)).toEqual({
-    ...fallback,
-    project: "demo",
-    symbol: "src/main.ts",
+    symbol: "demo.src.features.useAlias",
     location: null,
   });
 

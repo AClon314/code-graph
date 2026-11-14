@@ -61,8 +61,8 @@
 
     <p class="setup-meta">{runtime} · {kind === "computed" ? "computed" : backend}</p>
     <p class="hint">
-      Computed opens a file or folder path in the offline sample. cbm reads a
-      local Codebase Memory listener; the project name must already exist in it.
+      Computed works offline. cbm reads a local Codebase Memory listener; the
+      project name must already exist in it.
     </p>
   </div>
 </aside>

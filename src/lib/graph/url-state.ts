@@ -13,7 +13,7 @@ export interface SourceDefaults {
 export const SOURCE_DEFAULTS: Record<SourceKind, SourceDefaults> = {
   computed: {
     project: "demo",
-    symbol: "src/main.ts",
+    symbol: "demo.src.features.useAlias",
   },
   cbm: {
     project: "fixture-hard-scip",
@@ -42,10 +42,8 @@ export interface ParsedGraphUrl extends GraphUrlState {
 const RENDERERS: readonly GraphRenderer[] = ["d3", "orchgraph"];
 const DIRECTIONS: readonly NeighborhoodDirection[] = ["both", "callers", "callees"];
 
-/** `mock` is the pre-rename URL/config value; keep old links working. */
 function parseSource(value: string | null): SourceKind | null {
-  if (value === "computed" || value === "mock") return "computed";
-  if (value === "cbm") return "cbm";
+  if (value === "computed" || value === "cbm") return value;
   return null;
 }
 

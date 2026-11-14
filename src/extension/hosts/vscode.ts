@@ -54,9 +54,8 @@ export function createExtensionApi(backend: GraphBackend = "cbm"): ExtensionApi 
       const projectConfig = await readProjectConfig();
       const resolved = backendConfig(projectConfig, backend);
       const configuredSource = configuration.get<string>("source", "cbm");
-      // `mock` is the legacy value; map it instead of leaving a stale panel empty.
       const source: ExtensionConfig["source"] =
-        configuredSource === "cbm" ? "cbm" : "computed";
+        configuredSource === "computed" ? "computed" : "cbm";
       const configured = configuration.get<string>("cbmBaseUrl", DEFAULT_CONFIG.cbmBaseUrl);
       const cbmBaseUrl =
         source === "cbm" ? await localEndpoint(configured) : configured;

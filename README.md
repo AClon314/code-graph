@@ -73,12 +73,11 @@ directly. Build output contains only the selected runtime:
   export / copy. Graph controls stay out of the canvas; opening an edge panel
   only resizes the graph, and an untouched graph re-fits itself.
 - Root picker: the **Symbol entry** field in the command bar is a free-form
-  `vscode-textfield` plus an arrow-only native `<select>`. In `computed` mode
-  it opens a file, folder or symbol path (for example `src/features.ts` or
-  `src/lib`); in `cbm` mode it is populated from cbm's repository map (entry
-  points, source modules, exported classes). The input stays editable, so
-  arbitrary paths, QNs and `#id` values still work. `vscode-textfield` has no
-  `datalist`, hence the adjacent select.
+  `vscode-textfield` plus an arrow-only native `<select>` populated from cbm's
+  repository map (entry points, source modules, exported classes). The input
+  stays editable, so arbitrary QNs and `#id` values still work; selecting a
+  root fills the input. `vscode-textfield` has no `datalist`, hence the
+  adjacent select.
 - Details: **Details** opens an edge inspector with the symbol bundle;
   callers/callees are collapsible sections. Selecting a graph node opens it
   automatically. **Jump** opens the file at the symbol's line/column through
@@ -284,8 +283,9 @@ bun run code   # code-server with the extension installed, https://127.0.0.1:808
 ```
 
 `bun run web` is the lightweight browser shell; it uses the computed offline
-sample unless `VITE_SOURCE=cbm` points it at a local cbm listener. Use
-`bun run web:public` to bind Vite to `0.0.0.0`.
+sample unless `VITE_SOURCE=cbm` points it at a local cbm listener.
+`bun run web:public` builds the standalone browser bundle and serves it with
+`vite preview` on `0.0.0.0`; it deliberately avoids the dev server's HMR load.
 
 `bun run code` builds all bundles, checks `code-server` is on `PATH` (it exits
 with an error if not), installs this extension into an isolated profile under
@@ -299,8 +299,7 @@ you in `out/e2e-workspace`). The e2e profile is now kept separately under
 `out/e2e-code-server`.
 
 `bun run code` is the local mode: `HOST=127.0.0.1 PORT=8080 AUTH=none`.
-`bun run code:public` binds `0.0.0.0` with password auth. The old `gui`,
-`gui:private` and `gui:public` commands remain aliases.
+`bun run code:public` binds `0.0.0.0` with password auth.
 
 `bun run cbm` is a direct alias for `codebase-memory-mcp`; it does not add a
 wrapper or start the UI by itself. Start the UI/HTTP listener explicitly:
@@ -355,6 +354,7 @@ All build and harness artifacts are under the git-ignored `out/` directory:
 ```text
 out/dist/extension.cjs       VS Code Node extension
 out/dist/webview/            Svelte webview bundle
+out/dist/web/                standalone browser bundle (bun run web:public)
 out/fresh-plugin/code-graph.js Fresh plugin bundle
 out/fresh-plugin/code-graph.ts Generated installable plugin
 out/tui/frame.json           precomputed TUI frame
@@ -391,8 +391,9 @@ bun run jump:bridge
 | Output | Purpose |
 |---|---|
 | `out/dist/extension.cjs` | VS Code Node extension (`main` entry) |
-| `out/dist/webview/assets/webview.js` | Svelte app bundle |
+| `out/dist/webview/assets/webview.js` | Svelte webview bundle |
 | `out/dist/webview/assets/webview.css` | theme tokens + layout |
+| `out/dist/web/assets/webview.js` | standalone browser bundle |
 | `out/fresh-plugin/code-graph.js` | bundled Fresh plugin |
 | `out/fresh-plugin/code-graph.ts` | generated installable Fresh plugin |
 

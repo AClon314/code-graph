@@ -27,7 +27,7 @@
   position: relative;
   flex: none;
   font-family: var(--font-code);
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1;
   transform-origin: center center;
 }
@@ -36,7 +36,7 @@
   margin: 0;
   color: var(--text);
   font-family: var(--font-code);
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1;
   font-variant-ligatures: none;
   font-feature-settings: "liga" 0, "calt" 0;
@@ -141,19 +141,19 @@
 
 .orchgraph-node-label {
   fill: var(--text);
-  font: 600 14px var(--font-code);
+  font: 600 15px var(--font-code);
   pointer-events: none;
 }
 
 .orchgraph-node-detail {
   fill: var(--muted);
-  font: 10px var(--font-code);
+  font: 11px var(--font-code);
   pointer-events: none;
 }
 
 .orchgraph-node-kind {
   fill: var(--muted);
-  font: 600 9px var(--font-code);
+  font: 600 10px var(--font-code);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   pointer-events: none;
@@ -161,13 +161,13 @@
 
 .orchgraph-node-state {
   fill: var(--muted);
-  font: 700 12px var(--font-code);
+  font: 700 13px var(--font-code);
   pointer-events: none;
 }
 
 .orchgraph-edge-label {
   fill: var(--muted);
-  font: 10px var(--font-code);
+  font: 11px var(--font-code);
   text-anchor: middle;
   pointer-events: none;
 }
