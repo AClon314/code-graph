@@ -72,8 +72,10 @@ directly. Build output contains only the selected runtime:
   edge panels, closed by default and mutually exclusive. The bottom status bar
   holds depth/direction/renderer plus graph counts and transient messages.
 - Graph: D3/SVG or the orchgraph character canvas, with search, fit, and SVG
-  export / copy. Graph controls stay out of the canvas; opening an edge panel
-  only resizes the graph, and an untouched graph re-fits itself.
+  export / copy. Trackpad/mouse wheel pans; Ctrl/Meta + wheel (or pinch) zooms.
+  Touch pinch/pan uses D3's touch gestures. Graph controls stay out of the
+  canvas; opening an edge panel only resizes the graph, and an untouched graph
+  re-fits itself.
 - Root picker: the **Symbol entry** field in the command bar is a free-form
   `vscode-textfield` plus an arrow-only native `<select>` populated from cbm's
   repository map (entry points, source modules, exported classes). The input
@@ -201,6 +203,17 @@ code-graph completion uninstall
 code-graph completion install --dry-run
 ```
 
+In a custom zsh startup file such as `~/.myzsh`, the same form works directly:
+
+```zsh
+if command -v code-graph >/dev/null 2>&1; then
+  . <(code-graph completion zsh)
+fi
+```
+
+`.` is zsh's `source`; process substitution is evaluated by zsh. Keep the
+`command -v` guard so a missing binary does not abort the rest of the file.
+
 `completion install` detects the marked block *or* an existing manual
 `source <(code-graph completion ...)` line and is idempotent. `postinstall` only
 prints an opt-in hint (suppressed by `CI` and
@@ -288,17 +301,23 @@ bun run web    # standalone browser GUI, http://127.0.0.1:5173
 bun run code   # code-server with the extension installed, https://127.0.0.1:8080
 ```
 
-`bun run web` is the lightweight browser shell; it uses the computed offline
-sample unless `VITE_SOURCE=cbm` points it at a local cbm listener.
-`bun run web:public` builds the standalone browser bundle and serves it with
-`vite preview` on `0.0.0.0`. The dev watcher ignores `.code-server/`, `out/` and
-`.git/` and does not follow symlinks: code-server profiles symlink this repo
-back into itself, and following that link can walk the output tree forever
-(CPU spike/OOM).
+`bun run web` is the lightweight browser shell. It starts cbm when available
+(`CBM_AUTOSTART=0` disables that) and uses Vite's same-origin `/api` proxy.
+The browser starts on the computed offline sample; switch **Setup → Source** to
+cbm (or launch with `VITE_SOURCE=cbm`) for live data. `bun run web:public` is the
+same dynamic dev server bound to `0.0.0.0`; `bun run web:preview` builds the
+standalone browser bundle and serves it with `vite preview` for a
+production-like check. The dev watcher ignores
+`.code-server/`, `out/` and `.git/` and does not follow symlinks: code-server
+profiles symlink this repo back into itself, and following that link can walk
+the output tree forever (CPU spike/OOM).
 
-`bun run code` builds all bundles, checks `code-server` is on `PATH` (it exits
-with an error if not), installs this extension into an isolated profile under
-`.code-server/`, and starts code-server on the current directory. Open the URL
+`bun run code` checks `code-server` is on `PATH` (it exits with an error if
+not), installs this extension into an isolated profile under `.code-server/`,
+and starts code-server on the current directory. It rebuilds only the webview
+and extension bundles when sources or config are newer than the outputs; use
+`CODE_GRAPH_FORCE_BUILD=1` to force a rebuild, or
+`CODE_GRAPH_SKIP_BUILD=1` to use the current outputs regardless. Open the URL
 printed by code-server. Use `WORKSPACE=/path/to/repo bun run code` to open a
 different workspace.
 
@@ -363,7 +382,7 @@ All build and harness artifacts are under the git-ignored `out/` directory:
 ```text
 out/dist/extension.cjs       VS Code Node extension
 out/dist/webview/            Svelte webview bundle
-out/dist/web/                standalone browser bundle (bun run web:public)
+out/dist/web/                standalone browser bundle (bun run build:web)
 out/fresh-plugin/code-graph.js Fresh plugin bundle
 out/fresh-plugin/code-graph.ts Generated installable plugin
 out/tui/frame.json           precomputed TUI frame

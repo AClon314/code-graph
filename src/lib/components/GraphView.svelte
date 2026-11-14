@@ -1,7 +1,13 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { select } from "d3-selection";
-  import { zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from "d3-zoom";
+  import { pointer, select } from "d3-selection";
+  import {
+    zoom,
+    zoomIdentity,
+    zoomTransform,
+    type ZoomBehavior,
+    type ZoomTransform,
+  } from "d3-zoom";
 
   import { layoutGraphView, type GraphLayout } from "../graph/layout";
   import type { GraphViewData, GraphViewNode } from "../graph/types";
@@ -85,6 +91,28 @@
     selection.call(behavior);
     // Double-click on a node means "jump", not "zoom in".
     selection.on("dblclick.zoom", null);
+    // D3's default wheel handler always zooms. Trackpads send ordinary wheel
+    // events for two-finger scrolling; pan those and reserve zoom for pinch
+    // (Ctrl/Meta + wheel).
+    selection.on("wheel.zoom", (event: WheelEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!svgEl) return;
+      const current = zoomTransform(svgEl);
+      const step =
+        event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 400 : 1;
+      const deltaY = event.deltaY * step;
+      let next: ZoomTransform;
+      if (event.ctrlKey || event.metaKey) {
+        const factor = Math.exp(-deltaY * 0.0025);
+        const [x, y] = pointer(event, svgEl);
+        next = current.translate(x, y).scale(factor).translate(-x, -y);
+      } else {
+        next = current.translate(-event.deltaX * step, -deltaY);
+      }
+      userAdjusted = true;
+      selection.call(behavior.transform, next);
+    });
 
     // Side panels change the canvas size. Keep an untouched graph fitted;
     // never override a viewport the user has already panned or zoomed.

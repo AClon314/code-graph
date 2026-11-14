@@ -25,6 +25,8 @@
   let canvas = $state<TerminalCanvas | null>(null);
   let layoutError = $state("");
   let scale = $state(1);
+  let offsetX = $state(0);
+  let offsetY = $state(0);
 
   const nodeById = $derived(new Map(data.nodes.map((node) => [node.id, node])));
   const lineHeight = 1;
@@ -97,6 +99,20 @@
     const artHeight = pre.offsetHeight;
     if (artWidth <= 0 || artHeight <= 0) return;
     scale = Math.max(0.1, Math.min(width / artWidth, height / artHeight, 1.8) * 0.96);
+    offsetX = 0;
+    offsetY = 0;
+  }
+
+  function onWheel(event: WheelEvent): void {
+    event.preventDefault();
+    const step = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 400 : 1;
+    if (event.ctrlKey || event.metaKey) {
+      const factor = Math.exp(-event.deltaY * step * 0.0025);
+      scale = Math.min(4, Math.max(0.1, scale * factor));
+      return;
+    }
+    offsetX -= event.deltaX * step;
+    offsetY -= event.deltaY * step;
   }
 
   /** Copy the character art, not an SVG. */
@@ -127,12 +143,12 @@
   }
 </script>
 
-<div class="graph-board terminal-board" bind:this={host}>
+<div class="graph-board terminal-board" bind:this={host} onwheel={onWheel}>
   {#if canvas && canvas.lines.length > 0}
     <div class="terminal-art-shell">
       <div
         class="terminal-art"
-        style={`transform: scale(${scale})`}
+        style={`transform: translate(${offsetX}px, ${offsetY}px) scale(${scale})`}
       >
         <pre class="terminal-art-text" bind:this={pre}>{canvas.lines.join("\n")}</pre>
         {#each canvas.nodes as node (node.id)}

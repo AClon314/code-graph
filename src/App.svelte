@@ -258,7 +258,9 @@
   }
 
   async function ensureCbmEndpoint(): Promise<boolean> {
-    if (runtime === "webview") return true;
+    // Browser web uses Vite's same-origin /api proxy; there is no node-side
+    // port discovery to run there.
+    if (runtime === "webview" || runtime === "browser") return true;
     try {
       const result = await discoverCbmEndpoint({
         candidates: [cbmBaseUrl, DEFAULT_CBM_BASE_URL],
@@ -437,15 +439,30 @@
     await load();
   }
 
+  function refForProject(value: string, fromProject: string, toProject: string): string {
+    const prefix = `${fromProject}.`;
+    return value.startsWith(prefix) ? `${toProject}.${value.slice(prefix.length)}` : value;
+  }
+
   async function setBackend(next: GraphBackend): Promise<void> {
     if (next === backend) return;
     backend = next;
     if (kind !== "cbm") return;
+    const previousProject = project;
 
     try {
       const config = await extensionApi.getConfig(next);
-      project = config.project;
-      ref = config.symbolEntry;
+      if (runtime === "browser") {
+        // The web shell has no per-backend project settings. Preserve the
+        // project the user is looking at and apply the cbm/scip suffix.
+        const base = project.endsWith("-scip") ? project.slice(0, -5) : project;
+        const nextProject = next === "scip" ? `${base}-scip` : base;
+        ref = refForProject(ref, previousProject, nextProject);
+        project = nextProject;
+      } else {
+        project = config.project;
+        ref = config.symbolEntry;
+      }
       cbmBaseUrl = config.cbmBaseUrl;
       workspaceRoot = config.workspaceRoot;
       await load();

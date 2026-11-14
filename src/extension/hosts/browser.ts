@@ -18,13 +18,22 @@ export function createExtensionApi(): ExtensionApi {
     async getConfig(requestedBackend?: ExtensionConfig["backend"]) {
       const env = import.meta.env;
       const source = env.VITE_SOURCE === "cbm" ? "cbm" : DEFAULT_CONFIG.source;
+      const backend =
+        requestedBackend ??
+        (env.VITE_BACKEND === "scip" ? "scip" : DEFAULT_CONFIG.backend);
+      const baseProject = env.VITE_PROJECT ?? DEFAULT_CONFIG.project;
+      const project =
+        backend === "scip"
+          ? env.VITE_SCIP_PROJECT ??
+            (baseProject.endsWith("-scip") ? baseProject : `${baseProject}-scip`)
+          : baseProject;
       return {
-        backend:
-          requestedBackend ??
-          (env.VITE_BACKEND === "scip" ? "scip" : DEFAULT_CONFIG.backend),
+        backend,
         source,
-        cbmBaseUrl: env.VITE_CBM_BASE ?? DEFAULT_CONFIG.cbmBaseUrl,
-        project: env.VITE_PROJECT ?? DEFAULT_CONFIG.project,
+        cbmBaseUrl:
+          env.VITE_CBM_BASE ??
+          (typeof location === "undefined" ? DEFAULT_CONFIG.cbmBaseUrl : location.origin),
+        project,
         symbolEntry: env.VITE_SYMBOL_ENTRY ?? DEFAULT_CONFIG.symbolEntry,
         workspaceRoot:
           env.VITE_WORKSPACE_ROOT ??
@@ -34,7 +43,9 @@ export function createExtensionApi(): ExtensionApi {
       } satisfies ExtensionConfig;
     },
     async fetchCbm(request) {
-      const base = import.meta.env.VITE_CBM_BASE ?? DEFAULT_CONFIG.cbmBaseUrl;
+      const base =
+        import.meta.env.VITE_CBM_BASE ??
+        (typeof location === "undefined" ? DEFAULT_CONFIG.cbmBaseUrl : location.origin);
       return requestCbm(base, request);
     },
     async openSettings(query) {

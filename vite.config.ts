@@ -48,6 +48,12 @@ export default defineConfig(({ mode }) => {
     preview: {
       host: "0.0.0.0",
       allowedHosts: true,
+      proxy: {
+        "/api": {
+          target: process.env.CBM_HTTP ?? "http://127.0.0.1:9749",
+          changeOrigin: true,
+        },
+      },
     },
     build: {
       outDir: standalone ? "out/dist/web" : "out/dist/webview",

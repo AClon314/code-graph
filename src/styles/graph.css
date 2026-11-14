@@ -11,6 +11,12 @@
 
 .terminal-board {
   position: relative;
+  cursor: grab;
+  touch-action: none;
+}
+
+.terminal-board:active {
+  cursor: grabbing;
 }
 
 .terminal-art-shell {

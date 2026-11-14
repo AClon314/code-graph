@@ -14,7 +14,7 @@ bun run code
 The script:
 
 1. exits with `127` if `code-server` is not on `PATH`;
-2. runs `bun run lazy_mkcert`, then `bun run build`;
+2. runs `bun run lazy_mkcert`, then builds the webview and extension bundles when stale;
 3. symlinks this repo into `.code-server/extensions/<publisher>.<name>-<version>`;
 4. starts code-server with an isolated `.code-server/data` profile, the
    generated certificate, and the caller's current directory. Override it with

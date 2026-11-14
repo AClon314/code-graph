@@ -42,7 +42,25 @@ if ! "$BUN" run lazy_mkcert; then
   fi
 fi
 
-"$BUN" run build
+needs_build() {
+  [ "${CODE_GRAPH_FORCE_BUILD:-0}" = "1" ] && return 0
+  [ "${CODE_GRAPH_SKIP_BUILD:-0}" = "1" ] && return 1
+  local output
+  for output in out/dist/webview/assets/webview.js out/dist/extension.cjs; do
+    [ -f "$output" ] || return 0
+  done
+  local newer
+  newer="$(find src index.html package.json tsconfig.json vite.config.ts \
+    -type f -newer out/dist/extension.cjs -print -quit 2>/dev/null || true)"
+  [ -n "$newer" ]
+}
+
+if needs_build; then
+  "$BUN" run build:webview
+  "$BUN" run build:extension
+else
+  echo "== build up to date (use CODE_GRAPH_FORCE_BUILD=1 to rebuild)"
+fi
 
 NAME="$("$BUN" -e 'const p = JSON.parse(await Bun.file("package.json").text()); console.log(`${p.publisher}.${p.name}-${p.version}`)')"
 EXT_DIR="${CODE_SERVER_EXTENSIONS_DIR:-$REPO/.code-server/extensions}"
@@ -66,50 +84,7 @@ else
   echo "warning: no generated certificate in out/certs; code-server will use its own TLS settings" >&2
 fi
 
-start_cbm() {
-  if [ "${CBM_AUTOSTART:-1}" != "1" ]; then
-    return
-  fi
-
-  local bin="${CBM_BIN:-}"
-  if [ -z "$bin" ]; then
-    bin="$(command -v codebase-memory-mcp 2>/dev/null || true)"
-  fi
-  if [ -z "$bin" ]; then
-    echo "warning: codebase-memory-mcp not found; cbm will not be started" >&2
-    echo "         install it with: bun i -g codebase-memory-mcp@0.12.1" >&2
-    return
-  fi
-
-  local port="${CBM_PORT:-}"
-  if [ -z "$port" ]; then
-    port="$("$bin" config get ui_port 2>/dev/null | tail -n 1 | tr -d '[:space:]' || true)"
-  fi
-  port="${port:-9749}"
-  export CBM_PORT="$port"
-
-  if command -v curl >/dev/null 2>&1 &&
-    curl -fsS --max-time 1 "http://127.0.0.1:${port}/api/ui-config" >/dev/null 2>&1; then
-    echo "== cbm already running on :${port}"
-    return
-  fi
-
-  echo "== starting cbm on :${port} (log: out/cbm.log)"
-  mkdir -p "$REPO/out"
-  ( sleep 2147483647 | "$bin" --ui=true --port="$port" >"$REPO/out/cbm.log" 2>&1 ) &
-
-  if command -v curl >/dev/null 2>&1; then
-    for _ in $(seq 1 30); do
-      if curl -fsS --max-time 1 "http://127.0.0.1:${port}/api/ui-config" >/dev/null 2>&1; then
-        echo "== cbm ready: http://127.0.0.1:${port}/"
-        return
-      fi
-      sleep 0.2
-    done
-    echo "warning: cbm did not become healthy; see out/cbm.log" >&2
-  fi
-}
-
+source "$REPO/scripts/cbm-service.sh"
 start_cbm
 
 exec code-server \
