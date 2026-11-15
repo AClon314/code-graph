@@ -27,7 +27,10 @@ from the chevron and from <kbd>Tab</kbd>. Try it at `/debug`.
 - The list normally opens below the field. If it would cross the viewport
   bottom, it opens above instead (and returns below when a filtered list fits),
   matching CodeMirror's tooltip placement behavior. The check runs again on
-  viewport resize and scroll.
+  viewport resize and scroll. When `window.visualViewport` exists, its
+  `offsetTop` / `height` define the visible bounds, so mobile pinch zoom, the
+  URL bar, and the on-screen keyboard are included; `window.innerHeight` is
+  only the fallback.
 
 ## Props
 

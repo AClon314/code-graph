@@ -348,13 +348,20 @@
 
   // Match CodeMirror's tooltip placement: prefer below, flip above when the
   // list would cross the viewport bottom, and return below when it fits again.
+  // `getBoundingClientRect` is in layout-viewport CSS pixels, so compare it to
+  // the visual viewport's offset/height: pinch zoom, the URL bar, and the
+  // mobile keyboard can all shrink or shift the visible area without changing
+  // `window.innerHeight`.
   function updatePlacement(): void {
     if (!open || !field || !menu) return;
     const fieldRect = field.getBoundingClientRect();
     const menuHeight = menu.getBoundingClientRect().height;
+    const vv = window.visualViewport;
+    const viewportTop = vv?.offsetTop ?? 0;
+    const viewportBottom = viewportTop + (vv?.height ?? window.innerHeight);
     const gap = 8;
-    const spaceBelow = window.innerHeight - fieldRect.bottom;
-    const spaceAbove = fieldRect.top;
+    const spaceBelow = viewportBottom - fieldRect.bottom;
+    const spaceAbove = fieldRect.top - viewportTop;
     const fitsBelow = spaceBelow >= menuHeight + gap;
     const fitsAbove = spaceAbove >= menuHeight + gap;
     if (placement === "below" && !fitsBelow) {
@@ -517,12 +524,17 @@
     void placement;
     const frame = requestAnimationFrame(updatePlacement);
     const onViewportChange = () => updatePlacement();
+    const vv = window.visualViewport;
     window.addEventListener("resize", onViewportChange);
     window.addEventListener("scroll", onViewportChange, true);
+    vv?.addEventListener("resize", onViewportChange);
+    vv?.addEventListener("scroll", onViewportChange);
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("resize", onViewportChange);
       window.removeEventListener("scroll", onViewportChange, true);
+      vv?.removeEventListener("resize", onViewportChange);
+      vv?.removeEventListener("scroll", onViewportChange);
     };
   });
 
