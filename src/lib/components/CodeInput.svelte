@@ -6,18 +6,43 @@
         label?: string;
         description?: string;
       };
-
-  let nextListId = 0;
 </script>
 
 <script lang="ts">
-  import { Compartment, EditorState, type Transaction } from "@codemirror/state";
-  import { EditorView, keymap, placeholder as cmPlaceholder } from "@codemirror/view";
+  import {
+    acceptCompletion,
+    autocompletion,
+    closeCompletion,
+    completionStatus,
+    moveCompletionSelection,
+    pickedCompletion,
+    startCompletion,
+    type Completion,
+    type CompletionSource,
+  } from "@codemirror/autocomplete";
+  import {
+    Compartment,
+    EditorState,
+    type Extension,
+    type Transaction,
+  } from "@codemirror/state";
+  import {
+    EditorView,
+    keymap,
+    placeholder as cmPlaceholder,
+    repositionTooltips,
+    tooltips,
+  } from "@codemirror/view";
   import { onMount } from "svelte";
 
   interface Props {
     value?: string;
     options?: readonly CodeInputOption[];
+    /** Extra completion sources, e.g. from a language extension or plugin. */
+    completionSources?: readonly CompletionSource[];
+    /** Extra CodeMirror extensions. Language data completion sources work too. */
+    extensions?: Extension;
+    activateOnTyping?: boolean;
     placeholder?: string;
     disabled?: boolean;
     readonly?: boolean;
@@ -50,6 +75,9 @@
   let {
     value = $bindable(""),
     options = [],
+    completionSources = [],
+    extensions = [],
+    activateOnTyping = false,
     placeholder = "",
     disabled = false,
     readonly = false,
@@ -73,19 +101,12 @@
     ...rest
   }: Props = $props();
 
-  const listId = `code-input-list-${++nextListId}`;
-
   let wrapper: HTMLDivElement | undefined;
-  let field = $state<HTMLDivElement>();
   let editorHost: HTMLDivElement | undefined;
-  let menu = $state<HTMLDivElement>();
   let view: EditorView | undefined;
-  let open = $state(false);
-  let placement = $state<"below" | "above">("below");
-  let highlighted = $state(0);
-  let filter = $state("");
   let syncing = false;
   let lastCommitted = value;
+  let completionOpen = $state(false);
 
   const normalizedOptions = $derived.by<NormalizedOption[]>(() =>
     options.map((option) =>
@@ -98,9 +119,6 @@
           },
     ),
   );
-
-  const visibleOptions = $derived(filterOptions(filter));
-  const selectedOption = $derived(visibleOptions[highlighted]);
 
   const editorOnlyAttributes = new Set([
     "aria-activedescendant",
@@ -153,34 +171,57 @@
   const editableCompartment = new Compartment();
   const placeholderCompartment = new Compartment();
 
-  function filterOptions(query: string): NormalizedOption[] {
-    const needle = query.trim().toLocaleLowerCase();
-    if (!needle) return normalizedOptions;
-    const starts: NormalizedOption[] = [];
-    const contains: NormalizedOption[] = [];
-    for (const option of normalizedOptions) {
-      const haystack = `${option.value}\n${option.label}`.toLocaleLowerCase();
-      if (haystack.startsWith(needle)) starts.push(option);
-      else if (haystack.includes(needle)) contains.push(option);
+  /**
+   * The `options` prop is exposed as a normal CodeMirror completion source.
+   * It is published through language data (rather than autocompletion's
+   * `override`) so community plugins can contribute their own sources too.
+   */
+  const optionsSource: CompletionSource = (context) => {
+    if (!normalizedOptions.length) return null;
+    return {
+      from: 0,
+      to: context.state.doc.length,
+      options: normalizedOptions.map<Completion>((option) => ({
+        label: option.label,
+        apply: option.value,
+        detail: option.description,
+        type: "text",
+      })),
+      validFor: /^[\s\S]*$/,
+    };
+  };
+
+  const completionLanguageData = EditorState.languageData.of(() => [
+    { autocomplete: optionsSource },
+    ...completionSources.map((source) => ({ autocomplete: source })),
+  ]);
+
+  function visibleTooltipSpace() {
+    const vv = window.visualViewport;
+    if (vv) {
+      return {
+        top: vv.offsetTop,
+        left: vv.offsetLeft,
+        right: vv.offsetLeft + vv.width,
+        bottom: vv.offsetTop + vv.height,
+      };
     }
-    return [...starts, ...contains];
+    const root = document.documentElement;
+    return {
+      top: 0,
+      left: 0,
+      right: root.clientWidth,
+      bottom: root.clientHeight,
+    };
   }
 
   function contentAttributes(): Record<string, string> {
     const attrs: Record<string, string> = {
       ...editorRest,
       role: "combobox",
-      "aria-autocomplete": "list",
-      "aria-expanded": String(open),
-      "aria-haspopup": "listbox",
+      "aria-expanded": String(completionOpen),
     };
     if (id) attrs.id = id;
-    if (open) {
-      attrs["aria-controls"] = listId;
-      if (selectedOption) {
-        attrs["aria-activedescendant"] = `${listId}-${highlighted}`;
-      }
-    }
     if (required) attrs["aria-required"] = "true";
     if (readonly) attrs["aria-readonly"] = "true";
     if (disabled) attrs["aria-disabled"] = "true";
@@ -270,106 +311,34 @@
   }
 
   export function close(): void {
-    open = false;
+    if (view) closeCompletion(view);
+    completionOpen = false;
   }
 
   export function openList(): void {
-    if (disabled || readonly) return;
-    const list = filterOptions(value);
-    if (!list.length) return;
-    filter = value;
-    open = true;
-    highlighted = 0;
-    view?.focus();
+    if (disabled || readonly || !view) return;
+    view.focus();
+    startCompletion(view);
   }
 
-  function commit(option: NormalizedOption): void {
-    if (disabled || readonly) return;
-    if (view) {
-      view.dispatch({
-        changes: { from: 0, to: view.state.doc.length, insert: option.value },
-        selection: { anchor: option.value.length },
-      });
-      view.focus();
-    } else {
-      value = option.value;
-      lastCommitted = value;
-    }
-    close();
-    emitChange();
-  }
-
-  function tabComplete(): boolean {
+  function tabComplete(editor: EditorView): boolean {
     if (disabled || readonly) return false;
-    if (open) {
-      if (selectedOption) commit(selectedOption);
-      else close();
-      return true;
-    }
-    const list = filterOptions(value);
-    if (!list.length) return false;
-    if (list.length === 1) {
-      commit(list[0]);
-      return true;
-    }
-    openList();
+    const status = completionStatus(editor.state);
+    if (status === "active" && acceptCompletion(editor)) return true;
+    if (status === "pending") return true;
+    return startCompletion(editor);
+  }
+
+  function shiftTab(editor: EditorView): boolean {
+    return completionStatus(editor.state) === "active"
+      ? moveCompletionSelection(false)(editor)
+      : false;
+  }
+
+  function submitForm(editor: EditorView): boolean {
+    if (completionStatus(editor.state) !== null) return false;
+    editor.contentDOM.closest("form")?.requestSubmit();
     return true;
-  }
-
-  function move(delta: number): boolean {
-    if (disabled || readonly) return false;
-    if (!open) {
-      openList();
-      if (open && delta < 0) highlighted = Math.max(0, visibleOptions.length - 1);
-      return true;
-    }
-    if (!visibleOptions.length) return true;
-    highlighted =
-      (highlighted + delta + visibleOptions.length) % visibleOptions.length;
-    return true;
-  }
-
-  function submitOrClose(): boolean {
-    if (open) {
-      if (selectedOption) commit(selectedOption);
-      close();
-      return true;
-    }
-    emitChange();
-    view?.contentDOM.closest("form")?.requestSubmit();
-    return true;
-  }
-
-  function onDocumentPointerDown(event: PointerEvent): void {
-    if (!open) return;
-    const path = event.composedPath();
-    if (wrapper && !path.includes(wrapper)) close();
-  }
-
-  // Match CodeMirror's tooltip placement: prefer below, flip above when the
-  // list would cross the viewport bottom, and return below when it fits again.
-  // `getBoundingClientRect` is in layout-viewport CSS pixels, so compare it to
-  // the visual viewport's offset/height: pinch zoom, the URL bar, and the
-  // mobile keyboard can all shrink or shift the visible area without changing
-  // `window.innerHeight`.
-  function updatePlacement(): void {
-    if (!open || !field || !menu) return;
-    const fieldRect = field.getBoundingClientRect();
-    const menuHeight = menu.getBoundingClientRect().height;
-    const vv = window.visualViewport;
-    const viewportTop = vv?.offsetTop ?? 0;
-    const viewportBottom = viewportTop + (vv?.height ?? window.innerHeight);
-    const gap = 8;
-    const spaceBelow = viewportBottom - fieldRect.bottom;
-    const spaceAbove = fieldRect.top - viewportTop;
-    const fitsBelow = spaceBelow >= menuHeight + gap;
-    const fitsAbove = spaceAbove >= menuHeight + gap;
-    if (placement === "below" && !fitsBelow) {
-      if (fitsAbove || spaceAbove > spaceBelow) placement = "above";
-    } else if (placement === "above") {
-      // The list can shrink after filtering, so return below once it fits.
-      if (fitsBelow || (!fitsAbove && spaceBelow > spaceAbove)) placement = "below";
-    }
   }
 
   function onDocumentClick(event: MouseEvent): void {
@@ -380,63 +349,88 @@
     focus();
   }
 
+  function onDocumentPointerDown(event: PointerEvent): void {
+    if (!view || completionStatus(view.state) === null) return;
+    const path = event.composedPath();
+    if (
+      path.some(
+        (node) =>
+          node instanceof Element &&
+          node.classList.contains("cm-tooltip-autocomplete"),
+      )
+    ) {
+      return;
+    }
+    if (wrapper && !path.includes(wrapper)) close();
+  }
+
   onMount(() => {
     if (!editorHost) return;
+    // A zero-size fixed host keeps tooltip containers out of body flow. Passing
+    // document.body directly would let CM's theme classes add viewport-height
+    // blocks to the page for every input.
+    const tooltipHost = document.createElement("div");
+    tooltipHost.className = "code-input-tooltip-host";
+    tooltipHost.style.cssText =
+      "position:fixed;left:0;top:0;width:0;height:0;overflow:visible;pointer-events:auto;z-index:50";
+    document.body.appendChild(tooltipHost);
+
     const state = EditorState.create({
       doc: value,
       extensions: [
         EditorState.transactionFilter.of(singleLineAndLimit),
+        completionLanguageData,
+        autocompletion({
+          activateOnTyping,
+          closeOnBlur: true,
+          defaultKeymap: true,
+          selectOnOpen: true,
+          interactionDelay: 0,
+          aboveCursor: false,
+          icons: false,
+          tooltipClass: () => "code-input-completions",
+        }),
+        tooltips({
+          parent: tooltipHost,
+          tooltipSpace: visibleTooltipSpace,
+        }),
         keymap.of([
           {
             key: "Tab",
-            run: () => tabComplete(),
+            run: (editor) => tabComplete(editor),
           },
           {
             key: "Shift-Tab",
-            run: () => (open ? move(-1) : false),
-          },
-          {
-            key: "ArrowDown",
-            run: () => move(1),
-          },
-          {
-            key: "ArrowUp",
-            run: () => move(-1),
+            run: (editor) => shiftTab(editor),
           },
           {
             key: "Enter",
-            run: () => submitOrClose(),
-          },
-          {
-            key: "Escape",
-            run: () => {
-              if (!open) return false;
-              close();
-              return true;
-            },
-          },
-          {
-            key: "Mod-Space",
-            run: () => {
-              openList();
-              return true;
-            },
+            run: (editor) => submitForm(editor),
           },
         ]),
         theme,
         editableCompartment.of(editableExtensions()),
-        attrsCompartment.of(EditorView.contentAttributes.of(contentAttributes())),
+        attrsCompartment.of(
+          EditorView.contentAttributes.of(contentAttributes()),
+        ),
         placeholderCompartment.of(cmPlaceholder(placeholder)),
         EditorView.updateListener.of((update) => {
-          if (!update.docChanged || syncing) return;
-          const text = update.state.doc.toString();
-          const changed = text !== value;
-          if (changed) value = text;
-          if (open) {
-            filter = text;
-            highlighted = 0;
+          completionOpen = completionStatus(update.state) !== null;
+
+          if (update.docChanged && !syncing) {
+            const text = update.state.doc.toString();
+            const changed = text !== value;
+            if (changed) value = text;
+            if (changed) emit("input", text);
           }
-          if (changed) emit("input", text);
+
+          if (
+            update.transactions.some((tr) =>
+              tr.annotation(pickedCompletion),
+            )
+          ) {
+            queueMicrotask(emitChange);
+          }
         }),
         EditorView.domEventHandlers({
           focus: (event) => {
@@ -444,30 +438,43 @@
             return false;
           },
           blur: (event) => {
-            close();
             emitChange();
             onblur?.(event);
             return false;
           },
         }),
+        extensions,
       ],
     });
     view = new EditorView({ state, parent: editorHost });
 
-    const onPointerDown = (event: PointerEvent) => onDocumentPointerDown(event);
     const onClick = (event: MouseEvent) => onDocumentClick(event);
-    document.addEventListener("pointerdown", onPointerDown, true);
+    const onPointerDown = (event: PointerEvent) => onDocumentPointerDown(event);
     document.addEventListener("click", onClick);
+    document.addEventListener("pointerdown", onPointerDown, true);
+    const reposition = () => {
+      if (view) repositionTooltips(view);
+    };
+    const vv = window.visualViewport;
+    window.addEventListener("resize", reposition);
+    window.addEventListener("scroll", reposition, true);
+    vv?.addEventListener("resize", reposition);
+    vv?.addEventListener("scroll", reposition);
 
     if (autofocus && !disabled) {
       requestAnimationFrame(() => focus());
     }
 
     return () => {
-      document.removeEventListener("pointerdown", onPointerDown, true);
       document.removeEventListener("click", onClick);
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
+      vv?.removeEventListener("resize", reposition);
+      vv?.removeEventListener("scroll", reposition);
       view?.destroy();
       view = undefined;
+      tooltipHost.remove();
     };
   });
 
@@ -506,77 +513,17 @@
       effects: placeholderCompartment.reconfigure(cmPlaceholder(placeholder)),
     });
   });
-
-  $effect(() => {
-    if (highlighted >= visibleOptions.length) {
-      highlighted = Math.max(0, visibleOptions.length - 1);
-    }
-  });
-
-  $effect(() => {
-    if (open && visibleOptions.length === 0) open = false;
-  });
-
-  $effect(() => {
-    if (!open) return;
-    // Read the list so filtering and placement changes re-run this effect.
-    void visibleOptions;
-    void placement;
-    const frame = requestAnimationFrame(updatePlacement);
-    const onViewportChange = () => updatePlacement();
-    const vv = window.visualViewport;
-    window.addEventListener("resize", onViewportChange);
-    window.addEventListener("scroll", onViewportChange, true);
-    vv?.addEventListener("resize", onViewportChange);
-    vv?.addEventListener("scroll", onViewportChange);
-    return () => {
-      cancelAnimationFrame(frame);
-      window.removeEventListener("resize", onViewportChange);
-      window.removeEventListener("scroll", onViewportChange, true);
-      vv?.removeEventListener("resize", onViewportChange);
-      vv?.removeEventListener("scroll", onViewportChange);
-    };
-  });
-
-  $effect(() => {
-    if (!open) {
-      placement = "below";
-      return;
-    }
-    if (!open) return;
-    // Read the list so filtering also re-scrolls when the highlight is unchanged.
-    void visibleOptions.length;
-    const item = menu?.querySelector<HTMLElement>(`[data-index="${highlighted}"]`);
-    if (!item || !menu) return;
-    const top = item.offsetTop;
-    const bottom = top + item.offsetHeight;
-    if (top < menu.scrollTop) menu.scrollTop = top;
-    else if (bottom > menu.scrollTop + menu.clientHeight) {
-      menu.scrollTop = bottom - menu.clientHeight;
-    }
-  });
-
 </script>
 
 <div
   class="code-input {className}"
-  class:open
   class:disabled
   class:readonly
   {style}
   bind:this={wrapper}
   {...wrapperRest}
 >
-  <div
-    class="field"
-    role="presentation"
-    bind:this={field}
-    onpointerdown={(event) => {
-      const target = event.target as HTMLElement;
-      if (target.closest("button")) return;
-      focus();
-    }}
-  >
+  <div class="field" role="presentation">
     <div class="editor" bind:this={editorHost}></div>
     <button
       type="button"
@@ -584,43 +531,12 @@
       tabindex="-1"
       aria-label="Show completion options"
       aria-haspopup="listbox"
-      aria-expanded={open}
-      aria-controls={open ? listId : undefined}
+      aria-expanded={completionOpen}
       title="Show completion options (Tab)"
       onpointerdown={(event) => event.preventDefault()}
-      onclick={() => (open ? close() : openList())}
+      onclick={() => (completionOpen ? close() : openList())}
     >v</button>
   </div>
-
-  {#if open}
-    <div
-      class="menu"
-      class:above={placement === "above"}
-      id={listId}
-      role="listbox"
-      bind:this={menu}
-    >
-      {#each visibleOptions as option, index (option.value + "\u0000" + index)}
-        <button
-          type="button"
-          role="option"
-          class="option"
-          class:highlighted={index === highlighted}
-          id={`${listId}-${index}`}
-          tabindex="-1"
-          aria-selected={index === highlighted}
-          data-index={index}
-          onpointerdown={(event) => event.preventDefault()}
-          onclick={() => commit(option)}
-        >
-          <span class="option-label">{option.label}</span>
-          {#if option.description}
-            <span class="option-description">{option.description}</span>
-          {/if}
-        </button>
-      {/each}
-    </div>
-  {/if}
 
   {#if name}
     <input
@@ -702,10 +618,6 @@
     cursor: pointer;
   }
 
-  .open .chevron {
-    transform: rotate(180deg);
-  }
-
   .chevron:hover {
     background: var(--vscode-list-hoverBackground, var(--cg-panel));
   }
@@ -713,64 +625,6 @@
   .chevron:focus-visible {
     outline: 1px solid var(--vscode-focusBorder, var(--cg-accent));
     outline-offset: -1px;
-  }
-
-  .menu {
-    position: absolute;
-    z-index: 20;
-    top: calc(100% + 0.15lh);
-    right: 0;
-    left: 0;
-    max-height: 12lh;
-    overflow: auto;
-    border: 1px solid var(--vscode-dropdown-border, var(--cg-line));
-    border-radius: 0.25rem;
-    background: var(--vscode-dropdown-background, var(--cg-panel));
-    box-shadow: 0 0.4lh 1.2lh rgb(0 0 0 / 22%);
-  }
-
-  .menu.above {
-    top: auto;
-    bottom: calc(100% + 0.15lh);
-  }
-
-  .option {
-    display: flex;
-    align-items: baseline;
-    gap: 1ch;
-    width: 100%;
-    min-height: 1.8lh;
-    padding: 0.2lh 0.75ch;
-    border: 0;
-    background: transparent;
-    color: var(--vscode-dropdown-foreground, var(--cg-text));
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
-  }
-
-  .option.highlighted {
-    background: var(--vscode-list-activeSelectionBackground, var(--cg-accent));
-    color: var(--vscode-list-activeSelectionForeground, var(--cg-accent-fg));
-  }
-
-  .option-label {
-    min-width: 0;
-    overflow-wrap: anywhere;
-  }
-
-  .option-description {
-    margin-left: auto;
-    overflow: hidden;
-    color: var(--vscode-descriptionForeground, var(--cg-muted));
-    font-size: 0.78em;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .option.highlighted .option-description {
-    color: inherit;
-    opacity: 0.8;
   }
 
   .disabled {
@@ -783,5 +637,56 @@
 
   .readonly .chevron {
     cursor: default;
+  }
+
+  /* The completion tooltip is owned and positioned by CodeMirror. It lives in
+     document.body so the field's overflow clip cannot cut it off. */
+  :global(.cm-tooltip.code-input-completions) {
+    z-index: 50;
+    overflow: hidden;
+    padding: 0;
+    border: 1px solid var(--vscode-dropdown-border, var(--cg-line));
+    border-radius: 0.25rem;
+    background: var(--vscode-dropdown-background, var(--cg-panel));
+    color: var(--vscode-dropdown-foreground, var(--cg-text));
+    box-shadow: 0 0.4lh 1.2lh rgb(0 0 0 / 22%);
+  }
+
+  :global(.code-input-completions.cm-tooltip-autocomplete > ul) {
+    min-width: min(24ch, 88vw);
+    max-width: min(60ch, 92vw);
+    max-height: 12lh;
+    margin: 0;
+    padding: 0;
+  }
+
+  :global(.code-input-completions.cm-tooltip-autocomplete > ul > li) {
+    min-height: 1.8lh;
+    padding: 0.2lh 0.75ch;
+    font-family: var(--cg-font-mono);
+    font-size: 0.9rem;
+    line-height: 1.35;
+  }
+
+  :global(.code-input-completions.cm-tooltip-autocomplete > ul > li[aria-selected]) {
+    background: var(--vscode-list-activeSelectionBackground, var(--cg-accent));
+    color: var(--vscode-list-activeSelectionForeground, var(--cg-accent-fg));
+  }
+
+  :global(.code-input-completions .cm-completionMatchedText) {
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  :global(.code-input-completions .cm-completionDetail) {
+    margin-left: 1ch;
+    color: var(--vscode-descriptionForeground, var(--cg-muted));
+    font-style: normal;
+    font-size: 0.82em;
+  }
+
+  :global(.code-input-completions .cm-tooltip-autocomplete-disabled > ul > li[aria-selected]) {
+    background: var(--cg-line);
+    color: var(--cg-muted);
   }
 </style>

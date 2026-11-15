@@ -1,8 +1,8 @@
 # CodeInput (experimental)
 
 An editable select/combobox backed by CodeMirror 6. The visible control is a
-single-line editor with a `v` chevron; the same completion list is available
-from the chevron and from <kbd>Tab</kbd>. Try it at `/debug`.
+single-line editor with a `v` chevron; completion is provided by the official
+`@codemirror/autocomplete` list and tooltip. Try it at `/debug`.
 
 ```svelte
 <script lang="ts">
@@ -16,28 +16,31 @@ from the chevron and from <kbd>Tab</kbd>. Try it at `/debug`.
 
 ## Behaviour
 
-- <kbd>Tab</kbd>: open the filtered list; with a single match, accept it. With
-  the list open, <kbd>Tab</kbd> accepts the highlighted match.
-- <kbd>↑</kbd>/<kbd>↓</kbd>: open the list and move the highlight.
-- <kbd>Enter</kbd>: accept the highlighted match; with the list closed, submit
+- <kbd>Tab</kbd>: start completion; with the list open, accept the selected
+  match.
+- <kbd>Shift</kbd> + <kbd>Tab</kbd>: move the selection up while open.
+- <kbd>↑</kbd>/<kbd>↓</kbd>: move the selection while open.
+- <kbd>Enter</kbd>: accept the selected match; with the list closed, submit
   the surrounding form (if any).
 - <kbd>Esc</kbd>: close the list.
-- Click the `v` chevron to open/close the same list.
-- Clicking outside closes the list. Typing filters it while open.
-- The list normally opens below the field. If it would cross the viewport
-  bottom, it opens above instead (and returns below when a filtered list fits),
-  matching CodeMirror's tooltip placement behavior. The check runs again on
-  viewport resize and scroll. When `window.visualViewport` exists, its
-  `offsetTop` / `height` define the visible bounds, so mobile pinch zoom, the
-  URL bar, and the on-screen keyboard are included; `window.innerHeight` is
-  only the fallback.
+- Click the `v` chevron to start/close completion.
+- Clicking outside closes the list. Typing filters it while open (and opens it
+  automatically when `activateOnTyping` is true).
+- The list uses CodeMirror's tooltip placement: below the cursor by default,
+  flipping above when it would cross the viewport bottom, with automatic height
+  clamping. `tooltipSpace` is bound to `window.visualViewport` when available,
+  and `repositionTooltips` is called on visualViewport resize/scroll, so mobile
+  pinch zoom, URL-bar changes, and the software keyboard are accounted for.
 
 ## Props
 
 | Prop | Type | Notes |
 | --- | --- | --- |
 | `value` | `string` | Bindable. Also accepts external updates. |
-| `options` | `string[] \| { value, label?, description? }[]` | Completion candidates. |
+| `options` | `string[] \| { value, label?, description? }[]` | Completion candidates, published as a completion source. |
+| `completionSources` | `CompletionSource[]` | Extra sources, merged through language data. |
+| `extensions` | `Extension` | Extra CodeMirror extensions, including community completion/language extensions. |
+| `activateOnTyping` | `boolean` | Let autocomplete start while typing; default `false` (Tab/chevron only). |
 | `name` | `string` | Adds a hidden form value input. |
 | `id` | `string` | Applied to the CodeMirror content. |
 | `form` | `string` | Associates the hidden value input with a form. |
@@ -59,11 +62,25 @@ contenteditable editor. `required`, `pattern`, and length attributes are
 available on the hidden value input for progressive enhancement, but a consumer
 that submits a form should validate the bound value itself.
 
-## Implementation notes
+## Integration
 
-`CodeInput` uses `@codemirror/state` + `@codemirror/view` only: no
-`@codemirror/autocomplete`, because the popup is a controlled DOM list styled
-like the TUI reference (`| value | v |` + rows). CodeMirror owns caret, IME,
-selection, and keyboard input; Svelte owns the list, ARIA state, and styling.
-Newlines are collapsed to spaces and `maxlength` is enforced by a transaction
-filter.
+`options` is exposed through `EditorState.languageData` as an `autocomplete`
+source rather than as `autocompletion({override: [...]})`. That means sources
+registered by language extensions and community plugins are combined with the
+component's own options:
+
+```svelte
+<CodeInput
+  {options}
+  extensions={myLanguageExtension}
+  completionSources={[myCompletionSource]}
+/>
+```
+
+The official completion keymap is enabled. `interactionDelay` is set to `0`
+because this control is a small select rather than a code editor, and `Tab` is
+mapped to start/accept completion. The tooltip is rendered through a zero-size
+fixed host so the field's `overflow: hidden` cannot clip it and CM's theme
+classes cannot add viewport-height blocks to the document. Styling hooks:
+`.cm-tooltip.code-input-completions`, `.cm-completionLabel`,
+`.cm-completionDetail`, and the selected `li[aria-selected]`.

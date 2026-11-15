@@ -1,4 +1,7 @@
 <script lang="ts">
+  import type { CompletionSource } from "@codemirror/autocomplete";
+  import { EditorState } from "@codemirror/state";
+
   import CodeInput from "../../lib/components/CodeInput.svelte";
 
   const fruits = [
@@ -16,8 +19,27 @@
     { value: "hidden", label: "hidden", description: "filtered out" },
   ];
 
+  const injectedSource: CompletionSource = (context) => {
+    const word = context.matchBefore(/@[\w-]*/);
+    if (!word || word.from === word.to) return null;
+    return {
+      from: word.from,
+      options: [
+        {
+          label: "@plugin",
+          detail: "injected by a language extension",
+          type: "keyword",
+        },
+      ],
+    };
+  };
+  const injectedLanguageData = EditorState.languageData.of(() => [
+    { autocomplete: injectedSource },
+  ]);
+
   let fruit = $state("ap");
   let status = $state("");
+  let injected = $state("");
   let inputCount = $state(0);
   let changeCount = $state(0);
   let lastInput = $state("");
@@ -36,7 +58,7 @@
 
 <main class="debug-page">
   <header class="debug-head">
-    <p class="eyebrow">experimental · CodeMirror 6</p>
+    <p class="eyebrow">experimental · CodeMirror 6 autocomplete</p>
     <h1>CodeInput</h1>
     <p class="lede">
       An editable select with a completion list. <kbd>Tab</kbd> opens or
@@ -85,6 +107,20 @@
         options={statusOptions}
         placeholder="all statuses"
         aria-label="Status"
+      />
+    </div>
+
+    <div class="demo-row">
+      <div class="demo-label">
+        <label for="injected-input">Injected source</label>
+        <span class="hint">type “@”, then Tab; supplied through extensions</span>
+      </div>
+      <CodeInput
+        id="injected-input"
+        bind:value={injected}
+        extensions={injectedLanguageData}
+        placeholder="type @"
+        aria-label="Injected completion source"
       />
     </div>
 
