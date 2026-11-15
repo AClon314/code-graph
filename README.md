@@ -113,8 +113,9 @@ closes. The tooltip flips above when it would cross the viewport bottom. The
 component accepts native-style props (`id`, `name`, `disabled`, `readonly`,
 `placeholder`, `required`, `maxlength`, `pattern`, `autocomplete`, `aria-*`,
 `data-*`), exposes `value` as a bindable prop, and accepts `completionSources` /
-`extensions` for community completion plugins. It is experimental and not wired
-into the main workbench.
+`extensions` for community completion plugins. During pinch zoom, the chevron
+pins to the visible right edge (and the tooltip width follows the visual
+viewport). It is experimental and not wired into the main workbench.
 
 ### Settings
 

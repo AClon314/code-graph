@@ -31,6 +31,11 @@ single-line editor with a `v` chevron; completion is provided by the official
   clamping. `tooltipSpace` is bound to `window.visualViewport` when available,
   and `repositionTooltips` is called on visualViewport resize/scroll, so mobile
   pinch zoom, URL-bar changes, and the software keyboard are accounted for.
+- While `visualViewport.scale > 1`, a chevron whose field extends past the
+  visible right edge is pinned to the visual viewport's right edge at the
+  field's vertical position; it returns into the field when the field is
+  visible. The list width is capped to the visual viewport width so it cannot
+  disappear off-screen.
 
 ## Props
 
@@ -79,8 +84,9 @@ component's own options:
 
 The official completion keymap is enabled. `interactionDelay` is set to `0`
 because this control is a small select rather than a code editor, and `Tab` is
-mapped to start/accept completion. The tooltip is rendered through a zero-size
-fixed host so the field's `overflow: hidden` cannot clip it and CM's theme
-classes cannot add viewport-height blocks to the document. Styling hooks:
+mapped to start/accept completion. The field does not clip the tooltip, and the
+tooltip width is capped with `--code-input-visual-width` (updated from
+`visualViewport.width`) so a pinch cannot push the whole list off-screen.
+Styling hooks:
 `.cm-tooltip.code-input-completions`, `.cm-completionLabel`,
 `.cm-completionDetail`, and the selected `li[aria-selected]`.

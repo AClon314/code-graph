@@ -103,10 +103,13 @@
 
   let wrapper: HTMLDivElement | undefined;
   let editorHost: HTMLDivElement | undefined;
+  let chevron: HTMLButtonElement | undefined;
   let view: EditorView | undefined;
   let syncing = false;
   let lastCommitted = value;
   let completionOpen = $state(false);
+  let pinnedChevron = $state(false);
+  let chevronStyle = $state("");
 
   const normalizedOptions = $derived.by<NormalizedOption[]>(() =>
     options.map((option) =>
@@ -195,6 +198,52 @@
     { autocomplete: optionsSource },
     ...completionSources.map((source) => ({ autocomplete: source })),
   ]);
+
+  function updateChevronPin(): void {
+    const vv = window.visualViewport;
+    const visualWidth = vv?.width ?? window.innerWidth;
+    document.documentElement.style.setProperty(
+      "--code-input-visual-width",
+      `${visualWidth}px`,
+    );
+
+    if (!vv || vv.scale <= 1.01 || !chevron) {
+      pinnedChevron = false;
+      chevronStyle = "";
+      return;
+    }
+
+    const field = chevron.closest(".field")?.getBoundingClientRect();
+    if (!field) {
+      pinnedChevron = false;
+      chevronStyle = "";
+      return;
+    }
+
+    const visualTop = vv.offsetTop;
+    const visualBottom = visualTop + vv.height;
+    const visualLeft = vv.offsetLeft;
+    const visualRight = visualLeft + vv.width;
+    const fieldVisible = field.bottom > visualTop && field.top < visualBottom;
+    const naturalButtonLeft = field.right - chevron.offsetWidth;
+    const buttonVisible =
+      naturalButtonLeft >= visualLeft && field.right <= visualRight;
+    if (!fieldVisible || buttonVisible) {
+      pinnedChevron = false;
+      chevronStyle = "";
+      return;
+    }
+
+    const margin = 8;
+    const buttonHeight = field.height;
+    const left = Math.max(margin, visualWidth - chevron.offsetWidth - margin);
+    const top = Math.min(
+      Math.max(field.top - vv.offsetTop, margin),
+      Math.max(margin, vv.height - buttonHeight - margin),
+    );
+    pinnedChevron = true;
+    chevronStyle = `left:${left}px;top:${top}px;`;
+  }
 
   function visibleTooltipSpace() {
     const vv = window.visualViewport;
@@ -366,15 +415,6 @@
 
   onMount(() => {
     if (!editorHost) return;
-    // A zero-size fixed host keeps tooltip containers out of body flow. Passing
-    // document.body directly would let CM's theme classes add viewport-height
-    // blocks to the page for every input.
-    const tooltipHost = document.createElement("div");
-    tooltipHost.className = "code-input-tooltip-host";
-    tooltipHost.style.cssText =
-      "position:fixed;left:0;top:0;width:0;height:0;overflow:visible;pointer-events:auto;z-index:50";
-    document.body.appendChild(tooltipHost);
-
     const state = EditorState.create({
       doc: value,
       extensions: [
@@ -391,7 +431,6 @@
           tooltipClass: () => "code-input-completions",
         }),
         tooltips({
-          parent: tooltipHost,
           tooltipSpace: visibleTooltipSpace,
         }),
         keymap.of([
@@ -452,14 +491,16 @@
     const onPointerDown = (event: PointerEvent) => onDocumentPointerDown(event);
     document.addEventListener("click", onClick);
     document.addEventListener("pointerdown", onPointerDown, true);
-    const reposition = () => {
+    const onViewportChange = () => {
+      updateChevronPin();
       if (view) repositionTooltips(view);
     };
     const vv = window.visualViewport;
-    window.addEventListener("resize", reposition);
-    window.addEventListener("scroll", reposition, true);
-    vv?.addEventListener("resize", reposition);
-    vv?.addEventListener("scroll", reposition);
+    window.addEventListener("resize", onViewportChange);
+    window.addEventListener("scroll", onViewportChange, true);
+    vv?.addEventListener("resize", onViewportChange);
+    vv?.addEventListener("scroll", onViewportChange);
+    requestAnimationFrame(onViewportChange);
 
     if (autofocus && !disabled) {
       requestAnimationFrame(() => focus());
@@ -468,13 +509,12 @@
     return () => {
       document.removeEventListener("click", onClick);
       document.removeEventListener("pointerdown", onPointerDown, true);
-      window.removeEventListener("resize", reposition);
-      window.removeEventListener("scroll", reposition, true);
-      vv?.removeEventListener("resize", reposition);
-      vv?.removeEventListener("scroll", reposition);
+      window.removeEventListener("resize", onViewportChange);
+      window.removeEventListener("scroll", onViewportChange, true);
+      vv?.removeEventListener("resize", onViewportChange);
+      vv?.removeEventListener("scroll", onViewportChange);
       view?.destroy();
       view = undefined;
-      tooltipHost.remove();
     };
   });
 
@@ -528,6 +568,9 @@
     <button
       type="button"
       class="chevron"
+      class:pinned={pinnedChevron}
+      style={chevronStyle}
+      bind:this={chevron}
       tabindex="-1"
       aria-label="Show completion options"
       aria-haspopup="listbox"
@@ -571,7 +614,6 @@
     align-items: stretch;
     min-width: 0;
     min-height: 2lh;
-    overflow: hidden;
     border: 1px solid var(--vscode-input-border, var(--cg-line));
     border-radius: 0.25rem;
     background: var(--vscode-input-background, var(--cg-bg));
@@ -618,6 +660,19 @@
     cursor: pointer;
   }
 
+  /* Middle of a pinch: the field can be wider than the visual viewport. Keep
+     the trigger reachable at the visual right edge instead of letting it sit
+     off-screen. The vertical position follows the field, clamped on-screen. */
+  .chevron.pinned {
+    position: fixed;
+    z-index: 60;
+    height: 2lh;
+    border: 1px solid var(--vscode-input-border, var(--cg-line));
+    border-radius: 0.25rem;
+    background: var(--vscode-input-background, var(--cg-bg));
+    box-shadow: 0 0.2lh 0.8lh rgb(0 0 0 / 18%);
+  }
+
   .chevron:hover {
     background: var(--vscode-list-hoverBackground, var(--cg-panel));
   }
@@ -639,8 +694,9 @@
     cursor: default;
   }
 
-  /* The completion tooltip is owned and positioned by CodeMirror. It lives in
-     document.body so the field's overflow clip cannot cut it off. */
+  /* The completion tooltip is owned and positioned by CodeMirror. The field
+     does not clip it; the list width also follows the current visual viewport
+     so pinch zoom cannot force it completely off-screen. */
   :global(.cm-tooltip.code-input-completions) {
     z-index: 50;
     overflow: hidden;
@@ -653,8 +709,8 @@
   }
 
   :global(.code-input-completions.cm-tooltip-autocomplete > ul) {
-    min-width: min(24ch, 88vw);
-    max-width: min(60ch, 92vw);
+    min-width: min(24ch, calc(var(--code-input-visual-width, 100vw) - 2ch)) !important;
+    max-width: min(60ch, calc(var(--code-input-visual-width, 100vw) - 2ch)) !important;
     max-height: 12lh;
     margin: 0;
     padding: 0;
