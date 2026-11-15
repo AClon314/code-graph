@@ -31,9 +31,14 @@
     keymap,
     placeholder as cmPlaceholder,
     repositionTooltips,
-    tooltips,
   } from "@codemirror/view";
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
+
+  import {
+    codeInputTheme,
+    codeInputTooltips,
+    subscribeViewport,
+  } from "./code-input-runtime";
 
   interface Props {
     value?: string;
@@ -102,7 +107,7 @@
   }: Props = $props();
 
   let wrapper: HTMLDivElement | undefined;
-  let editorHost: HTMLDivElement | undefined;
+  let editorHost = $state<HTMLDivElement>();
   let chevron: HTMLButtonElement | undefined;
   let view: EditorView | undefined;
   let syncing = false;
@@ -110,6 +115,11 @@
   let completionOpen = $state(false);
   let pinnedChevron = $state(false);
   let chevronStyle = $state("");
+  let activated = $state(false);
+  let activating = false;
+  let pendingOpen = false;
+  let blurTimer: ReturnType<typeof setTimeout> | undefined;
+  let detachDocumentListeners: (() => void) | undefined;
 
   const normalizedOptions = $derived.by<NormalizedOption[]>(() =>
     options.map((option) =>
@@ -201,12 +211,6 @@
 
   function updateChevronPin(): void {
     const vv = window.visualViewport;
-    const visualWidth = vv?.width ?? window.innerWidth;
-    document.documentElement.style.setProperty(
-      "--code-input-visual-width",
-      `${visualWidth}px`,
-    );
-
     if (!vv || vv.scale <= 1.01 || !chevron) {
       pinnedChevron = false;
       chevronStyle = "";
@@ -236,32 +240,13 @@
 
     const margin = 8;
     const buttonHeight = field.height;
-    const left = Math.max(margin, visualWidth - chevron.offsetWidth - margin);
+    const left = Math.max(margin, vv.width - chevron.offsetWidth - margin);
     const top = Math.min(
       Math.max(field.top - vv.offsetTop, margin),
       Math.max(margin, vv.height - buttonHeight - margin),
     );
     pinnedChevron = true;
     chevronStyle = `left:${left}px;top:${top}px;`;
-  }
-
-  function visibleTooltipSpace() {
-    const vv = window.visualViewport;
-    if (vv) {
-      return {
-        top: vv.offsetTop,
-        left: vv.offsetLeft,
-        right: vv.offsetLeft + vv.width,
-        bottom: vv.offsetTop + vv.height,
-      };
-    }
-    const root = document.documentElement;
-    return {
-      top: 0,
-      left: 0,
-      right: root.clientWidth,
-      bottom: root.clientHeight,
-    };
   }
 
   function contentAttributes(): Record<string, string> {
@@ -305,35 +290,6 @@
     });
   }
 
-  const theme = EditorView.theme({
-    "&": {
-      height: "100%",
-      backgroundColor: "transparent",
-      color: "inherit",
-      fontFamily: "inherit",
-      fontSize: "inherit",
-    },
-    "&.cm-focused": {
-      outline: "none",
-    },
-    ".cm-scroller": {
-      overflow: "hidden",
-      fontFamily: "inherit",
-      lineHeight: "inherit",
-    },
-    ".cm-content": {
-      minHeight: "1lh",
-      padding: "0",
-      caretColor: "currentColor",
-    },
-    ".cm-line": {
-      padding: "0",
-    },
-    ".cm-placeholder": {
-      color: "var(--vscode-input-placeholderForeground, var(--cg-muted))",
-    },
-  });
-
   function emit(name: "input" | "change", text: string): void {
     const event = new CustomEvent(name, {
       detail: { value: text },
@@ -352,22 +308,90 @@
 
   export function focus(): void {
     if (disabled) return;
+    if (!activated) {
+      activate(true);
+      return;
+    }
     view?.focus();
   }
 
   export function blur(): void {
-    view?.contentDOM.blur();
+    if (view) {
+      view.contentDOM.blur();
+    } else if (
+      document.activeElement instanceof HTMLElement &&
+      wrapper?.contains(document.activeElement)
+    ) {
+      document.activeElement.blur();
+    }
   }
 
   export function close(): void {
+    pendingOpen = false;
     if (view) closeCompletion(view);
     completionOpen = false;
   }
 
   export function openList(): void {
-    if (disabled || readonly || !view) return;
+    if (disabled || readonly) return;
+    if (!activated) {
+      pendingOpen = true;
+      activate(true);
+      return;
+    }
+    if (!view) return;
     view.focus();
     startCompletion(view);
+  }
+
+  function activate(shouldFocus = true): void {
+    if (disabled) return;
+    if (activated) {
+      if (shouldFocus) view?.focus();
+      return;
+    }
+    if (activating) return;
+    activating = true;
+    activated = true;
+    void tick().then(() => {
+      activating = false;
+      if (!activated || !editorHost) return;
+      mountEditor();
+      if (shouldFocus) view?.focus();
+      if (pendingOpen && view) {
+        pendingOpen = false;
+        view.focus();
+        startCompletion(view);
+      }
+    });
+  }
+
+  function deactivate(): void {
+    clearTimeout(blurTimer);
+    if (!activated) return;
+    detachDocument();
+    if (view) {
+      view.destroy();
+      view = undefined;
+    }
+    activated = false;
+    completionOpen = false;
+    pendingOpen = false;
+  }
+
+  function scheduleDeactivate(): void {
+    clearTimeout(blurTimer);
+    blurTimer = setTimeout(() => {
+      if (!view || view.hasFocus) return;
+      if (completionStatus(view.state) !== null) return;
+      deactivate();
+    }, 120);
+  }
+
+  function onNativeInput(event: Event): void {
+    const next = (event.currentTarget as HTMLInputElement).value;
+    value = next;
+    emit("input", next);
   }
 
   function tabComplete(editor: EditorView): boolean {
@@ -388,6 +412,23 @@
     if (completionStatus(editor.state) !== null) return false;
     editor.contentDOM.closest("form")?.requestSubmit();
     return true;
+  }
+
+  function attachDocumentListeners(): void {
+    if (detachDocumentListeners) return;
+    const onClick = (event: MouseEvent) => onDocumentClick(event);
+    const onPointerDown = (event: PointerEvent) => onDocumentPointerDown(event);
+    document.addEventListener("click", onClick);
+    document.addEventListener("pointerdown", onPointerDown, true);
+    detachDocumentListeners = () => {
+      document.removeEventListener("click", onClick);
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      detachDocumentListeners = undefined;
+    };
+  }
+
+  function detachDocument(): void {
+    detachDocumentListeners?.();
   }
 
   function onDocumentClick(event: MouseEvent): void {
@@ -413,8 +454,8 @@
     if (wrapper && !path.includes(wrapper)) close();
   }
 
-  onMount(() => {
-    if (!editorHost) return;
+  function mountEditor(): void {
+    if (!editorHost || view) return;
     const state = EditorState.create({
       doc: value,
       extensions: [
@@ -430,9 +471,7 @@
           icons: false,
           tooltipClass: () => "code-input-completions",
         }),
-        tooltips({
-          tooltipSpace: visibleTooltipSpace,
-        }),
+        codeInputTooltips,
         keymap.of([
           {
             key: "Tab",
@@ -447,7 +486,7 @@
             run: (editor) => submitForm(editor),
           },
         ]),
-        theme,
+        codeInputTheme,
         editableCompartment.of(editableExtensions()),
         attrsCompartment.of(
           EditorView.contentAttributes.of(contentAttributes()),
@@ -473,11 +512,13 @@
         }),
         EditorView.domEventHandlers({
           focus: (event) => {
+            clearTimeout(blurTimer);
             onfocus?.(event);
             return false;
           },
           blur: (event) => {
             emitChange();
+            scheduleDeactivate();
             onblur?.(event);
             return false;
           },
@@ -486,38 +527,28 @@
       ],
     });
     view = new EditorView({ state, parent: editorHost });
+    attachDocumentListeners();
+  }
 
-    const onClick = (event: MouseEvent) => onDocumentClick(event);
-    const onPointerDown = (event: PointerEvent) => onDocumentPointerDown(event);
-    document.addEventListener("click", onClick);
-    document.addEventListener("pointerdown", onPointerDown, true);
+  onMount(() => {
     const onViewportChange = () => {
       updateChevronPin();
-      if (view) repositionTooltips(view);
+      if (view && completionStatus(view.state) !== null) {
+        repositionTooltips(view);
+      }
     };
-    const vv = window.visualViewport;
-    window.addEventListener("resize", onViewportChange);
-    window.addEventListener("scroll", onViewportChange, true);
-    vv?.addEventListener("resize", onViewportChange);
-    vv?.addEventListener("scroll", onViewportChange);
-    requestAnimationFrame(onViewportChange);
+    const unsubscribeViewport = subscribeViewport(onViewportChange);
+    const frame = requestAnimationFrame(onViewportChange);
 
-    if (autofocus && !disabled) {
-      requestAnimationFrame(() => focus());
-    }
+    if (autofocus && !disabled) activate(true);
 
     return () => {
-      document.removeEventListener("click", onClick);
-      document.removeEventListener("pointerdown", onPointerDown, true);
-      window.removeEventListener("resize", onViewportChange);
-      window.removeEventListener("scroll", onViewportChange, true);
-      vv?.removeEventListener("resize", onViewportChange);
-      vv?.removeEventListener("scroll", onViewportChange);
-      view?.destroy();
-      view = undefined;
+      cancelAnimationFrame(frame);
+      unsubscribeViewport();
+      clearTimeout(blurTimer);
+      deactivate();
     };
   });
-
   $effect(() => {
     const next = value;
     if (!view) return;
@@ -564,7 +595,31 @@
   {...wrapperRest}
 >
   <div class="field" role="presentation">
-    <div class="editor" bind:this={editorHost}></div>
+    {#if activated}
+      <div class="editor" bind:this={editorHost}></div>
+    {:else}
+      <input
+        class="native-input"
+        id={id || undefined}
+        value={value}
+        placeholder={placeholder || undefined}
+        disabled={disabled}
+        readonly={readonly}
+        required={required}
+        maxlength={maxlength}
+        minlength={minlength}
+        pattern={pattern}
+        form={form || undefined}
+        spellcheck={spellcheck}
+        {...editorRest}
+        oninput={onNativeInput}
+        onfocus={() => activate(true)}
+        onblur={(event) => {
+          emitChange();
+          onblur?.(event);
+        }}
+      />
+    {/if}
     <button
       type="button"
       class="chevron"
@@ -629,6 +684,23 @@
     display: flex;
     flex: 1;
     min-width: 0;
+  }
+
+  .native-input {
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+    padding: 0.45lh 0.75ch;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    line-height: 1.35;
+  }
+
+  .native-input::placeholder {
+    color: var(--vscode-input-placeholderForeground, var(--cg-muted));
   }
 
   .editor :global(.cm-editor) {

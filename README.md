@@ -115,7 +115,8 @@ component accepts native-style props (`id`, `name`, `disabled`, `readonly`,
 `data-*`), exposes `value` as a bindable prop, and accepts `completionSources` /
 `extensions` for community completion plugins. During pinch zoom, the chevron
 pins to the visible right edge (and the tooltip width follows the visual
-viewport). It is experimental and not wired into the main workbench.
+viewport). Idle fields use native inputs and mount CodeMirror only while focused.
+It is experimental and not wired into the main workbench.
 
 ### Settings
 

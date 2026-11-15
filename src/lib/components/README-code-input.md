@@ -1,8 +1,13 @@
 # CodeInput (experimental)
 
 An editable select/combobox backed by CodeMirror 6. The visible control is a
-single-line editor with a `v` chevron; completion is provided by the official
+single-line field with a `v` chevron; completion is provided by the official
 `@codemirror/autocomplete` list and tooltip. Try it at `/debug`.
+
+Instances are lazy: an idle field is a native `<input>`, and its CodeMirror
+`EditorView` is created on focus and destroyed shortly after blur. A page with
+100 fields therefore normally has zero editors, not 100; only the focused field
+pays the CodeMirror/tooltip cost.
 
 ```svelte
 <script lang="ts">
@@ -16,6 +21,8 @@ single-line editor with a `v` chevron; completion is provided by the official
 
 ## Behaviour
 
+- Idle fields use a native input; focusing one mounts CodeMirror. Leaving a
+  field destroys its editor after a short delay (value and props survive).
 - <kbd>Tab</kbd>: start completion; with the list open, accept the selected
   match.
 - <kbd>Shift</kbd> + <kbd>Tab</kbd>: move the selection up while open.
@@ -87,6 +94,8 @@ because this control is a small select rather than a code editor, and `Tab` is
 mapped to start/accept completion. The field does not clip the tooltip, and the
 tooltip width is capped with `--code-input-visual-width` (updated from
 `visualViewport.width`) so a pinch cannot push the whole list off-screen.
-Styling hooks:
+Theme, tooltip config, and window/visualViewport listeners are shared by all
+instances in `code-input-runtime.ts`; only `EditorView` and plugin views remain
+per active field. Styling hooks:
 `.cm-tooltip.code-input-completions`, `.cm-completionLabel`,
 `.cm-completionDetail`, and the selected `li[aria-selected]`.
