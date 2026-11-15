@@ -30,6 +30,16 @@ if (requestedTheme === "light" || requestedTheme === "dark") {
   document.documentElement.dataset.codeGraphTheme = requestedTheme;
 }
 
-const app = mount(App, { target: document.getElementById("app")! });
+const target = document.getElementById("app")!;
+const path = window.location.pathname.replace(/\/+$/, "") || "/";
+const isDebugPage =
+  path === "/debug" && (import.meta.env.DEV || import.meta.env.MODE === "web");
+if (isDebugPage) document.title = "CodeInput · debug";
+
+const app = isDebugPage
+  ? import("./routes/debug/+page.svelte").then(({ default: DebugPage }) =>
+      mount(DebugPage, { target }),
+    )
+  : mount(App, { target });
 
 export default app;

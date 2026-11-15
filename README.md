@@ -102,6 +102,18 @@ directly. Build output contains only the selected runtime:
   third-party embeds. `?theme=light|dark` sets the manual theme without
   touching the page CSS.
 
+### Experimental CodeInput
+
+`/debug` is a standalone-only playground for
+[`CodeInput`](src/lib/components/README-code-input.md), an editable select
+built on CodeMirror 6. Type a prefix and press <kbd>Tab</kbd> (or click the `v`
+chevron) to open a filtered completion list; <kbd>↑</kbd>/<kbd>↓</kbd>
+navigate, <kbd>Enter</kbd> accepts, <kbd>Esc</kbd> closes. The component accepts
+native-style props (`id`, `name`, `disabled`, `readonly`, `placeholder`,
+`required`, `maxlength`, `pattern`, `autocomplete`, `aria-*`, `data-*`) and
+exposes `value` as a bindable prop. It is experimental and not wired into the
+main workbench.
+
 ### Settings
 
 | Setting | Default | Meaning |

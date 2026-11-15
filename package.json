@@ -51,6 +51,8 @@
   },
   "dependencies": {
     "@bomb.sh/tab": "^0.0.22",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.15",
     "@vscode-elements/elements": "^2.5.1",
     "commander": "^15.1.0",
     "d3-selection": "^3.0.0",
