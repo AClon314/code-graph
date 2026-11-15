@@ -76,10 +76,12 @@
   const listId = `code-input-list-${++nextListId}`;
 
   let wrapper: HTMLDivElement | undefined;
+  let field = $state<HTMLDivElement>();
   let editorHost: HTMLDivElement | undefined;
   let menu = $state<HTMLDivElement>();
   let view: EditorView | undefined;
   let open = $state(false);
+  let placement = $state<"below" | "above">("below");
   let highlighted = $state(0);
   let filter = $state("");
   let syncing = false;
@@ -344,6 +346,25 @@
     if (wrapper && !path.includes(wrapper)) close();
   }
 
+  // Match CodeMirror's tooltip placement: prefer below, flip above when the
+  // list would cross the viewport bottom, and return below when it fits again.
+  function updatePlacement(): void {
+    if (!open || !field || !menu) return;
+    const fieldRect = field.getBoundingClientRect();
+    const menuHeight = menu.getBoundingClientRect().height;
+    const gap = 8;
+    const spaceBelow = window.innerHeight - fieldRect.bottom;
+    const spaceAbove = fieldRect.top;
+    const fitsBelow = spaceBelow >= menuHeight + gap;
+    const fitsAbove = spaceAbove >= menuHeight + gap;
+    if (placement === "below" && !fitsBelow) {
+      if (fitsAbove || spaceAbove > spaceBelow) placement = "above";
+    } else if (placement === "above") {
+      // The list can shrink after filtering, so return below once it fits.
+      if (fitsBelow || (!fitsAbove && spaceBelow > spaceAbove)) placement = "below";
+    }
+  }
+
   function onDocumentClick(event: MouseEvent): void {
     if (!id || !(event.target instanceof Element)) return;
     const label = event.target.closest(`label[for="${CSS.escape(id)}"]`);
@@ -491,6 +512,26 @@
 
   $effect(() => {
     if (!open) return;
+    // Read the list so filtering and placement changes re-run this effect.
+    void visibleOptions;
+    void placement;
+    const frame = requestAnimationFrame(updatePlacement);
+    const onViewportChange = () => updatePlacement();
+    window.addEventListener("resize", onViewportChange);
+    window.addEventListener("scroll", onViewportChange, true);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", onViewportChange);
+      window.removeEventListener("scroll", onViewportChange, true);
+    };
+  });
+
+  $effect(() => {
+    if (!open) {
+      placement = "below";
+      return;
+    }
+    if (!open) return;
     // Read the list so filtering also re-scrolls when the highlight is unchanged.
     void visibleOptions.length;
     const item = menu?.querySelector<HTMLElement>(`[data-index="${highlighted}"]`);
@@ -517,6 +558,7 @@
   <div
     class="field"
     role="presentation"
+    bind:this={field}
     onpointerdown={(event) => {
       const target = event.target as HTMLElement;
       if (target.closest("button")) return;
@@ -539,7 +581,13 @@
   </div>
 
   {#if open}
-    <div class="menu" id={listId} role="listbox" bind:this={menu}>
+    <div
+      class="menu"
+      class:above={placement === "above"}
+      id={listId}
+      role="listbox"
+      bind:this={menu}
+    >
       {#each visibleOptions as option, index (option.value + "\u0000" + index)}
         <button
           type="button"
@@ -667,6 +715,11 @@
     border-radius: 0.25rem;
     background: var(--vscode-dropdown-background, var(--cg-panel));
     box-shadow: 0 0.4lh 1.2lh rgb(0 0 0 / 22%);
+  }
+
+  .menu.above {
+    top: auto;
+    bottom: calc(100% + 0.15lh);
   }
 
   .option {

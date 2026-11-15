@@ -24,6 +24,10 @@ from the chevron and from <kbd>Tab</kbd>. Try it at `/debug`.
 - <kbd>Esc</kbd>: close the list.
 - Click the `v` chevron to open/close the same list.
 - Clicking outside closes the list. Typing filters it while open.
+- The list normally opens below the field. If it would cross the viewport
+  bottom, it opens above instead (and returns below when a filtered list fits),
+  matching CodeMirror's tooltip placement behavior. The check runs again on
+  viewport resize and scroll.
 
 ## Props
 

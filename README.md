@@ -108,8 +108,9 @@ directly. Build output contains only the selected runtime:
 [`CodeInput`](src/lib/components/README-code-input.md), an editable select
 built on CodeMirror 6. Type a prefix and press <kbd>Tab</kbd> (or click the `v`
 chevron) to open a filtered completion list; <kbd>↑</kbd>/<kbd>↓</kbd>
-navigate, <kbd>Enter</kbd> accepts, <kbd>Esc</kbd> closes. The component accepts
-native-style props (`id`, `name`, `disabled`, `readonly`, `placeholder`,
+navigate, <kbd>Enter</kbd> accepts, <kbd>Esc</kbd> closes. When the list would
+cross the viewport bottom, it flips above the field and back when it fits. The
+component accepts native-style props (`id`, `name`, `disabled`, `readonly`, `placeholder`,
 `required`, `maxlength`, `pattern`, `autocomplete`, `aria-*`, `data-*`) and
 exposes `value` as a bindable prop. It is experimental and not wired into the
 main workbench.
