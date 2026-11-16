@@ -30,7 +30,11 @@ pays the CodeMirror/tooltip cost.
 - <kbd>Enter</kbd>: accept the selected match; with the list closed, submit
   the surrounding form (if any).
 - <kbd>Esc</kbd>: close the list.
-- Click the `v` chevron to start/close completion.
+- The first click/tap on an idle field only focuses it and mounts the editor.
+  Click/tap the focused field again to show completion; another click hides it.
+  This is especially useful on mobile after pinch zoom, where the in-field
+  chevron may be outside the visual viewport.
+- Click the `v` chevron to show/hide completion directly.
 - Clicking outside closes the list. Typing filters it while open (and opens it
   automatically when `activateOnTyping` is true).
 - The list uses CodeMirror's tooltip placement: below the cursor by default,
@@ -38,11 +42,9 @@ pays the CodeMirror/tooltip cost.
   clamping. `tooltipSpace` is bound to `window.visualViewport` when available,
   and `repositionTooltips` is called on visualViewport resize/scroll, so mobile
   pinch zoom, URL-bar changes, and the software keyboard are accounted for.
-- While `visualViewport.scale > 1`, a chevron whose field extends past the
-  visible right edge is pinned to the visual viewport's right edge at the
-  field's vertical position; it returns into the field when the field is
-  visible. The list width is capped to the visual viewport width so it cannot
-  disappear off-screen.
+- The list width is capped to the visual viewport width so pinch zoom cannot
+  push it off-screen. There is no separate pinned chevron: after focusing a
+  field, a second click/tap on the field toggles the list.
 
 ## Props
 
@@ -52,7 +54,7 @@ pays the CodeMirror/tooltip cost.
 | `options` | `string[] \| { value, label?, description? }[]` | Completion candidates, published as a completion source. |
 | `completionSources` | `CompletionSource[]` | Extra sources, merged through language data. |
 | `extensions` | `Extension` | Extra CodeMirror extensions, including community completion/language extensions. |
-| `activateOnTyping` | `boolean` | Let autocomplete start while typing; default `false` (Tab/chevron only). |
+| `activateOnTyping` | `boolean` | Let autocomplete start while typing; default `false` (Tab/chevron/field click). |
 | `name` | `string` | Adds a hidden form value input. |
 | `id` | `string` | Applied to the CodeMirror content. |
 | `form` | `string` | Associates the hidden value input with a form. |
@@ -94,6 +96,7 @@ because this control is a small select rather than a code editor, and `Tab` is
 mapped to start/accept completion. The field does not clip the tooltip, and the
 tooltip width is capped with `--code-input-visual-width` (updated from
 `visualViewport.width`) so a pinch cannot push the whole list off-screen.
+There is no zoom-pinned chevron; a click on the focused field toggles the list.
 Theme, tooltip config, and window/visualViewport listeners are shared by all
 instances in `code-input-runtime.ts`; only `EditorView` and plugin views remain
 per active field. Styling hooks:

@@ -63,7 +63,8 @@
     <p class="lede">
       An editable select with a completion list. <kbd>Tab</kbd> opens or
       accepts, <kbd>↑</kbd>/<kbd>↓</kbd> navigate, <kbd>Enter</kbd> accepts,
-      <kbd>Esc</kbd> closes. The chevron is the same trigger.
+      <kbd>Esc</kbd> closes. The chevron does the same; after the field is
+      focused, clicking/tapping the field toggles the list.
     </p>
   </header>
 
@@ -71,7 +72,7 @@
     <div class="demo-row">
       <div class="demo-label">
         <label for="fruit-input">Fruit</label>
-        <span class="hint">type “ap”, then Tab or the chevron</span>
+        <span class="hint">type “ap”, then Tab, the chevron, or click again</span>
       </div>
       <CodeInput
         id="fruit-input"

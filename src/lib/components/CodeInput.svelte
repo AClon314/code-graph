@@ -108,18 +108,17 @@
 
   let wrapper: HTMLDivElement | undefined;
   let editorHost = $state<HTMLDivElement>();
-  let chevron: HTMLButtonElement | undefined;
   let view: EditorView | undefined;
   let syncing = false;
   let lastCommitted = value;
   let completionOpen = $state(false);
-  let pinnedChevron = $state(false);
-  let chevronStyle = $state("");
   let activated = $state(false);
   let activating = false;
   let pendingOpen = false;
+  let fieldClickStartedFocused = false;
   let blurTimer: ReturnType<typeof setTimeout> | undefined;
   let detachDocumentListeners: (() => void) | undefined;
+  let unsubscribeViewport: (() => void) | undefined;
 
   const normalizedOptions = $derived.by<NormalizedOption[]>(() =>
     options.map((option) =>
@@ -208,46 +207,6 @@
     { autocomplete: optionsSource },
     ...completionSources.map((source) => ({ autocomplete: source })),
   ]);
-
-  function updateChevronPin(): void {
-    const vv = window.visualViewport;
-    if (!vv || vv.scale <= 1.01 || !chevron) {
-      pinnedChevron = false;
-      chevronStyle = "";
-      return;
-    }
-
-    const field = chevron.closest(".field")?.getBoundingClientRect();
-    if (!field) {
-      pinnedChevron = false;
-      chevronStyle = "";
-      return;
-    }
-
-    const visualTop = vv.offsetTop;
-    const visualBottom = visualTop + vv.height;
-    const visualLeft = vv.offsetLeft;
-    const visualRight = visualLeft + vv.width;
-    const fieldVisible = field.bottom > visualTop && field.top < visualBottom;
-    const naturalButtonLeft = field.right - chevron.offsetWidth;
-    const buttonVisible =
-      naturalButtonLeft >= visualLeft && field.right <= visualRight;
-    if (!fieldVisible || buttonVisible) {
-      pinnedChevron = false;
-      chevronStyle = "";
-      return;
-    }
-
-    const margin = 8;
-    const buttonHeight = field.height;
-    const left = Math.max(margin, vv.width - chevron.offsetWidth - margin);
-    const top = Math.min(
-      Math.max(field.top - vv.offsetTop, margin),
-      Math.max(margin, vv.height - buttonHeight - margin),
-    );
-    pinnedChevron = true;
-    chevronStyle = `left:${left}px;top:${top}px;`;
-  }
 
   function contentAttributes(): Record<string, string> {
     const attrs: Record<string, string> = {
@@ -339,7 +298,10 @@
       activate(true);
       return;
     }
-    if (!view) return;
+    if (!view) {
+      pendingOpen = true;
+      return;
+    }
     view.focus();
     startCompletion(view);
   }
@@ -370,6 +332,8 @@
     clearTimeout(blurTimer);
     if (!activated) return;
     detachDocument();
+    unsubscribeViewport?.();
+    unsubscribeViewport = undefined;
     if (view) {
       view.destroy();
       view = undefined;
@@ -392,6 +356,30 @@
     const next = (event.currentTarget as HTMLInputElement).value;
     value = next;
     emit("input", next);
+  }
+
+  function fieldTargetIsChevron(event: Event): boolean {
+    const target = event.target;
+    return target instanceof Element && target.closest(".chevron") !== null;
+  }
+
+  function onFieldPointerDown(event: PointerEvent): void {
+    if (fieldTargetIsChevron(event)) return;
+    fieldClickStartedFocused = Boolean(view?.hasFocus);
+  }
+
+  function onFieldClick(event: MouseEvent): void {
+    if (fieldTargetIsChevron(event)) return;
+    if (!fieldClickStartedFocused) return;
+    fieldClickStartedFocused = false;
+    if (completionOpen) close();
+    else openList();
+  }
+
+  function onViewportChange(): void {
+    if (view && completionStatus(view.state) !== null) {
+      repositionTooltips(view);
+    }
   }
 
   function tabComplete(editor: EditorView): boolean {
@@ -494,6 +482,12 @@
         placeholderCompartment.of(cmPlaceholder(placeholder)),
         EditorView.updateListener.of((update) => {
           completionOpen = completionStatus(update.state) !== null;
+          // The completion extension also writes content attributes; keep the
+          // combobox state in sync after its update.
+          update.view.contentDOM.setAttribute(
+            "aria-expanded",
+            String(completionOpen),
+          );
 
           if (update.docChanged && !syncing) {
             const text = update.state.doc.toString();
@@ -528,23 +522,13 @@
     });
     view = new EditorView({ state, parent: editorHost });
     attachDocumentListeners();
+    unsubscribeViewport = subscribeViewport(onViewportChange);
   }
 
   onMount(() => {
-    const onViewportChange = () => {
-      updateChevronPin();
-      if (view && completionStatus(view.state) !== null) {
-        repositionTooltips(view);
-      }
-    };
-    const unsubscribeViewport = subscribeViewport(onViewportChange);
-    const frame = requestAnimationFrame(onViewportChange);
-
     if (autofocus && !disabled) activate(true);
 
     return () => {
-      cancelAnimationFrame(frame);
-      unsubscribeViewport();
       clearTimeout(blurTimer);
       deactivate();
     };
@@ -594,7 +578,12 @@
   bind:this={wrapper}
   {...wrapperRest}
 >
-  <div class="field" role="presentation">
+  <div
+    class="field"
+    role="presentation"
+    onpointerdown={onFieldPointerDown}
+    onclick={onFieldClick}
+  >
     {#if activated}
       <div class="editor" bind:this={editorHost}></div>
     {:else}
@@ -623,14 +612,15 @@
     <button
       type="button"
       class="chevron"
-      class:pinned={pinnedChevron}
-      style={chevronStyle}
-      bind:this={chevron}
       tabindex="-1"
-      aria-label="Show completion options"
+      aria-label={completionOpen
+        ? "Hide completion options"
+        : "Show completion options"}
       aria-haspopup="listbox"
       aria-expanded={completionOpen}
-      title="Show completion options (Tab)"
+      title={completionOpen
+        ? "Hide completion options (Tab)"
+        : "Show completion options (Tab)"}
       onpointerdown={(event) => event.preventDefault()}
       onclick={() => (completionOpen ? close() : openList())}
     >v</button>
@@ -730,19 +720,6 @@
     font: inherit;
     line-height: 1;
     cursor: pointer;
-  }
-
-  /* Middle of a pinch: the field can be wider than the visual viewport. Keep
-     the trigger reachable at the visual right edge instead of letting it sit
-     off-screen. The vertical position follows the field, clamped on-screen. */
-  .chevron.pinned {
-    position: fixed;
-    z-index: 60;
-    height: 2lh;
-    border: 1px solid var(--vscode-input-border, var(--cg-line));
-    border-radius: 0.25rem;
-    background: var(--vscode-input-background, var(--cg-bg));
-    box-shadow: 0 0.2lh 0.8lh rgb(0 0 0 / 18%);
   }
 
   .chevron:hover {

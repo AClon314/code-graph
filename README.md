@@ -109,14 +109,16 @@ directly. Build output contains only the selected runtime:
 built on CodeMirror 6's official autocomplete/tooltip. Type a prefix and press
 <kbd>Tab</kbd> (or click the `v` chevron) to open a filtered completion list;
 <kbd>↑</kbd>/<kbd>↓</kbd> navigate, <kbd>Enter</kbd> accepts, <kbd>Esc</kbd>
-closes. The tooltip flips above when it would cross the viewport bottom. The
-component accepts native-style props (`id`, `name`, `disabled`, `readonly`,
-`placeholder`, `required`, `maxlength`, `pattern`, `autocomplete`, `aria-*`,
-`data-*`), exposes `value` as a bindable prop, and accepts `completionSources` /
-`extensions` for community completion plugins. During pinch zoom, the chevron
-pins to the visible right edge (and the tooltip width follows the visual
-viewport). Idle fields use native inputs and mount CodeMirror only while focused.
-It is experimental and not wired into the main workbench.
+closes. The first click/tap on an idle field just focuses it; clicking the
+focused field again shows completion, and another click hides it. The tooltip
+flips above when it would cross the viewport bottom. The component accepts
+native-style props (`id`, `name`, `disabled`, `readonly`, `placeholder`,
+`required`, `maxlength`, `pattern`, `autocomplete`, `aria-*`, `data-*`),
+exposes `value` as a bindable prop, and accepts `completionSources` /
+`extensions` for community completion plugins. The tooltip width follows the
+visual viewport; there is no separate pinned chevron. Idle fields use native
+inputs and mount CodeMirror only while focused. It is experimental and not
+wired into the main workbench.
 
 ### Settings
 
