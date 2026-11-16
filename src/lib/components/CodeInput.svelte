@@ -1,11 +1,5 @@
 <script module lang="ts">
-  export type CodeInputOption =
-    | string
-    | {
-        value: string;
-        label?: string;
-        description?: string;
-      };
+  export type { CodeInputOption, CodeInputOptions } from "./code-input-options";
 </script>
 
 <script lang="ts">
@@ -33,16 +27,43 @@
     repositionTooltips,
   } from "@codemirror/view";
   import { onMount, tick } from "svelte";
+  import type { HTMLInputAttributes } from "svelte/elements";
 
+  import {
+    resolveCodeInputOptions,
+    type CodeInputOptions,
+    type NormalizedCodeInputOption,
+  } from "./code-input-options";
   import {
     codeInputTheme,
     codeInputTooltips,
     subscribeViewport,
   } from "./code-input-runtime";
 
-  interface Props {
+  type NativeInputProps = Omit<
+    HTMLInputAttributes,
+    | "value"
+    | "class"
+    | "style"
+    | "children"
+    | "type"
+    | "autocomplete"
+    | "inputmode"
+    | "spellcheck"
+    | "oninput"
+    | "onchange"
+    | "onfocus"
+    | "onblur"
+    | "bind:value"
+    | "bind:checked"
+    | "bind:group"
+    | "bind:files"
+    | "bind:indeterminate"
+  >;
+
+  interface Props extends NativeInputProps {
     value?: string;
-    options?: readonly CodeInputOption[];
+    options?: CodeInputOptions;
     /** Extra completion sources, e.g. from a language extension or plugin. */
     completionSources?: readonly CompletionSource[];
     /** Extra CodeMirror extensions. Language data completion sources work too. */
@@ -68,14 +89,7 @@
     onchange?: (event: Event) => void;
     onfocus?: (event: FocusEvent) => void;
     onblur?: (event: FocusEvent) => void;
-    [key: string]: unknown;
   }
-
-  type NormalizedOption = {
-    value: string;
-    label: string;
-    description?: string;
-  };
 
   let {
     value = $bindable(""),
@@ -120,18 +134,6 @@
   let detachDocumentListeners: (() => void) | undefined;
   let unsubscribeViewport: (() => void) | undefined;
 
-  const normalizedOptions = $derived.by<NormalizedOption[]>(() =>
-    options.map((option) =>
-      typeof option === "string"
-        ? { value: option, label: option }
-        : {
-            value: option.value,
-            label: option.label ?? option.value,
-            description: option.description,
-          },
-    ),
-  );
-
   const editorOnlyAttributes = new Set([
     "aria-activedescendant",
     "aria-autocomplete",
@@ -171,11 +173,25 @@
     return attrs;
   });
 
+  /** Native-only props go to the idle <input>; data-* stays on the wrapper. */
+  const nativeRest = $derived.by(() => {
+    const attrs: Record<string, unknown> = Object.fromEntries(
+      Object.entries(rest).filter(
+        ([key, raw]) =>
+          !key.startsWith("data-") &&
+          raw !== undefined &&
+          raw !== null &&
+          raw !== false,
+      ),
+    );
+    if (inputmode) attrs.inputmode = inputmode;
+    attrs.autocomplete = autocomplete;
+    return attrs;
+  });
+
   const wrapperRest = $derived.by(() =>
     Object.fromEntries(
-      Object.entries(rest).filter(
-        ([key]) => !editorOnlyAttributes.has(key) && !key.startsWith("aria-"),
-      ),
+      Object.entries(rest).filter(([key]) => key.startsWith("data-")),
     ),
   );
 
@@ -188,12 +204,19 @@
    * It is published through language data (rather than autocompletion's
    * `override`) so community plugins can contribute their own sources too.
    */
-  const optionsSource: CompletionSource = (context) => {
-    if (!normalizedOptions.length) return null;
+  const optionsSource: CompletionSource = async (context) => {
+    let normalized: NormalizedCodeInputOption[];
+    try {
+      normalized = await resolveCodeInputOptions(options);
+    } catch (cause) {
+      console.warn("CodeInput options provider failed", cause);
+      return null;
+    }
+    if (!normalized.length) return null;
     return {
       from: 0,
       to: context.state.doc.length,
-      options: normalizedOptions.map<Completion>((option) => ({
+      options: normalized.map<Completion>((option) => ({
         label: option.label,
         apply: option.value,
         detail: option.description,
@@ -600,7 +623,7 @@
         pattern={pattern}
         form={form || undefined}
         spellcheck={spellcheck}
-        {...editorRest}
+        {...nativeRest}
         oninput={onNativeInput}
         onfocus={() => activate(true)}
         onblur={(event) => {

@@ -51,7 +51,7 @@ pays the CodeMirror/tooltip cost.
 | Prop | Type | Notes |
 | --- | --- | --- |
 | `value` | `string` | Bindable. Also accepts external updates. |
-| `options` | `string[] \| { value, label?, description? }[]` | Completion candidates, published as a completion source. |
+| `options` | `CodeInputOption[] \| (() => CodeInputOption[] \| Promise<CodeInputOption[]>)` | Static candidates or a lazy provider. The provider is called whenever CodeMirror requests completions (and may run again while the list stays open), so it can read current state or fetch a list; sync and async results are supported. Cache expensive lookups inside the provider. |
 | `completionSources` | `CompletionSource[]` | Extra sources, merged through language data. |
 | `extensions` | `Extension` | Extra CodeMirror extensions, including community completion/language extensions. |
 | `activateOnTyping` | `boolean` | Let autocomplete start while typing; default `false` (Tab/chevron/field click). |
@@ -69,7 +69,7 @@ pays the CodeMirror/tooltip cost.
 | `spellcheck` | `boolean \| "true" \| "false"` | Applied to the editor content. |
 | `class` / `style` | `string` | Wrapper styling. |
 | `oninput` / `onchange` | `(event: Event) => void` | Receives a bubbling `CustomEvent` with `detail.value`. |
-| `aria-*` / `data-*` / `title` | native values | Editor ARIA/title attributes; other data attributes go to the wrapper. |
+| native `<input>` props | `HTMLInputAttributes` | Typed native attributes (`size`, `list`, `autocapitalize`, `aria-*`, keyboard handlers, …). They are applied to the idle native input and mirrored to the editor when meaningful (`aria-*`, `title`, `inputmode`, …). `data-*` stays on the wrapper. Attributes such as `size`/`list`/`min`/`max`/`step` only affect the idle input, not the CodeMirror content. `type` is intentionally not exposed: the control is text-only. |
 
 Native constraint validation is intentionally not reimplemented on the
 contenteditable editor. `required`, `pattern`, and length attributes are
@@ -85,10 +85,23 @@ component's own options:
 
 ```svelte
 <CodeInput
-  {options}
+  options={() => currentRoots}
   extensions={myLanguageExtension}
   completionSources={[myCompletionSource]}
 />
+```
+
+`options` can also be async when the candidates come from an API. Normalization
+lives in `code-input-options.ts`; providers are evaluated lazily rather than
+when the component mounts. Types are exported from the component module:
+
+```svelte
+<script lang="ts">
+  import CodeInput, {
+    type CodeInputOption,
+    type CodeInputOptions,
+  } from "#lib/components/CodeInput.svelte";
+</script>
 ```
 
 The official completion keymap is enabled. `interactionDelay` is set to `0`
@@ -99,6 +112,7 @@ tooltip width is capped with `--code-input-visual-width` (updated from
 There is no zoom-pinned chevron; a click on the focused field toggles the list.
 Theme, tooltip config, and window/visualViewport listeners are shared by all
 instances in `code-input-runtime.ts`; only `EditorView` and plugin views remain
-per active field. Styling hooks:
+per active field. Native/editor attribute splitting and lazy option resolution
+keep the component's prop surface predictable. Styling hooks:
 `.cm-tooltip.code-input-completions`, `.cm-completionLabel`,
 `.cm-completionDetail`, and the selected `li[aria-selected]`.

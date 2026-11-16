@@ -115,7 +115,9 @@ flips above when it would cross the viewport bottom. The component accepts
 native-style props (`id`, `name`, `disabled`, `readonly`, `placeholder`,
 `required`, `maxlength`, `pattern`, `autocomplete`, `aria-*`, `data-*`),
 exposes `value` as a bindable prop, and accepts `completionSources` /
-`extensions` for community completion plugins. The tooltip width follows the
+`extensions` for community completion plugins. `options` may be a static list
+or a sync/async provider evaluated when completion opens; native
+`HTMLInputAttributes` are accepted alongside these CodeMirror-specific props. The tooltip width follows the
 visual viewport; there is no separate pinned chevron. Idle fields use native
 inputs and mount CodeMirror only while focused. It is experimental and not
 wired into the main workbench.

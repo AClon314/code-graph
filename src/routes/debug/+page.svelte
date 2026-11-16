@@ -72,13 +72,13 @@
     <div class="demo-row">
       <div class="demo-label">
         <label for="fruit-input">Fruit</label>
-        <span class="hint">type “ap”, then Tab, the chevron, or click again</span>
+        <span class="hint">lazy options provider: type “ap”, then Tab</span>
       </div>
       <CodeInput
         id="fruit-input"
         name="fruit"
         bind:value={fruit}
-        options={fruits}
+        options={() => fruits}
         placeholder="Start typing…"
         aria-label="Fruit"
         aria-describedby="fruit-hint"
