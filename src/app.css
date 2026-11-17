@@ -1,7 +1,7 @@
 /*
  * Theme with VS Code's own webview tokens instead of a parallel design system.
- * Native controls and @vscode-elements components both consume --vscode-*;
- * fallbacks keep `vite dev` usable outside an editor.
+ * Native controls consume --vscode-* directly; fallbacks keep `vite dev`
+ * usable outside an editor.
  */
 :root,
 :host {
@@ -205,14 +205,26 @@ h3 {
   gap: 0.35ch;
 }
 
-.entry-bar vscode-textfield,
-.searchbox vscode-textfield,
-.field vscode-textfield {
+.search-input {
   display: block;
   width: 100%;
-  --vscode-settings-textInputBorder: var(--vscode-input-border, var(--line));
-  --vscode-settings-textInputBackground: var(--vscode-input-background, var(--panel));
-  --vscode-settings-textInputForeground: var(--vscode-input-foreground, var(--text));
+  min-width: 0;
+  padding: 0.3lh 0.8ch;
+  border: 1px solid var(--vscode-input-border, var(--line));
+  border-radius: 0.35rem;
+  background: var(--vscode-input-background, var(--panel));
+  color: var(--vscode-input-foreground, var(--text));
+  font-size: 0.78rem;
+}
+
+.search-input::placeholder {
+  color: var(--vscode-input-placeholderForeground, var(--muted));
+}
+
+.search-input:focus {
+  border-color: var(--vscode-focusBorder, var(--accent));
+  outline: 1px solid var(--vscode-focusBorder, var(--accent));
+  outline-offset: -1px;
 }
 
 /* ---- controls ---------------------------------------------------------- */
@@ -284,8 +296,21 @@ h3 {
   outline: none;
 }
 
-vscode-single-select {
+.view-control select {
   min-width: 10ch;
+  padding: 0.2lh 0.45ch;
+  border: 1px solid var(--vscode-dropdown-border, var(--line));
+  border-radius: 0.25rem;
+  background: var(--vscode-dropdown-background, var(--panel));
+  color: var(--vscode-dropdown-foreground, var(--text));
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+
+.view-control select:focus-visible {
+  border-color: var(--vscode-focusBorder, var(--accent));
+  outline: 1px solid var(--vscode-focusBorder, var(--accent));
+  outline-offset: -1px;
 }
 
 /* ---- edge panels ------------------------------------------------------- */

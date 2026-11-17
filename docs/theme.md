@@ -14,8 +14,8 @@ three-state model as the parent `gpen-js` project:
 In the VS Code/code-server webview, real `--vscode-*` tokens win. The
 `light-dark()` values are only fallbacks. The standalone web build (`mode=web`
 or `vite dev`) sets `data-code-graph-standalone` and also supplies a small set
-of `--vscode-*` fallbacks so `@vscode-elements` controls render in the same
-light/dark palette.
+of `--vscode-*` fallbacks so native controls render in the same light/dark
+palette.
 
 ## DPI scale
 

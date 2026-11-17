@@ -76,28 +76,28 @@ directly. Build output contains only the selected runtime:
   Touch pinch/pan uses D3's touch gestures. Graph controls stay out of the
   canvas; opening an edge panel only resizes the graph, and an untouched graph
   re-fits itself.
-- Root picker: the **Symbol entry** field in the command bar is a free-form
-  `vscode-textfield` plus an arrow-only native `<select>` populated from cbm's
-  repository map (entry points, source modules, exported classes). The input
-  stays editable, so arbitrary QNs and `#id` values still work; selecting a
-  root fills the input. `vscode-textfield` has no `datalist`, hence the
-  adjacent select.
+- Root picker: the **Symbol entry** field in the command bar is a `CodeInput`
+  with completion candidates from cbm's repository map (entry points, source
+  modules, exported classes). The input stays editable, so arbitrary QNs and
+  `#id` values still work; selecting a root fills the field.
 - Details: **Details** opens an edge inspector with the symbol bundle;
   callers/callees are collapsible sections. Selecting a graph node opens it
   automatically. **Jump** opens the file at the symbol's line/column through
   `ExtensionApi.openLocation`. **Copy rel**, **Copy abs** and **Copy both**
   copy `path:line:column` (absolute paths are resolved from the workspace root).
 - Progressive disclosure: source/project live under **Setup** instead of the
-  main toolbar. Keyboard shortcuts for experienced users: `/` search, `f` fit,
-  `r` reload graph, `d` details, `s` setup, `Esc` close panel.
+  main toolbar. The Project field is a `CodeInput` with all indexed names
+  fetched from cbm's read-only `list_projects` RPC; free-form names still work.
+  Keyboard shortcuts for experienced users: `/` search, `f` fit, `r` reload
+  graph, `d` details, `s` setup, `Esc` close panel.
 - Workspace Trust: declared supported for untrusted and virtual workspaces, so
   the graph viewer is usable in Restricted Mode. cbm requests are made by the
   Node extension host, not the webview.
 - Styling: a `--cg-*` theme palette layered over VS Code `--vscode-*` theme
-  tokens; see [`docs/theme.md`](docs/theme.md). `@vscode-elements/elements`
-  provides `vscode-textfield` / `vscode-single-select`; buttons are native
-  `<button>` elements using `--vscode-button-*`. The archived
-  `@vscode/webview-ui-toolkit` is not used.
+  tokens; see [`docs/theme.md`](docs/theme.md). Controls are native
+  `<button>`, `<input>`, and `<select>` elements using the same
+  `--vscode-*` tokens. `@vscode-elements/elements` is no longer a dependency;
+  the archived `@vscode/webview-ui-toolkit` is not used.
 - DPI: `--code-graph-scale` (or `?scale=`) scales the whole shell for
   third-party embeds. `?theme=light|dark` sets the manual theme without
   touching the page CSS.

@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 
 import { svelte } from "@sveltejs/vite-plugin-svelte";
-import { defineConfig } from "vite";
+import { defineConfig, type ProxyOptions } from "vite";
 
 export default defineConfig(({ mode }) => {
   const standalone = mode === "development" || mode === "web";
@@ -13,6 +13,18 @@ export default defineConfig(({ mode }) => {
       import.meta.url,
     ),
   );
+  const cbmProxy: ProxyOptions = {
+    target: process.env.CBM_HTTP ?? "http://127.0.0.1:9749",
+    changeOrigin: true,
+    // cbm treats a different localhost port as a different principal. The
+    // dev/preview proxy is same-origin for the browser, so do not forward the
+    // Vite origin as a cross-origin request.
+    configure: (proxy) => {
+      proxy.on("proxyReq", (proxyReq) => {
+        proxyReq.removeHeader("origin");
+      });
+    },
+  };
 
   return {
     plugins: [svelte()],
@@ -39,20 +51,16 @@ export default defineConfig(({ mode }) => {
         followSymlinks: false,
       },
       proxy: {
-        "/api": {
-          target: process.env.CBM_HTTP ?? "http://127.0.0.1:9749",
-          changeOrigin: true,
-        },
+        "/api": cbmProxy,
+        "/rpc": cbmProxy,
       },
     },
     preview: {
       host: "0.0.0.0",
       allowedHosts: true,
       proxy: {
-        "/api": {
-          target: process.env.CBM_HTTP ?? "http://127.0.0.1:9749",
-          changeOrigin: true,
-        },
+        "/api": cbmProxy,
+        "/rpc": cbmProxy,
       },
     },
     build: {

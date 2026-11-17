@@ -69,6 +69,8 @@
     /** Extra CodeMirror extensions. Language data completion sources work too. */
     extensions?: Extension;
     activateOnTyping?: boolean;
+    /** Filter candidates by the current text; false shows all options. */
+    filterOptions?: boolean;
     placeholder?: string;
     disabled?: boolean;
     readonly?: boolean;
@@ -97,6 +99,7 @@
     completionSources = [],
     extensions = [],
     activateOnTyping = false,
+    filterOptions = true,
     placeholder = "",
     disabled = false,
     readonly = false,
@@ -213,7 +216,7 @@
       return null;
     }
     if (!normalized.length) return null;
-    return {
+    const result = {
       from: 0,
       to: context.state.doc.length,
       options: normalized.map<Completion>((option) => ({
@@ -222,8 +225,11 @@
         detail: option.description,
         type: "text",
       })),
-      validFor: /^[\s\S]*$/,
     };
+    return filterOptions
+      ? { ...result, validFor: /^[\s\S]*$/ }
+      : { ...result, filter: false };
+
   };
 
   const completionLanguageData = EditorState.languageData.of(() => [

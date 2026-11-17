@@ -53,8 +53,8 @@
 
 /*
  * VS Code webview tokens are provided by the editor host. The standalone web
- * shell has no host, so give @vscode-elements the same light/dark fallbacks
- * instead of letting it render its default dark controls on a light page.
+ * shell has no host, so provide the same light/dark fallbacks for native
+ * controls instead of forcing the default dark palette on a light page.
  */
 :root[data-code-graph-standalone] {
   --vscode-font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;

@@ -14,12 +14,24 @@ describe("cbm request URL", () => {
     expect(url.href).toBe("http://127.0.0.1:9749/api/symbol?project=p&qn=a+b");
   });
 
-  test("rejects paths that normalize outside /api/", () => {
-    for (const path of ["/api/../secret", "/api/%2e%2e/secret", "/other"]) {
-      expect(() => cbmRequestUrl(base, { path })).toThrow(/\/api\//);
+  test("allows the read-only /rpc endpoint", () => {
+    expect(cbmRequestUrl(base, { path: "/rpc" }).href).toBe(
+      "http://127.0.0.1:9749/rpc",
+    );
+  });
+
+  test("rejects paths that normalize outside /api/ or /rpc", () => {
+    for (const path of [
+      "/api/../secret",
+      "/api/%2e%2e/secret",
+      "/other",
+      "/rpc/../api/symbol",
+      "/rpc/extra",
+    ]) {
+      expect(() => cbmRequestUrl(base, { path })).toThrow(/\/api\/ or \/rpc/);
     }
     expect(() => cbmRequestUrl(base, { path: "//evil.test/api/symbol" })).toThrow(
-      /\/api\//,
+      /\/api\/ or \/rpc/,
     );
   });
 

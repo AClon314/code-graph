@@ -2,9 +2,10 @@
  * One cbm HTTP request builder/transport shared by the extension, Fresh, and
  * browser-dev hosts.
  *
- * The API surface is deliberately small: only `/api/` paths on the configured
- * base are allowed. Normalizing before the check matters because `/api/../x`
- * is a valid prefix string but a different path after URL parsing.
+ * The API surface is deliberately small: `/api/` paths plus the read-only
+ * JSON-RPC endpoint `/rpc` on the configured base are allowed. Normalizing
+ * before the check matters because `/api/../x` is a valid prefix string but a
+ * different path after URL parsing.
  */
 
 import {
@@ -35,13 +36,20 @@ export function cbmRequestUrl(baseUrl: string, request: CbmHttpRequest): URL {
   if (base.protocol !== "http:" && base.protocol !== "https:") {
     throw new Error(`cbm base must be an http(s) URL, got ${base.href}`);
   }
-  if (!request.path.startsWith("/api/") || request.path.startsWith("//")) {
-    throw new Error(`cbm proxy only accepts /api/ paths, got ${request.path}`);
+  const isRpc = request.path === "/rpc";
+  if (
+    !isRpc &&
+    (!request.path.startsWith("/api/") || request.path.startsWith("//"))
+  ) {
+    throw new Error(`cbm proxy only accepts /api/ or /rpc, got ${request.path}`);
   }
 
   const url = new URL(request.path, base);
-  if (url.origin !== base.origin || !url.pathname.startsWith("/api/")) {
-    throw new Error(`cbm proxy refused path outside /api/: ${request.path}`);
+  if (
+    url.origin !== base.origin ||
+    (!isRpc && !url.pathname.startsWith("/api/"))
+  ) {
+    throw new Error(`cbm proxy refused path outside /api/ or /rpc: ${request.path}`);
   }
   for (const [key, value] of Object.entries(request.query ?? {})) {
     url.searchParams.set(key, value);

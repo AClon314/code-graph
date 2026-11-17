@@ -175,7 +175,7 @@ data to the webview. Keep one frame cache keyed by `WorkspaceRef.id`.
 
 ## UI options
 
-- **One panel, workspace picker** (recommended): a `vscode-single-select` in
+- **One panel, workspace picker** (recommended): a native `<select>` in
   the toolbar listing workspaces; the active workspace follows editor focus.
   Matches VS Code multi-root, and the Fresh panel stays a single tab.
 - **One panel per workspace**: VS Code can create several webview tabs; Fresh

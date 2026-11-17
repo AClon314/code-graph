@@ -24,16 +24,15 @@ export interface ShortcutEvent {
 }
 
 const TYPING_SELECTOR = "input, textarea, select, [contenteditable='true']";
-const COMPONENT_SELECTOR = "vscode-textfield, vscode-single-select";
 
 function isTypingElement(node: unknown): boolean {
   if (!node || typeof node !== "object") return false;
   const element = node as { matches?: (selector: string) => boolean };
   if (typeof element.matches !== "function") return false;
-  return element.matches(TYPING_SELECTOR) || element.matches(COMPONENT_SELECTOR);
+  return element.matches(TYPING_SELECTOR);
 }
 
-/** True when focus is inside a native or VS Code form control. */
+/** True when focus is inside a native form control or editable content. */
 export function isTypingTarget(path: readonly unknown[]): boolean {
   return path.some(isTypingElement);
 }

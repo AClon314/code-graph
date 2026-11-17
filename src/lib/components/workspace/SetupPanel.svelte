@@ -1,10 +1,13 @@
 <script lang="ts">
   import type { GraphBackend } from "../../../extension/api";
   import type { SourceKind } from "../../graph/url-state";
+  import CodeInput from "../CodeInput.svelte";
 
   interface Props {
     kind: SourceKind;
     project: string;
+    projects?: string[];
+    projectsLoading?: boolean;
     runtime: string;
     backend: GraphBackend;
     onsource: (kind: SourceKind) => void;
@@ -16,6 +19,8 @@
   let {
     kind,
     project,
+    projects = [],
+    projectsLoading = false,
     runtime,
     backend,
     onsource,
@@ -24,8 +29,8 @@
     onclose,
   }: Props = $props();
 
-  function textValue(event: Event): string {
-    return (event.currentTarget as HTMLElement & { value: string }).value;
+  function projectValue(event: Event): string {
+    return (event as CustomEvent<{ value: string }>).detail.value;
   }
 </script>
 
@@ -81,15 +86,24 @@
       </div>
     {/if}
 
-    <!-- svelte-ignore a11y_label_has_associated_control -->
-    <label class="field">
-      <span class="field-label">Project</span>
-      <vscode-textfield
+    <div class="field">
+      <label class="field-label" for="project-input">Project</label>
+      <CodeInput
+        id="project-input"
         value={project}
-        spellcheck="false"
-        oninput={(event: Event) => onproject(textValue(event))}
-      ></vscode-textfield>
-    </label>
+        options={projects}
+        filterOptions={false}
+        placeholder="Project name"
+        aria-label="Project"
+        spellcheck={false}
+        oninput={(event) => onproject(projectValue(event))}
+      />
+      {#if projectsLoading}
+        <span class="hint">loading project names…</span>
+      {:else if projects.length > 0}
+        <span class="hint">{projects.length} indexed project{projects.length === 1 ? "" : "s"}</span>
+      {/if}
+    </div>
 
     <p class="setup-meta">{runtime} · {kind === "computed" ? "computed" : backend}</p>
     <p class="hint">

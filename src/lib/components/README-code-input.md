@@ -55,6 +55,7 @@ pays the CodeMirror/tooltip cost.
 | `completionSources` | `CompletionSource[]` | Extra sources, merged through language data. |
 | `extensions` | `Extension` | Extra CodeMirror extensions, including community completion/language extensions. |
 | `activateOnTyping` | `boolean` | Let autocomplete start while typing; default `false` (Tab/chevron/field click). |
+| `filterOptions` | `boolean` | Filter candidates against the current text; default `true`. Set `false` for select-like fields where a prefilled value should not hide the full list. |
 | `name` | `string` | Adds a hidden form value input. |
 | `id` | `string` | Applied to the CodeMirror content. |
 | `form` | `string` | Associates the hidden value input with a form. |

@@ -11,11 +11,13 @@
     DEFAULT_CBM_BASE_URL,
     discoverCbmEndpoint,
     formatCbmEndpointError,
-    type FetchLike,
   } from "./lib/cbm-endpoint";
   import { ComputedSource } from "./lib/graph/computed";
+  import { createHostFetch } from "./lib/cbm-host-fetch";
+  import { fetchCbmProjects } from "./lib/cbm-projects";
   import { fetchRootCandidates, type RootCandidate } from "./lib/graph/roots";
-  import { graphSvgStyle, SVG_THEME_VARIABLE_NAMES } from "./lib/graph/svg";
+  import { graphSearchHits } from "./lib/graph/search";
+  import { downloadSvg, svgFilename } from "./lib/graph/svg-export";
   import {
     loadNeighborhood,
     type NeighborhoodDirection,
@@ -90,48 +92,19 @@
   let pendingLocation: { file: string; line: number } | null = null;
   let rootCandidates = $state<RootCandidate[]>([]);
   let rootsLoading = $state(false);
+  let projectCandidates = $state<string[]>([]);
+  let projectsLoading = $state(false);
   let setupOpen = $state(false);
   let inspectorOpen = $state(false);
   let detailLoading = $state(false);
-  let searchField: HTMLElement | undefined;
+  let searchField: HTMLInputElement | undefined;
 
   const selectedNode = $derived(
     graphData?.nodes.find((node) => node.id === selectedId) ?? focusNode,
   );
 
-  const searchHits = $derived.by(() => {
-    const query = search.trim().toLowerCase();
-    const hits = new Set<string>();
-    if (!query || !graphData) return hits;
-    for (const node of graphData.nodes) {
-      if (
-        node.name.toLowerCase().includes(query) ||
-        node.qualifiedName.toLowerCase().includes(query)
-      ) {
-        hits.add(node.id);
-      }
-    }
-    return hits;
-  });
-
-  const hostFetch: FetchLike = async (input, init) => {
-    const url = new URL(String(input));
-    const response = await extensionApi.fetchCbm({
-      path: url.pathname,
-      query: Object.fromEntries(url.searchParams),
-      method: init?.method === "POST" ? "POST" : "GET",
-      body: typeof init?.body === "string" ? init.body : undefined,
-    });
-    // Response forbids a body for these statuses; host bodies are always strings.
-    const body =
-      response.status === 204 || response.status === 205 || response.status === 304
-        ? null
-        : response.body;
-    return new Response(body, {
-      status: response.status,
-      headers: { "content-type": "application/json" },
-    });
-  };
+  const searchHits = $derived(graphSearchHits(graphData, search));
+  const hostFetch = createHostFetch(extensionApi.fetchCbm);
 
   function currentSource(): GraphSource {
     return kind === "computed"
@@ -200,6 +173,7 @@
       return;
     }
     void loadRoots();
+    void loadProjects();
 
     const source = currentSource();
     const symbolResult = await source.symbol(project, ref).then(
@@ -254,6 +228,25 @@
       rootCandidates = [];
     } finally {
       rootsLoading = false;
+    }
+  }
+
+  async function loadProjects(): Promise<void> {
+    if (kind !== "cbm") {
+      projectCandidates = [];
+      projectsLoading = false;
+      return;
+    }
+    projectsLoading = true;
+    try {
+      projectCandidates = await fetchCbmProjects((request) =>
+        extensionApi.fetchCbm(request),
+      );
+    } catch (cause) {
+      projectCandidates = [];
+      console.warn("[code-graph] could not load cbm projects", cause);
+    } finally {
+      projectsLoading = false;
     }
   }
 
@@ -532,7 +525,12 @@
 
   function toggleSetup(): void {
     setupOpen = !setupOpen;
-    if (setupOpen) inspectorOpen = false;
+    if (setupOpen) {
+      inspectorOpen = false;
+      if (kind === "cbm" && projectCandidates.length === 0) {
+        void loadProjects();
+      }
+    }
   }
 
   function toggleInspector(): void {
@@ -542,8 +540,6 @@
 
   function focusSearch(): void {
     searchField?.focus();
-    const input = searchField?.shadowRoot?.querySelector("input");
-    input?.focus();
   }
 
   function onGlobalKeydown(event: KeyboardEvent): void {
@@ -669,39 +665,11 @@
 
   function exportSvg(svg: SVGSVGElement): void {
     try {
-      const clone = svg.cloneNode(true) as SVGSVGElement;
-      clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-      const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
-      style.textContent = exportStyles();
-      clone.insertBefore(style, clone.firstChild);
-
-      const xml = new XMLSerializer().serializeToString(clone);
-      const blob = new Blob([`<?xml version="1.0" encoding="UTF-8"?>\n`, xml], {
-        type: "image/svg+xml;charset=utf-8",
-      });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `code-graph-${slug(ref)}.svg`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      exportStatus = `Exported ${link.download}`;
+      const filename = downloadSvg(svg, svgFilename(ref));
+      exportStatus = `Exported ${filename}`;
     } catch (cause) {
       exportStatus = `Export failed: ${message(cause)}`;
     }
-  }
-
-  function exportStyles(): string {
-    const computed = typeof window === "undefined" ? null : getComputedStyle(document.documentElement);
-    const variables = computed
-      ? SVG_THEME_VARIABLE_NAMES.map(
-          (name) => `${name}:${computed.getPropertyValue(name).trim()};`,
-        ).join("")
-      : "";
-
-    return graphSvgStyle(variables);
   }
 
   function textValue(event: Event): string {
@@ -710,16 +678,6 @@
 
   function message(cause: unknown): string {
     return cause instanceof Error ? cause.message : String(cause);
-  }
-
-  function slug(value: string): string {
-    return (
-      value
-        .normalize("NFKD")
-        .replace(/[^A-Za-z0-9_-]+/g, "-")
-        .replace(/^-+|-+$/g, "")
-        .slice(0, 80) || "call-graph"
-    );
   }
 </script>
 
@@ -757,15 +715,15 @@
       >{loading ? "Loading…" : "Load"}</button>
     </div>
 
-    <!-- svelte-ignore a11y_label_has_associated_control -->
     <label class="searchbox">
       <span class="sr-only">Search graph</span>
-      <vscode-textfield
+      <input
+        type="search"
+        class="search-input"
         bind:this={searchField}
         value={search}
         oninput={(event: Event) => (search = textValue(event))}
         onkeydown={onSearchKeydown}
-        role="searchbox"
         aria-label="Search graph"
         aria-keyshortcuts="/"
         tabindex="0"
@@ -773,7 +731,7 @@
         title="Search graph; Enter selects the first hit"
         spellcheck="false"
         autocomplete="off"
-      ></vscode-textfield>
+      />
     </label>
 
     <div class="top-actions" aria-label="Graph actions">
@@ -829,6 +787,8 @@
       <SetupPanel
         {kind}
         {project}
+        projects={projectCandidates}
+        {projectsLoading}
         {runtime}
         {backend}
         onsource={setKind}
@@ -921,43 +881,43 @@
           <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="view-control" title="Neighborhood depth">
             <span>depth</span>
-            <vscode-single-select
+            <select
               class="depth-select"
               value={String(depth)}
               aria-label="Neighborhood depth"
-              onchangecapture={(event: Event) => changeDepth(textValue(event))}
+              onchange={(event: Event) => changeDepth(textValue(event))}
             >
-              <vscode-option value="1">1</vscode-option>
-              <vscode-option value="2">2</vscode-option>
-              <vscode-option value="3">3</vscode-option>
-            </vscode-single-select>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+            </select>
           </label>
           <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="view-control" title="Edge direction">
             <span>edges</span>
-            <vscode-single-select
+            <select
               class="direction-select"
               value={direction}
               aria-label="Edge direction"
-              onchangecapture={(event: Event) => changeDirection(textValue(event))}
+              onchange={(event: Event) => changeDirection(textValue(event))}
             >
-              <vscode-option value="both">both</vscode-option>
-              <vscode-option value="callers">callers</vscode-option>
-              <vscode-option value="callees">callees</vscode-option>
-            </vscode-single-select>
+              <option value="both">both</option>
+              <option value="callers">callers</option>
+              <option value="callees">callees</option>
+            </select>
           </label>
           <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="view-control" title="Graph renderer">
             <span>view</span>
-            <vscode-single-select
+            <select
               class="renderer-select"
               value={renderer}
               aria-label="Graph renderer"
-              onchangecapture={(event: Event) => changeRenderer(textValue(event))}
+              onchange={(event: Event) => changeRenderer(textValue(event))}
             >
-              <vscode-option value="d3">D3</vscode-option>
-              <vscode-option value="orchgraph">orchgraph</vscode-option>
-            </vscode-single-select>
+              <option value="d3">D3</option>
+              <option value="orchgraph">orchgraph</option>
+            </select>
           </label>
         </div>
 
