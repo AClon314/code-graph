@@ -9,6 +9,7 @@
     roots: RootCandidate[];
     loading?: boolean;
     label?: string;
+    oncommit?: (value: string) => void;
   }
 
   let {
@@ -16,7 +17,12 @@
     roots,
     loading = false,
     label = "Symbol entry (qualified name or #id)",
+    oncommit,
   }: Props = $props();
+
+  function commitValue(event: Event): void {
+    oncommit?.((event as CustomEvent<{ value: string }>).detail.value);
+  }
 
   /** Completions are suggestions only; the field still accepts any QN. */
   function rootOptions(): CodeInputOption[] {
@@ -39,6 +45,8 @@
   <CodeInput
     bind:value
     options={rootOptions}
+    debounce={350}
+    oncommit={commitValue}
     aria-label={label}
     spellcheck={false}
   />

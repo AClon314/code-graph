@@ -111,6 +111,19 @@ test("depth 0 keeps only the root", async () => {
   expect(data.edges).toEqual([]);
 });
 
+test("a supplied root bundle skips the root symbol request", async () => {
+  const root = bundle("a", ["b"], ["c"]);
+  const source = new FakeSource(graph());
+  const data = await loadNeighborhood(source, "p", "a", {
+    depth: 1,
+    direction: "both",
+    rootBundle: root,
+  });
+
+  expect(source.calls).not.toContain("a");
+  expect(data.nodes.map((node) => node.id).sort()).toEqual(["a", "b", "c"]);
+});
+
 test("a failed root rejects with a useful message", async () => {
   const source = new FakeSource({});
   await expect(loadNeighborhood(source, "project-x", "missing.root")).rejects.toThrow(

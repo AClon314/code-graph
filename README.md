@@ -71,15 +71,17 @@ directly. Build output contains only the selected runtime:
   entry/load/search fields and global actions; **Setup** and **Details** are
   edge panels, closed by default and mutually exclusive. The bottom status bar
   holds depth/direction/renderer plus graph counts and transient messages.
-- Graph: D3/SVG or the orchgraph character canvas, with search, fit, and SVG
-  export / copy. Trackpad/mouse wheel pans; Ctrl/Meta + wheel (or pinch) zooms.
+- Graph: D3/SVG or the orchgraph character canvas, with search, fit, and
+  separate **Copy SVG** / **Export SVG** actions. Trackpad/mouse wheel pans;
+  Ctrl/Meta + wheel (or pinch) zooms.
   Touch pinch/pan uses D3's touch gestures. Graph controls stay out of the
   canvas; opening an edge panel only resizes the graph, and an untouched graph
   re-fits itself.
 - Root picker: the **Symbol entry** field in the command bar is a `CodeInput`
   with completion candidates from cbm's repository map (entry points, source
   modules, exported classes). The input stays editable, so arbitrary QNs and
-  `#id` values still work; selecting a root fills the field.
+  `#id` values still work; selecting a root fills the field. Valid input is
+  committed after 350 ms of inactivity (no separate **Load** button).
 - Details: **Details** opens an edge inspector with the symbol bundle;
   callers/callees are collapsible sections. Selecting a graph node opens it
   automatically. **Jump** opens the file at the symbol's line/column through

@@ -13,16 +13,19 @@ export function svgExportStyles(): string {
   return graphSvgStyle(variables);
 }
 
-/** Serialize and download an SVG with the current theme variables embedded. */
-export function downloadSvg(svg: SVGSVGElement, filename: string): string {
+/** Serialize an SVG with the current theme variables embedded. */
+export function svgMarkup(svg: SVGSVGElement): string {
   const clone = svg.cloneNode(true) as SVGSVGElement;
   clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
   const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
   style.textContent = svgExportStyles();
   clone.insertBefore(style, clone.firstChild);
+  return `<?xml version="1.0" encoding="UTF-8"?>\n${new XMLSerializer().serializeToString(clone)}`;
+}
 
-  const xml = new XMLSerializer().serializeToString(clone);
-  const blob = new Blob([`<?xml version="1.0" encoding="UTF-8"?>\n`, xml], {
+/** Download an SVG with the current theme variables embedded. */
+export function downloadSvg(svg: SVGSVGElement, filename: string): string {
+  const blob = new Blob([svgMarkup(svg)], {
     type: "image/svg+xml;charset=utf-8",
   });
   const url = URL.createObjectURL(blob);

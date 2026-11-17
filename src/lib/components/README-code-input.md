@@ -39,7 +39,9 @@ pays the CodeMirror/tooltip cost.
   automatically when `activateOnTyping` is true).
 - The list uses CodeMirror's tooltip placement: below the cursor by default,
   flipping above when it would cross the viewport bottom, with automatic height
-  clamping. `tooltipSpace` is bound to `window.visualViewport` when available,
+  clamping. The list has no artificial line cap: it shows every candidate while
+  it fits, and only scrolls once CodeMirror clamps the tooltip to the visual
+  viewport. `tooltipSpace` is bound to `window.visualViewport` when available,
   and `repositionTooltips` is called on visualViewport resize/scroll, so mobile
   pinch zoom, URL-bar changes, and the software keyboard are accounted for.
 - The list width is capped to the visual viewport width so pinch zoom cannot
@@ -56,6 +58,8 @@ pays the CodeMirror/tooltip cost.
 | `extensions` | `Extension` | Extra CodeMirror extensions, including community completion/language extensions. |
 | `activateOnTyping` | `boolean` | Let autocomplete start while typing; default `false` (Tab/chevron/field click). |
 | `filterOptions` | `boolean` | Filter candidates against the current text; default `true`. Set `false` for select-like fields where a prefilled value should not hide the full list. |
+| `debounce` | `number` | Milliseconds to wait after typing before emitting `commit`; default `0` (disabled). |
+| `oncommit` | `(event) => void` | Called after the debounce (or on blur) with a bubbling `commit` event carrying `detail.value`; blank values are not committed. |
 | `name` | `string` | Adds a hidden form value input. |
 | `id` | `string` | Applied to the CodeMirror content. |
 | `form` | `string` | Associates the hidden value input with a form. |

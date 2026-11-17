@@ -17,7 +17,6 @@
     selectedId?: string;
     searchHits?: Set<string>;
     onselect: (node: GraphViewNode) => void;
-    onexport?: (svg: SVGSVGElement) => void;
     onjump?: (node: GraphViewNode) => void;
   }
 
@@ -26,7 +25,6 @@
     selectedId = "",
     searchHits = new Set<string>(),
     onselect,
-    onexport,
     onjump,
   }: Props = $props();
 
@@ -158,9 +156,9 @@
     );
   }
 
-  /** Hand a full-graph, unzoomed SVG to the host for download. */
-  export function triggerExport(): void {
-    if (!svgEl) return;
+  /** Return a full-graph, unzoomed SVG clone for copy or download. */
+  export function snapshotSvg(): SVGSVGElement | null {
+    if (!svgEl) return null;
     const clone = svgEl.cloneNode(true) as SVGSVGElement;
     clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
     clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
@@ -175,7 +173,7 @@
       clone.setAttribute("preserveAspectRatio", "xMidYMid meet");
     }
 
-    onexport?.(clone);
+    return clone;
   }
 
   function kindClass(label: string): string {

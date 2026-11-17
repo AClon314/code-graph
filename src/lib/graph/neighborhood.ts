@@ -15,6 +15,8 @@ export interface NeighborhoodOptions {
   depth?: NeighborhoodDepth;
   direction?: NeighborhoodDirection;
   maxNodes?: number;
+  /** Already-fetched root bundle; avoids a redundant /api/symbol request. */
+  rootBundle?: SymbolBundle;
 }
 
 interface LoadedRecord {
@@ -57,13 +59,17 @@ export async function loadNeighborhood(
   const maxNodes = normalizeMaxNodes(options.maxNodes);
 
   let rootBundle: SymbolBundle;
-  try {
-    rootBundle = await source.symbol(project, root);
-  } catch (cause) {
-    throw new Error(
-      `Failed to load root symbol "${root}" in project "${project}": ${errorMessage(cause)}`,
-      { cause },
-    );
+  if (options.rootBundle) {
+    rootBundle = options.rootBundle;
+  } else {
+    try {
+      rootBundle = await source.symbol(project, root);
+    } catch (cause) {
+      throw new Error(
+        `Failed to load root symbol "${root}" in project "${project}": ${errorMessage(cause)}`,
+        { cause },
+      );
+    }
   }
 
   const rootRecord = makeRootRecord(root, rootBundle);

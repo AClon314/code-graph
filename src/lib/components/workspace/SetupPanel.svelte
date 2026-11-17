@@ -101,7 +101,11 @@
       {#if projectsLoading}
         <span class="hint">loading project names…</span>
       {:else if projects.length > 0}
-        <span class="hint">{projects.length} indexed project{projects.length === 1 ? "" : "s"}</span>
+        <span class="hint">
+          {kind === "computed"
+            ? "computed sample project"
+            : `${projects.length} indexed project${projects.length === 1 ? "" : "s"}`}
+        </span>
       {/if}
     </div>
 

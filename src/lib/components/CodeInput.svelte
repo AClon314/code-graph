@@ -71,6 +71,8 @@
     activateOnTyping?: boolean;
     /** Filter candidates by the current text; false shows all options. */
     filterOptions?: boolean;
+    /** Debounce value commits after input, in milliseconds. */
+    debounce?: number;
     placeholder?: string;
     disabled?: boolean;
     readonly?: boolean;
@@ -91,6 +93,7 @@
     onchange?: (event: Event) => void;
     onfocus?: (event: FocusEvent) => void;
     onblur?: (event: FocusEvent) => void;
+    oncommit?: (event: CustomEvent<{ value: string }>) => void;
   }
 
   let {
@@ -100,6 +103,7 @@
     extensions = [],
     activateOnTyping = false,
     filterOptions = true,
+    debounce = 0,
     placeholder = "",
     disabled = false,
     readonly = false,
@@ -120,6 +124,7 @@
     onchange,
     onfocus,
     onblur,
+    oncommit,
     ...rest
   }: Props = $props();
 
@@ -134,6 +139,7 @@
   let pendingOpen = false;
   let fieldClickStartedFocused = false;
   let blurTimer: ReturnType<typeof setTimeout> | undefined;
+  let commitTimer: ReturnType<typeof setTimeout> | undefined;
   let detachDocumentListeners: (() => void) | undefined;
   let unsubscribeViewport: (() => void) | undefined;
 
@@ -359,6 +365,7 @@
 
   function deactivate(): void {
     clearTimeout(blurTimer);
+    flushCommit();
     if (!activated) return;
     detachDocument();
     unsubscribeViewport?.();
@@ -385,6 +392,34 @@
     const next = (event.currentTarget as HTMLInputElement).value;
     value = next;
     emit("input", next);
+    scheduleCommit();
+  }
+
+  function fireCommit(): void {
+    const text = value.trim();
+    if (!text) return;
+    const event = new CustomEvent<{ value: string }>("commit", {
+      detail: { value },
+      bubbles: true,
+    });
+    wrapper?.dispatchEvent(event);
+    oncommit?.(event);
+  }
+
+  function scheduleCommit(): void {
+    if (debounce <= 0) return;
+    clearTimeout(commitTimer);
+    commitTimer = setTimeout(() => {
+      commitTimer = undefined;
+      fireCommit();
+    }, debounce);
+  }
+
+  function flushCommit(): void {
+    if (commitTimer === undefined) return;
+    clearTimeout(commitTimer);
+    commitTimer = undefined;
+    fireCommit();
   }
 
   function fieldTargetIsChevron(event: Event): boolean {
@@ -522,7 +557,10 @@
             const text = update.state.doc.toString();
             const changed = text !== value;
             if (changed) value = text;
-            if (changed) emit("input", text);
+            if (changed) {
+              emit("input", text);
+              scheduleCommit();
+            }
           }
 
           if (
@@ -540,6 +578,7 @@
             return false;
           },
           blur: (event) => {
+            flushCommit();
             emitChange();
             scheduleDeactivate();
             onblur?.(event);
@@ -559,6 +598,7 @@
 
     return () => {
       clearTimeout(blurTimer);
+      clearTimeout(commitTimer);
       deactivate();
     };
   });
@@ -633,6 +673,7 @@
         oninput={onNativeInput}
         onfocus={() => activate(true)}
         onblur={(event) => {
+          flushCommit();
           emitChange();
           onblur?.(event);
         }}
@@ -789,7 +830,9 @@
   :global(.code-input-completions.cm-tooltip-autocomplete > ul) {
     min-width: min(24ch, calc(var(--code-input-visual-width, 100vw) - 2ch)) !important;
     max-width: min(60ch, calc(var(--code-input-visual-width, 100vw) - 2ch)) !important;
-    max-height: 12lh;
+    /* Let CodeMirror clamp the tooltip to the available visual viewport.
+       Avoid a fixed 12-line cap that made short lists scroll unnecessarily. */
+    max-height: none !important;
     margin: 0;
     padding: 0;
   }

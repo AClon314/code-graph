@@ -17,7 +17,11 @@
   import { fetchCbmProjects } from "./lib/cbm-projects";
   import { fetchRootCandidates, type RootCandidate } from "./lib/graph/roots";
   import { graphSearchHits } from "./lib/graph/search";
-  import { downloadSvg, svgFilename } from "./lib/graph/svg-export";
+  import {
+    downloadSvg,
+    svgFilename,
+    svgMarkup,
+  } from "./lib/graph/svg-export";
   import {
     loadNeighborhood,
     type NeighborhoodDirection,
@@ -41,12 +45,16 @@
   import { resolveShortcut } from "./lib/shortcuts";
   import { copyPathText, pathFormats, type PathCopyKind } from "./lib/path-location";
   import { writeClipboard } from "./lib/clipboard";
+  import {
+    cbmUrlFix,
+    fixFor,
+    type SettingsFix,
+  } from "./lib/settings-fix";
   interface GraphViewHandle {
     fit(): void;
-    triggerExport?(): void;
+    snapshotSvg?(): SVGSVGElement | null;
     copy?(): Promise<void>;
   }
-  type SettingsFix = { label: string; query: string };
   type JumpRow = {
     filePath?: string;
     startLine?: number;
@@ -116,28 +124,6 @@
         });
   }
 
-  function cbmUrlFix(): SettingsFix {
-    return { label: "Open cbm URL setting", query: "codeGraph.cbmBaseUrl" };
-  }
-
-  function fixFor(value: unknown): SettingsFix {
-    const text = message(value).toLowerCase();
-    if (
-      text.includes("project not found") ||
-      text.includes("unknown project") ||
-      text.includes("no such project")
-    ) {
-      return {
-        label: "Open project setting",
-        query: backend === "scip" ? "codeGraph.scipProject" : "codeGraph.cbmProject",
-      };
-    }
-    if (text.includes("symbol") || text.includes("entry")) {
-      return { label: "Open symbol entry setting", query: "codeGraph.symbolEntry" };
-    }
-    return cbmUrlFix();
-  }
-
   async function openFix(fix: SettingsFix | null): Promise<void> {
     if (!fix) return;
     try {
@@ -193,14 +179,14 @@
       selectedId = "";
       focusNode = null;
       problems.push(`symbol: ${message(symbolResult.reason)}`);
-      errorFix = fixFor(symbolResult.reason);
+      errorFix = fixFor(symbolResult.reason, backend);
     }
 
     loading = false;
     error = problems.join("\n");
 
     if (symbolResult.status === "fulfilled") {
-      await loadGraph(source, ref, id);
+      await loadGraph(source, ref, id, symbolResult.value);
     } else {
       graphRequestId += 1;
       graphLoading = false;
@@ -233,7 +219,7 @@
 
   async function loadProjects(): Promise<void> {
     if (kind !== "cbm") {
-      projectCandidates = [];
+      projectCandidates = [SOURCE_DEFAULTS.computed.project];
       projectsLoading = false;
       return;
     }
@@ -267,7 +253,12 @@
     }
   }
 
-  async function loadGraph(source: GraphSource, root: string, request: number): Promise<void> {
+  async function loadGraph(
+    source: GraphSource,
+    root: string,
+    request: number,
+    rootBundle?: SymbolBundle,
+  ): Promise<void> {
     const id = ++graphRequestId;
     graphLoading = true;
     graphError = "";
@@ -275,7 +266,11 @@
     graphData = null;
 
     try {
-      const next = await loadNeighborhood(source, project, root, { depth, direction });
+      const next = await loadNeighborhood(source, project, root, {
+        depth,
+        direction,
+        rootBundle,
+      });
       if (id !== graphRequestId || request !== requestId) return;
       graphData = next;
       if (!next.nodes.some((node) => node.id === selectedId)) {
@@ -287,7 +282,7 @@
     } catch (cause) {
       if (id !== graphRequestId || request !== requestId) return;
       graphError = message(cause);
-      graphFix = fixFor(cause);
+      graphFix = fixFor(cause, backend);
     } finally {
       if (id === graphRequestId) graphLoading = false;
     }
@@ -302,7 +297,12 @@
 
     try {
       const source = currentSource();
-      const next = await loadNeighborhood(source, project, ref, { depth, direction });
+      const rootBundle = rootBundleFor(ref);
+      const next = await loadNeighborhood(source, project, ref, {
+        depth,
+        direction,
+        rootBundle,
+      });
       if (id !== graphRequestId) return;
       graphData = next;
       if (!next.nodes.some((node) => node.id === selectedId)) {
@@ -314,7 +314,7 @@
       if (id !== graphRequestId) return;
       graphData = null;
       graphError = message(cause);
-      graphFix = fixFor(cause);
+      graphFix = fixFor(cause, backend);
     } finally {
       if (id === graphRequestId) graphLoading = false;
     }
@@ -464,6 +464,13 @@
     }
   }
 
+  function rootBundleFor(value: string): SymbolBundle | undefined {
+    if (!symbol) return undefined;
+    if (value === symbol.node.qualifiedName) return symbol;
+    if (symbol.node.id !== undefined && value === `#${symbol.node.id}`) return symbol;
+    return undefined;
+  }
+
   function openConnection(qualifiedName: string): void {
     ref = qualifiedName;
     inspectorOpen = true;
@@ -521,6 +528,20 @@
     } finally {
       if (id === detailRequestId) detailLoading = false;
     }
+  }
+
+  function entryIsValid(value: string): boolean {
+    const next = value.trim();
+    if (!next || /\s/.test(next)) return false;
+    if (next.startsWith("#")) return /^\d+$/.test(next.slice(1));
+    return true;
+  }
+
+  function onEntryCommit(value: string): void {
+    const next = value.trim();
+    if (!entryIsValid(next)) return;
+    ref = next;
+    void load();
   }
 
   function toggleSetup(): void {
@@ -663,7 +684,30 @@
     }
   }
 
-  function exportSvg(svg: SVGSVGElement): void {
+  function snapshotSvg(): SVGSVGElement | null {
+    return graphView?.snapshotSvg?.() ?? null;
+  }
+
+  async function copySvg(): Promise<void> {
+    const svg = snapshotSvg();
+    if (!svg) {
+      exportStatus = "Nothing to copy as SVG";
+      return;
+    }
+    try {
+      await writeClipboard(svgMarkup(svg));
+      exportStatus = "Copied SVG";
+    } catch (cause) {
+      exportStatus = `Copy SVG failed: ${message(cause)}`;
+    }
+  }
+
+  function exportSvg(): void {
+    const svg = snapshotSvg();
+    if (!svg) {
+      exportStatus = "Nothing to export as SVG";
+      return;
+    }
     try {
       const filename = downloadSvg(svg, svgFilename(ref));
       exportStatus = `Exported ${filename}`;
@@ -705,14 +749,8 @@
         roots={rootCandidates}
         loading={rootsLoading}
         label="Symbol entry (qualified name or #id)"
+        oncommit={onEntryCommit}
       />
-      <button
-        class="vscode-button load-button"
-        type="button"
-        onclick={() => void load()}
-        disabled={loading}
-        title="Load this symbol entry"
-      >{loading ? "Loading…" : "Load"}</button>
     </div>
 
     <label class="searchbox">
@@ -735,16 +773,31 @@
     </label>
 
     <div class="top-actions" aria-label="Graph actions">
-      {#if graphData && renderer === "d3"}
+      {#if renderer === "d3"}
+        {#if graphData}
+          <button
+            class="vscode-button secondary tool-button"
+            type="button"
+            onclick={() => graphView?.fit()}
+            title="Fit graph (F)"
+            aria-keyshortcuts="F"
+          >Fit</button>
+        {/if}
         <button
           class="vscode-button secondary tool-button"
           type="button"
-          onclick={() => graphView?.fit()}
-          title="Fit graph (F)"
-          aria-keyshortcuts="F"
-        >Fit</button>
-      {/if}
-      {#if renderer === "orchgraph"}
+          onclick={() => void copySvg()}
+          disabled={!graphData}
+          title="Copy SVG to clipboard"
+        >Copy SVG</button>
+        <button
+          class="vscode-button secondary tool-button"
+          type="button"
+          onclick={exportSvg}
+          disabled={!graphData}
+          title="Download SVG"
+        >Export SVG</button>
+      {:else}
         <button
           class="vscode-button secondary tool-button"
           type="button"
@@ -752,14 +805,6 @@
           disabled={!graphData}
           title="Copy the character-art graph"
         >Copy</button>
-      {:else}
-        <button
-          class="vscode-button secondary tool-button"
-          type="button"
-          onclick={() => graphView?.triggerExport?.()}
-          disabled={!graphData}
-          title="Export SVG"
-        >SVG</button>
       {/if}
       <button
         class="vscode-button secondary tool-button"
@@ -817,7 +862,6 @@
               {selectedId}
               {searchHits}
               onselect={(node) => void selectGraphNode(node)}
-              onexport={exportSvg}
               onjump={jumpFromNode}
             />
           {/if}

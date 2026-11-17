@@ -187,10 +187,6 @@ h3 {
   min-width: 0;
 }
 
-.entry-bar .load-button {
-  flex: none;
-}
-
 .searchbox {
   display: block;
   grid-area: search;
@@ -826,10 +822,6 @@ h3 {
 
   .topbar {
     padding: 0.4lh 0.8ch;
-  }
-
-  .entry-bar .load-button {
-    padding-inline: 0.6ch;
   }
 
   .view-control > span {
