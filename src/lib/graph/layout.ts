@@ -26,6 +26,7 @@ export interface GraphLayout {
 }
 
 export type LayoutDirection = "DOWN" | "UP" | "LEFT" | "RIGHT";
+export type LayoutAlgorithm = "layered" | "stress" | "mrtree" | "force" | "radial";
 
 export const NODE_WIDTH = 180;
 export const NODE_HEIGHT = 64;
@@ -36,9 +37,7 @@ const PADDING_BOTTOM = 48;
 const PADDING_RIGHT = 80;
 const SELF_LOOP_OFFSET = 30;
 
-const LAYOUT_OPTIONS = {
-  "elk.algorithm": "layered",
-  "elk.edgeRouting": "ORTHOGONAL",
+const BASE_LAYOUT_OPTIONS = {
   "elk.padding": `[top=${PADDING_TOP},left=${PADDING_LEFT},bottom=${PADDING_BOTTOM},right=${PADDING_RIGHT}]`,
   "elk.spacing.nodeNode": "64",
   "elk.layered.spacing.nodeNodeBetweenLayers": "96",
@@ -50,6 +49,22 @@ const LAYOUT_OPTIONS = {
   "elk.separateConnectedComponents": "true",
   "elk.spacing.componentComponent": "80",
 };
+
+function layoutOptions(
+  algorithm: LayoutAlgorithm,
+  direction: LayoutDirection,
+): Record<string, string> {
+  return {
+    ...BASE_LAYOUT_OPTIONS,
+    "elk.algorithm": algorithm,
+    // Layered and tree layouts route around node boxes; force/stress/radial
+    // layouts have no layered router, so use a polyline there.
+    "elk.edgeRouting": algorithm === "layered" || algorithm === "mrtree" ? "ORTHOGONAL" : "POLYLINE",
+    "elk.direction": direction,
+    ...(algorithm === "stress" ? { "elk.stress.desiredEdgeLength": "180" } : {}),
+    ...(algorithm === "force" ? { "elk.force.iterations": "300" } : {}),
+  };
+}
 
 /**
  * Create the browser-safe ELK instance. elkjs' bundled fake worker exports its
@@ -79,6 +94,7 @@ export function createElk(): InstanceType<typeof ELK> {
 export async function layoutGraphView(
   data: GraphViewData,
   direction: LayoutDirection = "DOWN",
+  algorithm: LayoutAlgorithm = "layered",
 ): Promise<GraphLayout> {
   const nodes = data.nodes.map((node) => ({
     id: node.id,
@@ -106,10 +122,7 @@ export async function layoutGraphView(
 
   const graph: ElkNode = {
     id: "code-graph",
-    layoutOptions: {
-      ...LAYOUT_OPTIONS,
-      "elk.direction": direction,
-    },
+    layoutOptions: layoutOptions(algorithm, direction),
     children: nodes,
     edges,
   };

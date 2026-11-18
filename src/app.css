@@ -292,7 +292,8 @@ h3 {
   outline: none;
 }
 
-.view-control select {
+.view-control select,
+.view-control input[type="number"] {
   min-width: 10ch;
   padding: 0.2lh 0.45ch;
   border: 1px solid var(--vscode-dropdown-border, var(--line));
@@ -303,7 +304,13 @@ h3 {
   cursor: pointer;
 }
 
-.view-control select:focus-visible {
+.view-control input[type="number"] {
+  font-family: var(--cg-font-mono);
+  text-align: center;
+}
+
+.view-control select:focus-visible,
+.view-control input[type="number"]:focus-visible {
   border-color: var(--vscode-focusBorder, var(--accent));
   outline: 1px solid var(--vscode-focusBorder, var(--accent));
   outline-offset: -1px;
@@ -577,9 +584,15 @@ h3 {
   white-space: nowrap;
 }
 
-.view-control .depth-select {
-  width: 8ch;
-  min-width: 8ch;
+.view-control .depth-input {
+  width: 7ch;
+  min-width: 7ch;
+}
+
+.view-control .layout-select {
+  width: 12ch;
+  min-width: 12ch;
+  font-size: 0.75rem;
 }
 
 .view-control .direction-select {
@@ -828,9 +841,14 @@ h3 {
     display: none;
   }
 
-  .view-control .depth-select {
-    width: 8ch;
-    min-width: 8ch;
+  .view-control .depth-input {
+    width: 6ch;
+    min-width: 6ch;
+  }
+
+  .view-control .layout-select {
+    width: 10ch;
+    min-width: 10ch;
   }
 
   .view-control .direction-select {

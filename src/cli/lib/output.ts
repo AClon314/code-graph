@@ -15,7 +15,7 @@ export interface RenderRunOptions {
   cbm?: string;
   symbolEntry?: string;
   graph?: string;
-  depth: 1 | 2 | 3;
+  depth: number;
   direction: "both" | "callers" | "callees";
   maxNodes: number;
   format: RenderFormat;

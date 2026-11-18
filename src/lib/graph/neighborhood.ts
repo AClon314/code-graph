@@ -9,7 +9,8 @@ import type {
 
 export type NeighborhoodDirection = "both" | "callers" | "callees";
 
-export type NeighborhoodDepth = 0 | 1 | 2 | 3;
+/** null means no depth limit (expand until the source stops). */
+export type NeighborhoodDepth = number | null;
 
 export interface NeighborhoodOptions {
   depth?: NeighborhoodDepth;
@@ -35,6 +36,8 @@ interface ConnectionEntry {
 
 const DEFAULT_DEPTH = 2;
 const DEFAULT_MAX_NODES = 200;
+/** Safety ceiling for an empty depth field; the graph badge reports overflow. */
+export const MAX_UNBOUNDED_NODES = 2000;
 
 /**
  * Breadth-first local call graph around `root`.
@@ -85,7 +88,7 @@ export async function loadNeighborhood(
 
   while (queue.length > 0) {
     const current = queue.shift()!;
-    if (current.depth >= depth) continue;
+    if (depth !== null && current.depth >= depth) continue;
 
     for (const entry of connectionsFor(current.bundle, direction)) {
       const connection = entry.connection;
@@ -140,7 +143,7 @@ export async function loadNeighborhood(
 
   // The depth boundary is also a budget. Look at bundles on the last layer:
   // if they still have an unfetched connection, the graph is incomplete.
-  if (!truncated) {
+  if (!truncated && depth !== null) {
     for (const record of records.values()) {
       if (record.depth !== depth) continue;
       for (const entry of connectionsFor(record.bundle, direction)) {
@@ -207,12 +210,17 @@ function makeRootRecord(root: string, bundle: SymbolBundle): LoadedRecord {
 }
 
 function normalizeDepth(value: NeighborhoodOptions["depth"]): NeighborhoodDepth {
-  if (value === 0 || value === 1 || value === 2 || value === 3) return value;
+  if (value === null) return null;
+  if (typeof value === "number" && Number.isInteger(value) && value >= 0) {
+    return value;
+  }
   return DEFAULT_DEPTH;
 }
 
 function normalizeMaxNodes(value: number | undefined): number {
-  if (value === undefined || !Number.isFinite(value)) return DEFAULT_MAX_NODES;
+  if (value === undefined) return DEFAULT_MAX_NODES;
+  if (value === Number.POSITIVE_INFINITY) return value;
+  if (!Number.isFinite(value)) return DEFAULT_MAX_NODES;
   return Math.max(1, Math.trunc(value));
 }
 

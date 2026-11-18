@@ -1,8 +1,11 @@
-import type { NeighborhoodDirection } from "./neighborhood";
+import type { LayoutAlgorithm } from "./layout";
+import type { NeighborhoodDepth, NeighborhoodDirection } from "./neighborhood";
 
 export type SourceKind = "computed" | "cbm";
 export type GraphRenderer = "d3" | "orchgraph";
-export type Depth = 1 | 2 | 3;
+export type { LayoutAlgorithm } from "./layout";
+/** null means the depth field is empty: expand to the full reachable graph. */
+export type Depth = NeighborhoodDepth;
 
 export interface SourceDefaults {
   project: string;
@@ -33,6 +36,7 @@ export interface GraphUrlState {
   renderer: GraphRenderer;
   depth: Depth;
   direction: NeighborhoodDirection;
+  layout: LayoutAlgorithm;
 }
 
 export interface ParsedGraphUrl extends GraphUrlState {
@@ -41,6 +45,17 @@ export interface ParsedGraphUrl extends GraphUrlState {
 
 const RENDERERS: readonly GraphRenderer[] = ["d3", "orchgraph"];
 const DIRECTIONS: readonly NeighborhoodDirection[] = ["both", "callers", "callees"];
+export const LAYOUT_ALGORITHMS: readonly LayoutAlgorithm[] = [
+  "layered",
+  "stress",
+  "mrtree",
+  "force",
+  "radial",
+];
+
+function isLayout(value: string | null): value is LayoutAlgorithm {
+  return LAYOUT_ALGORITHMS.includes(value as LayoutAlgorithm);
+}
 
 function parseSource(value: string | null): SourceKind | null {
   if (value === "computed" || value === "cbm") return value;
@@ -56,8 +71,10 @@ function isDirection(value: string | null): value is NeighborhoodDirection {
 }
 
 function parseDepth(value: string | null, fallback: Depth): Depth {
-  const depth = Number(value);
-  return depth === 1 || depth === 2 || depth === 3 ? depth : fallback;
+  if (value === null) return fallback;
+  if (value === "") return null;
+  if (!/^[1-9]\d*$/.test(value)) return fallback;
+  return Number(value);
 }
 
 function parseLocation(params: URLSearchParams): GraphUrlLocation | null {
@@ -90,6 +107,7 @@ export function parseGraphUrl(search: string, fallback: GraphUrlState): ParsedGr
     renderer: isRenderer(rendererParam) ? rendererParam : fallback.renderer,
     depth: parseDepth(params.get("depth"), fallback.depth),
     direction: isDirection(directionParam) ? directionParam : fallback.direction,
+    layout: isLayout(params.get("layout")) ? (params.get("layout") as LayoutAlgorithm) : fallback.layout,
     location: parseLocation(params),
   };
 }
@@ -101,8 +119,9 @@ export function formatGraphUrl(state: GraphUrlState, location: GraphUrlLocation 
   params.set("project", state.project);
   params.set("symbol", state.symbol);
   params.set("renderer", state.renderer);
-  params.set("depth", String(state.depth));
+  params.set("depth", state.depth === null ? "" : String(state.depth));
   params.set("direction", state.direction);
+  params.set("layout", state.layout);
   if (location) {
     params.set("file", location.file);
     params.set("line", String(location.line));

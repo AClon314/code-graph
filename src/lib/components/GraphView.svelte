@@ -9,12 +9,17 @@
     type ZoomTransform,
   } from "d3-zoom";
 
-  import { layoutGraphView, type GraphLayout } from "../graph/layout";
+  import {
+    layoutGraphView,
+    type GraphLayout,
+    type LayoutAlgorithm,
+  } from "../graph/layout";
   import type { GraphViewData, GraphViewNode } from "../graph/types";
 
   interface Props {
     data: GraphViewData;
     selectedId?: string;
+    layoutAlgorithm?: LayoutAlgorithm;
     searchHits?: Set<string>;
     onselect: (node: GraphViewNode) => void;
     onjump?: (node: GraphViewNode) => void;
@@ -23,6 +28,7 @@
   let {
     data,
     selectedId = "",
+    layoutAlgorithm = "layered",
     searchHits = new Set<string>(),
     onselect,
     onjump,
@@ -46,7 +52,7 @@
     layout = null;
     layoutError = "";
 
-    void layoutGraphView(current)
+    void layoutGraphView(current, "DOWN", layoutAlgorithm)
       .then((next) => {
         if (!cancelled) layout = next;
       })

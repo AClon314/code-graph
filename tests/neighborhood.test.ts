@@ -57,6 +57,18 @@ test("depth boundary marks truncated when the last layer has more connections", 
   expect(data.truncated).toBe(true);
 });
 
+test("null depth expands the full reachable graph", async () => {
+  const source = new FakeSource(graph());
+  const data = await loadNeighborhood(source, "p", "a", {
+    depth: null,
+    direction: "both",
+    maxNodes: Number.POSITIVE_INFINITY,
+  });
+
+  expect(data.nodes.map((node) => node.id).sort()).toEqual(["a", "b", "c", "d"]);
+  expect(data.truncated).toBe(false);
+});
+
 test("direction callers only walks incoming edges", async () => {
   const source = new FakeSource(graph());
   const data = await loadNeighborhood(source, "p", "a", { depth: 2, direction: "callers" });

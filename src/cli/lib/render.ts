@@ -59,7 +59,7 @@ export async function loadGraphData(options: GraphOptions): Promise<GraphViewDat
     source,
     project: options.project,
     symbolEntry,
-    depth: options.depth ?? 2,
+    depth: options.depth,
     direction: options.direction ?? "both",
     maxNodes: options.maxNodes ?? 60,
   });

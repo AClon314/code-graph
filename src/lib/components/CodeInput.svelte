@@ -12,6 +12,7 @@
     pickedCompletion,
     startCompletion,
     type Completion,
+    type CompletionResult,
     type CompletionSource,
   } from "@codemirror/autocomplete";
   import {
@@ -34,6 +35,7 @@
     type CodeInputOptions,
     type NormalizedCodeInputOption,
   } from "./code-input-options";
+  import { fuzzyMatch } from "./code-input-filter";
   import {
     codeInputTheme,
     codeInputTooltips,
@@ -142,6 +144,7 @@
   let commitTimer: ReturnType<typeof setTimeout> | undefined;
   let detachDocumentListeners: (() => void) | undefined;
   let unsubscribeViewport: (() => void) | undefined;
+  let clearByPointer = false;
 
   const editorOnlyAttributes = new Set([
     "aria-activedescendant",
@@ -221,22 +224,82 @@
       console.warn("CodeInput options provider failed", cause);
       return null;
     }
-    if (!normalized.length) return null;
-    const result = {
-      from: 0,
-      to: context.state.doc.length,
-      options: normalized.map<Completion>((option) => ({
-        label: option.label,
-        apply: option.value,
-        detail: option.description,
-        type: "text",
-      })),
-    };
-    return filterOptions
-      ? { ...result, validFor: /^[\s\S]*$/ }
-      : { ...result, filter: false };
+    function clearResult(docLength: number): CompletionResult {
+      return {
+        from: 0,
+        to: docLength,
+        filter: false,
+        options: [
+          {
+            label: "Clear input",
+            detail: "no candidates",
+            type: "text",
+            apply: (editor: EditorView) => {
+              const clear = clearByPointer;
+              clearByPointer = false;
+              if (clear) clearInput(editor);
+              else closeCompletion(editor);
+            },
+          },
+        ],
+      };
+    }
+
+    function buildResult(text: string, docLength: number): CompletionResult {
+      const matched = filterOptions
+        ? normalized.filter((option) => fuzzyMatch(option, text))
+        : normalized;
+      if (!matched.length) return clearResult(docLength);
+      return {
+        from: 0,
+        to: docLength,
+        // Filtering happens here so the displayed list and the synthetic clear
+        // action use one matcher; CodeMirror's own label matcher only accepts
+        // single-character prefixes.
+        filter: false,
+        options: matched.map<Completion>((option) => ({
+          label: option.label,
+          apply: option.value,
+          detail: option.description,
+          type: "text",
+        })),
+      };
+    }
+
+    // Keep an already-open list alive while typing. Without `update`,
+    // autocomplete with activateOnTyping=false invalidates the result and
+    // closes the list instead of showing the clear fallback.
+    function withUpdate(result: CompletionResult): CompletionResult {
+      return {
+        ...result,
+        update: (_result, _from, _to, next) =>
+          withUpdate(
+            buildResult(
+              next.state.sliceDoc(0, next.pos),
+              next.state.doc.length,
+            ),
+          ),
+      };
+    }
+
+    return withUpdate(
+      buildResult(context.state.sliceDoc(0, context.pos), context.state.doc.length),
+    );
 
   };
+
+  /** Clear the whole single-line value. Used by Shift-Backspace and the
+   * empty-completion fallback. */
+  function clearInput(editor: EditorView): boolean {
+    if (disabled || readonly) return false;
+    if (editor.state.doc.length === 0) return false;
+    editor.dispatch({
+      changes: { from: 0, to: editor.state.doc.length },
+      selection: { anchor: 0 },
+    });
+    closeCompletion(editor);
+    return true;
+  }
 
   const completionLanguageData = EditorState.languageData.of(() => [
     { autocomplete: optionsSource },
@@ -395,6 +458,18 @@
     scheduleCommit();
   }
 
+  function onNativeKeydown(event: KeyboardEvent): void {
+    if (event.key !== "Backspace" || !event.shiftKey) return;
+    event.preventDefault();
+    if (disabled || readonly) return;
+    const input = event.currentTarget as HTMLInputElement;
+    if (!input.value) return;
+    input.value = "";
+    value = "";
+    emit("input", "");
+    emitChange();
+  }
+
   function fireCommit(): void {
     const text = value.trim();
     if (!text) return;
@@ -494,6 +569,11 @@
   function onDocumentPointerDown(event: PointerEvent): void {
     if (!view || completionStatus(view.state) === null) return;
     const path = event.composedPath();
+    clearByPointer = false;
+    const clearRow = path.find(
+      (node): node is HTMLLIElement => node instanceof HTMLLIElement,
+    );
+    if (clearRow?.textContent?.includes("Clear input")) clearByPointer = true;
     if (
       path.some(
         (node) =>
@@ -532,6 +612,10 @@
           {
             key: "Shift-Tab",
             run: (editor) => shiftTab(editor),
+          },
+          {
+            key: "Shift-Backspace",
+            run: (editor) => clearInput(editor),
           },
           {
             key: "Enter",
@@ -671,6 +755,7 @@
         spellcheck={spellcheck}
         {...nativeRest}
         oninput={onNativeInput}
+        onkeydown={onNativeKeydown}
         onfocus={() => activate(true)}
         onblur={(event) => {
           flushCommit();

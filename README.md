@@ -70,13 +70,16 @@ directly. Build output contains only the selected runtime:
 - Layout: the graph is the full workbench. A compact command bar carries the
   entry/load/search fields and global actions; **Setup** and **Details** are
   edge panels, closed by default and mutually exclusive. The bottom status bar
-  holds depth/direction/renderer plus graph counts and transient messages.
+  holds depth/direction/layout/renderer plus graph counts and transient messages.
 - Graph: D3/SVG or the orchgraph character canvas, with search, fit, and
   separate **Copy SVG** / **Export SVG** actions. Trackpad/mouse wheel pans;
   Ctrl/Meta + wheel (or pinch) zooms.
   Touch pinch/pan uses D3's touch gestures. Graph controls stay out of the
   canvas; opening an edge panel only resizes the graph, and an untouched graph
-  re-fits itself.
+  re-fits itself. D3 supports ELK **layered**, **stress**, **mrtree**,
+  **force**, and **radial** layouts; depth is any positive integer, and an empty
+  depth field expands the full reachable graph (up to the 2000-node safety
+  budget, which shows the `truncated` badge).
 - Root picker: the **Symbol entry** field in the command bar is a `CodeInput`
   with completion candidates from cbm's repository map (entry points, source
   modules, exported classes). The input stays editable, so arbitrary QNs and
@@ -110,7 +113,9 @@ directly. Build output contains only the selected runtime:
 
 `/debug` is a standalone-only playground for
 [`CodeInput`](src/lib/components/README-code-input.md), an editable select
-built on CodeMirror 6's official autocomplete/tooltip. Type a prefix and press
+built on CodeMirror 6's official autocomplete/tooltip. Shift+Backspace clears
+the single-line value. When a query has no candidate, the list contains a
+synthetic **Clear input** item; click it to clear the bound value. Type a prefix and press
 <kbd>Tab</kbd> (or click the `v` chevron) to open a filtered completion list;
 <kbd>↑</kbd>/<kbd>↓</kbd> navigate, <kbd>Enter</kbd> accepts, <kbd>Esc</kbd>
 closes. The first click/tap on an idle field just focuses it; clicking the
@@ -280,11 +285,19 @@ Defaults:
 
 The SCIP path is intentionally an orchestrator over the two external tools; the
 writer remains outside the cbm core. Re-run the command after source changes,
-then press `r` in the graph panel. Existing project names can be listed with:
+then press `r` in the graph panel. Existing project names can be listed and pruned through the CLI:
 
 ```bash
-codebase-memory-mcp cli list_projects --format json
+code-graph projects                 # one name per line
+code-graph projects --json          # JSON array
+code-graph delete-project old-index --yes
 ```
+
+`delete-project` removes the cbm graph database and the workspace roots-cache
+entry. With the default local daemon it uses the MCP delete path, which also
+removes the ADR sidecar; an explicit `--cbm` URL uses the HTTP endpoint.
+It requires `--yes`; `--dry-run` prints the target without deleting. Deletion
+is limited to loopback cbm endpoints.
 
 The Commander entry point exposes the GUI/TUI inputs without a source
 checkout around a script:

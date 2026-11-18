@@ -5,6 +5,7 @@
   import OrchgraphView from "./lib/components/OrchgraphView.svelte";
   import InspectorPanel from "./lib/components/workspace/InspectorPanel.svelte";
   import RootEntryField from "./lib/components/workspace/RootEntryField.svelte";
+  import GraphViewControls from "./lib/components/workspace/GraphViewControls.svelte";
   import SetupPanel from "./lib/components/workspace/SetupPanel.svelte";
   import { CbmHttpSource } from "./lib/graph/cbm-http";
   import {
@@ -23,6 +24,7 @@
   } from "./lib/graph/svg-export";
   import {
     loadNeighborhood,
+    MAX_UNBOUNDED_NODES,
     type NeighborhoodDirection,
   } from "./lib/graph/neighborhood";
   import type {
@@ -34,11 +36,13 @@
   import { extensionApi } from "./extension/host";
   import type { GraphBackend } from "./extension/api";
   import {
+    LAYOUT_ALGORITHMS,
     SOURCE_DEFAULTS,
     formatGraphUrl,
     parseGraphUrl,
     type Depth,
     type GraphRenderer,
+    type LayoutAlgorithm,
     type SourceKind,
   } from "./lib/graph/url-state";
   import { resolveShortcut } from "./lib/shortcuts";
@@ -83,6 +87,7 @@
 
   let depth = $state<Depth>(2);
   let direction = $state<NeighborhoodDirection>("both");
+  let layoutAlgorithm = $state<LayoutAlgorithm>("layered");
   let graphData = $state<GraphViewData | null>(null);
   let graphLoading = $state(false);
   let graphError = $state("");
@@ -276,6 +281,7 @@
       const next = await loadNeighborhood(source, project, root, {
         depth,
         direction,
+        maxNodes: depth === null ? MAX_UNBOUNDED_NODES : undefined,
         rootBundle,
       });
       if (id !== graphRequestId || request !== requestId) return;
@@ -296,6 +302,10 @@
   }
 
   async function reloadGraph(): Promise<void> {
+    if (!ref.trim()) {
+      await load();
+      return;
+    }
     const id = ++graphRequestId;
     graphLoading = true;
     graphError = "";
@@ -308,6 +318,7 @@
       const next = await loadNeighborhood(source, project, ref, {
         depth,
         direction,
+        maxNodes: depth === null ? MAX_UNBOUNDED_NODES : undefined,
         rootBundle,
       });
       if (id !== graphRequestId) return;
@@ -370,6 +381,7 @@
       renderer,
       depth,
       direction,
+      layout: layoutAlgorithm,
     });
     kind = next.source;
     project = next.project;
@@ -378,6 +390,7 @@
     renderer = next.renderer;
     depth = next.depth;
     direction = next.direction;
+    layoutAlgorithm = next.layout;
     pendingLocation = next.location;
   }
 
@@ -392,7 +405,7 @@
     const line = focusNode?.startLine ?? symbol?.node.startLine;
     const params = new URLSearchParams(
       formatGraphUrl(
-        { source: kind, project, symbol: ref, renderer, depth, direction },
+        { source: kind, project, symbol: ref, renderer, depth, direction, layout: layoutAlgorithm },
         file && line ? { file, line } : null,
       ),
     );
@@ -490,12 +503,33 @@
     syncUrl();
   }
 
-  function changeDepth(value: string): void {
-    const next = Number(value);
-    if (next !== 1 && next !== 2 && next !== 3) return;
+  function onDepthChange(event: Event): void {
+    const input = event.currentTarget as HTMLInputElement;
+    if (input.validity.badInput) {
+      input.value = String(depth ?? "");
+      return;
+    }
+    const text = input.value.trim();
+    if (!text) {
+      depth = null;
+      syncUrl();
+      void reloadGraph();
+      return;
+    }
+    const next = Number(text);
+    if (!Number.isInteger(next) || next < 1) {
+      input.value = String(depth ?? "");
+      return;
+    }
     depth = next;
     syncUrl();
     void reloadGraph();
+  }
+
+  function changeLayout(value: string): void {
+    if (!(LAYOUT_ALGORITHMS as readonly string[]).includes(value)) return;
+    layoutAlgorithm = value as LayoutAlgorithm;
+    syncUrl();
   }
 
   function changeDirection(value: string): void {
@@ -861,6 +895,7 @@
               data={graphData}
               {selectedId}
               {searchHits}
+              layoutAlgorithm={layoutAlgorithm}
               onselect={(node) => void selectGraphNode(node)}
               onjump={jumpFromNode}
             />
@@ -921,49 +956,16 @@
           {/if}
         </div>
 
-        <div class="view-controls" aria-label="View options">
-          <!-- svelte-ignore a11y_label_has_associated_control -->
-          <label class="view-control" title="Neighborhood depth">
-            <span>depth</span>
-            <select
-              class="depth-select"
-              value={String(depth)}
-              aria-label="Neighborhood depth"
-              onchange={(event: Event) => changeDepth(textValue(event))}
-            >
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-            </select>
-          </label>
-          <!-- svelte-ignore a11y_label_has_associated_control -->
-          <label class="view-control" title="Edge direction">
-            <span>edges</span>
-            <select
-              class="direction-select"
-              value={direction}
-              aria-label="Edge direction"
-              onchange={(event: Event) => changeDirection(textValue(event))}
-            >
-              <option value="both">both</option>
-              <option value="callers">callers</option>
-              <option value="callees">callees</option>
-            </select>
-          </label>
-          <!-- svelte-ignore a11y_label_has_associated_control -->
-          <label class="view-control" title="Graph renderer">
-            <span>view</span>
-            <select
-              class="renderer-select"
-              value={renderer}
-              aria-label="Graph renderer"
-              onchange={(event: Event) => changeRenderer(textValue(event))}
-            >
-              <option value="d3">D3</option>
-              <option value="orchgraph">orchgraph</option>
-            </select>
-          </label>
-        </div>
+        <GraphViewControls
+          {depth}
+          {direction}
+          layout={layoutAlgorithm}
+          {renderer}
+          ondepth={onDepthChange}
+          ondirection={changeDirection}
+          onlayout={changeLayout}
+          onrenderer={changeRenderer}
+        />
 
         <div class="status-right">
           {#if searchHits.size > 0}

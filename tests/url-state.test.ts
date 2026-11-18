@@ -13,6 +13,7 @@ const fallback: GraphUrlState = {
   renderer: "d3",
   depth: 2,
   direction: "both",
+  layout: "layered",
 };
 
 test("source defaults supply project and symbol", () => {
@@ -45,6 +46,7 @@ test("query values override source defaults and view options", () => {
     renderer: "orchgraph",
     depth: 3,
     direction: "callers",
+    layout: "layered",
     location: { file: "src/a.ts", line: 12 },
   });
 });
@@ -67,7 +69,7 @@ test("missing source keeps the current state while still accepting overrides", (
 
 test("invalid values fall back and invalid locations are ignored", () => {
   const parsed = parseGraphUrl(
-    "?source=unknown&project=&symbol=&renderer=canvas&depth=9&direction=sideways&file=a.ts&line=0",
+    "?source=unknown&project=&symbol=&renderer=canvas&depth=0&direction=sideways&file=a.ts&line=0",
     fallback,
   );
 
@@ -82,12 +84,19 @@ test("formatGraphUrl emits a canonical query with an optional location", () => {
     renderer: "orchgraph",
     depth: 1,
     direction: "callees",
+    layout: "stress",
   };
 
   expect(formatGraphUrl(state, null)).toBe(
-    "?source=cbm&project=my+project&symbol=pkg.main&renderer=orchgraph&depth=1&direction=callees",
+    "?source=cbm&project=my+project&symbol=pkg.main&renderer=orchgraph&depth=1&direction=callees&layout=stress",
   );
   expect(formatGraphUrl(state, { file: "src/a b.ts", line: 7 })).toBe(
-    "?source=cbm&project=my+project&symbol=pkg.main&renderer=orchgraph&depth=1&direction=callees&file=src%2Fa+b.ts&line=7",
+    "?source=cbm&project=my+project&symbol=pkg.main&renderer=orchgraph&depth=1&direction=callees&layout=stress&file=src%2Fa+b.ts&line=7",
   );
+});
+
+test("depth can be any positive integer or empty for the full graph", () => {
+  expect(parseGraphUrl("?depth=7", fallback).depth).toBe(7);
+  expect(parseGraphUrl("?depth=", fallback).depth).toBeNull();
+  expect(parseGraphUrl("?depth=0", fallback).depth).toBe(2);
 });

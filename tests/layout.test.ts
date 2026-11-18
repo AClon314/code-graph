@@ -1,6 +1,11 @@
 import { expect, test } from "bun:test";
 
-import { layoutGraphView, NODE_HEIGHT, NODE_WIDTH } from "../src/lib/graph/layout";
+import {
+  layoutGraphView,
+  NODE_HEIGHT,
+  NODE_WIDTH,
+  type LayoutAlgorithm,
+} from "../src/lib/graph/layout";
 import type { GraphViewData } from "../src/lib/graph/types";
 
 const DATA: GraphViewData = {
@@ -76,4 +81,16 @@ test("layoutGraphView handles empty and disconnected graphs", async () => {
   });
   expect(disconnected.nodes).toHaveLength(2);
   expect(disconnected.edges).toEqual([]);
+});
+
+test("all supported ELK algorithms produce finite geometry", async () => {
+  for (const algorithm of ["layered", "stress", "mrtree", "force", "radial"] as LayoutAlgorithm[]) {
+    const layout = await layoutGraphView(DATA, "DOWN", algorithm);
+    expect(layout.nodes).toHaveLength(2);
+    expect(layout.width).toBeGreaterThan(0);
+    expect(layout.height).toBeGreaterThan(0);
+    expect(layout.nodes.every((node) => Number.isFinite(node.x) && Number.isFinite(node.y))).toBe(
+      true,
+    );
+  }
 });

@@ -47,6 +47,11 @@ pays the CodeMirror/tooltip cost.
 - The list width is capped to the visual viewport width so pinch zoom cannot
   push it off-screen. There is no separate pinned chevron: after focusing a
   field, a second click/tap on the field toggles the list.
+- When a query has no candidate, the source supplies a synthetic **Clear
+  input** item. It clears the bound value when clicked; accepting it with
+  Enter only closes the list, so a free-form value is not lost accidentally.
+  Shift+Backspace clears the single-line value through both the editor and the
+  idle native input.
 
 ## Props
 

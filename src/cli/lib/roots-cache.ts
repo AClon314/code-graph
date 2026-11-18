@@ -50,6 +50,19 @@ export function writeRootsCache(
   return path;
 }
 
+/** Remove one project from the workspace roots cache. */
+export function removeRootsCache(root: string, project: string): void {
+  const path = rootsCachePath(root);
+  const current = readRootsCache(root);
+  if (!current.projects[project]) return;
+  delete current.projects[project];
+  current.generatedAt = new Date().toISOString();
+  mkdirSync(dirname(path), { recursive: true });
+  const temporary = `${path}.${process.pid}.tmp`;
+  writeFileSync(temporary, JSON.stringify(current, null, 2) + "\n");
+  renameSync(temporary, path);
+}
+
 /** Fetch roots from cbm and write them to the workspace cache. */
 export async function refreshRootsCache(
   options: RefreshRootsOptions,
