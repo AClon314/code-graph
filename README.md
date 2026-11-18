@@ -81,7 +81,9 @@ directly. Build output contains only the selected runtime:
   with completion candidates from cbm's repository map (entry points, source
   modules, exported classes). The input stays editable, so arbitrary QNs and
   `#id` values still work; selecting a root fills the field. Valid input is
-  committed after 350 ms of inactivity (no separate **Load** button).
+  committed after 350 ms of inactivity (no separate **Load** button). Project
+  selection also commits after that delay, retargets the symbol prefix, and
+  reloads roots; an empty entry still populates the root dropdown.
 - Details: **Details** opens an edge inspector with the symbol bundle;
   callers/callees are collapsible sections. Selecting a graph node opens it
   automatically. **Jump** opens the file at the symbol's line/column through

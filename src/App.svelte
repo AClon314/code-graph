@@ -14,8 +14,7 @@
   } from "./lib/cbm-endpoint";
   import { ComputedSource } from "./lib/graph/computed";
   import { createHostFetch } from "./lib/cbm-host-fetch";
-  import { fetchCbmProjects } from "./lib/cbm-projects";
-  import { fetchRootCandidates, type RootCandidate } from "./lib/graph/roots";
+  import { type RootCandidate } from "./lib/graph/roots";
   import { graphSearchHits } from "./lib/graph/search";
   import {
     downloadSvg,
@@ -50,6 +49,9 @@
     fixFor,
     type SettingsFix,
   } from "./lib/settings-fix";
+  import { refForProject } from "./lib/graph/ref-project";
+  import { bundleForRef, normalizeEntry } from "./lib/graph/entry";
+  import { fetchProjectsFor, fetchRootsFor } from "./lib/graph/loaders";
   interface GraphViewHandle {
     fit(): void;
     snapshotSvg?(): SVGSVGElement | null;
@@ -68,6 +70,7 @@
   let kind = $state<SourceKind>("computed");
   let project = $state("demo");
   let ref = $state("demo.src.features.useAlias");
+  let refProject = $state("demo");
   let cbmBaseUrl = $state("http://127.0.0.1:9749");
   let workspaceRoot = $state("");
   let runtime = $state(extensionApi.runtime);
@@ -160,6 +163,20 @@
     }
     void loadRoots();
     void loadProjects();
+    refProject = project;
+
+    const entry = ref.trim();
+    if (!entry) {
+      loading = false;
+      symbol = null;
+      error = "Enter a symbol name or #id to load a graph.";
+      errorFix = null;
+      graphData = null;
+      graphLoading = false;
+      graphError = "";
+      syncUrl();
+      return;
+    }
 
     const source = currentSource();
     const symbolResult = await source.symbol(project, ref).then(
@@ -197,17 +214,12 @@
   }
 
   async function loadRoots(): Promise<void> {
-    if (kind !== "cbm") {
-      rootCandidates = [];
-      rootsLoading = false;
-      return;
-    }
     rootsLoading = true;
     try {
-      rootCandidates = await fetchRootCandidates(
+      rootCandidates = await fetchRootsFor(
+        kind,
         cbmBaseUrl,
         project,
-        50,
         runtime === "webview" ? hostFetch : undefined,
       );
     } catch {
@@ -218,14 +230,9 @@
   }
 
   async function loadProjects(): Promise<void> {
-    if (kind !== "cbm") {
-      projectCandidates = [SOURCE_DEFAULTS.computed.project];
-      projectsLoading = false;
-      return;
-    }
     projectsLoading = true;
     try {
-      projectCandidates = await fetchCbmProjects((request) =>
+      projectCandidates = await fetchProjectsFor(kind, (request) =>
         extensionApi.fetchCbm(request),
       );
     } catch (cause) {
@@ -297,7 +304,7 @@
 
     try {
       const source = currentSource();
-      const rootBundle = rootBundleFor(ref);
+      const rootBundle = bundleForRef(symbol, ref);
       const next = await loadNeighborhood(source, project, ref, {
         depth,
         direction,
@@ -367,6 +374,7 @@
     kind = next.source;
     project = next.project;
     ref = next.symbol;
+    refProject = next.project;
     renderer = next.renderer;
     depth = next.depth;
     direction = next.direction;
@@ -432,17 +440,19 @@
     await load();
   }
 
-  function refForProject(value: string, fromProject: string, toProject: string): string {
-    const prefix = `${fromProject}.`;
-    return value.startsWith(prefix) ? `${toProject}.${value.slice(prefix.length)}` : value;
+  function setProject(value: string, commit = false): void {
+    if (value !== project) {
+      ref = refForProject(ref, refProject, value);
+      project = value;
+    }
+    refProject = value;
+    if (commit) void load();
   }
 
   async function setBackend(next: GraphBackend): Promise<void> {
     if (next === backend) return;
     backend = next;
     if (kind !== "cbm") return;
-    const previousProject = project;
-
     try {
       const config = await extensionApi.getConfig(next);
       if (runtime === "browser") {
@@ -450,11 +460,13 @@
         // project the user is looking at and apply the cbm/scip suffix.
         const base = project.endsWith("-scip") ? project.slice(0, -5) : project;
         const nextProject = next === "scip" ? `${base}-scip` : base;
-        ref = refForProject(ref, previousProject, nextProject);
+        ref = refForProject(ref, refProject, nextProject);
+        refProject = nextProject;
         project = nextProject;
       } else {
         project = config.project;
         ref = config.symbolEntry;
+        refProject = config.project;
       }
       cbmBaseUrl = config.cbmBaseUrl;
       workspaceRoot = config.workspaceRoot;
@@ -462,13 +474,6 @@
     } catch (cause) {
       error = `Backend switch failed: ${message(cause)}`;
     }
-  }
-
-  function rootBundleFor(value: string): SymbolBundle | undefined {
-    if (!symbol) return undefined;
-    if (value === symbol.node.qualifiedName) return symbol;
-    if (symbol.node.id !== undefined && value === `#${symbol.node.id}`) return symbol;
-    return undefined;
   }
 
   function openConnection(qualifiedName: string): void {
@@ -530,17 +535,11 @@
     }
   }
 
-  function entryIsValid(value: string): boolean {
-    const next = value.trim();
-    if (!next || /\s/.test(next)) return false;
-    if (next.startsWith("#")) return /^\d+$/.test(next.slice(1));
-    return true;
-  }
-
   function onEntryCommit(value: string): void {
-    const next = value.trim();
-    if (!entryIsValid(next)) return;
+    const next = normalizeEntry(value);
+    if (!next) return;
     ref = next;
+    refProject = project;
     void load();
   }
 
@@ -838,7 +837,8 @@
         {backend}
         onsource={setKind}
         onbackend={setBackend}
-        onproject={(value) => (project = value)}
+        onproject={(value) => setProject(value)}
+        onprojectcommit={(value) => setProject(value, true)}
         onclose={() => (setupOpen = false)}
       />
     {/if}

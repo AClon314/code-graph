@@ -13,6 +13,7 @@
     onsource: (kind: SourceKind) => void;
     onbackend: (backend: GraphBackend) => void;
     onproject: (value: string) => void;
+    onprojectcommit: (value: string) => void;
     onclose: () => void;
   }
 
@@ -26,6 +27,7 @@
     onsource,
     onbackend,
     onproject,
+    onprojectcommit,
     onclose,
   }: Props = $props();
 
@@ -96,7 +98,9 @@
         placeholder="Project name"
         aria-label="Project"
         spellcheck={false}
+        debounce={350}
         oninput={(event) => onproject(projectValue(event))}
+        oncommit={(event) => onprojectcommit(projectValue(event))}
       />
       {#if projectsLoading}
         <span class="hint">loading project names…</span>
