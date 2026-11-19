@@ -50,7 +50,7 @@ or empty. The syntax intentionally does not support nested `<slot>` elements.
 
 HTML has no import statements, so TypeScript declarations cannot be attached to
 the file. The portable fallback is the comment header at the top of
-`slot-node.html`. The standalone config route additionally:
+`slot-node.html`. The standalone input route additionally:
 
 - lists every slot path in a sidebar;
 - offers CodeMirror completion after `<slot name="`;
@@ -97,7 +97,7 @@ selection glow.
 - Fresh: `Config` opens `code-graph.config.jsonc`; `Template` opens
   `slot-node.ts` (creates it from the built-in template if missing) and falls
   back to `slot-node.html` in read-only workspaces.
-- Web: opens `/config?path=<relative_path>` in a new tab. The route editor
+- Web: opens `/input?path=<relative_path>` in a new tab. The route editor
   supports copy/download; persisting edits is left to the host/workspace.
 - Webview: goes through `ExtensionApi.openLocation` and opens the file in the
   VSCode host.

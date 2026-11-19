@@ -31,17 +31,17 @@ const target = document.getElementById("app")!;
 const path = window.location.pathname.replace(/\/+$/, "") || "/";
 const isDebugPage =
   path === "/debug" && (import.meta.env.DEV || import.meta.env.MODE === "web");
-const isConfigPage = path === "/config";
+const isInputPage = path === "/input";
 if (isDebugPage) document.title = "CodeInput · debug";
-if (isConfigPage) document.title = "Config · Code Graph";
+if (isInputPage) document.title = "Input · Code Graph";
 
 const app = isDebugPage
   ? import("./routes/debug/+page.svelte").then(({ default: DebugPage }) =>
       mount(DebugPage, { target }),
     )
-  : isConfigPage
-    ? import("./routes/config/+page.svelte").then(({ default: ConfigPage }) =>
-        mount(ConfigPage, { target }),
+  : isInputPage
+    ? import("./routes/input/+page.svelte").then(({ default: InputPage }) =>
+        mount(InputPage, { target }),
       )
     : mount(App, { target });
 

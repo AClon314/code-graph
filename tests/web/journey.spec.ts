@@ -89,11 +89,11 @@ test("view options round-trip through the URL", async ({ page }, testInfo) => {
   finishPageIssues(issues, testInfo);
 });
 
-test("config route opens the node template editor", async ({ page }, testInfo) => {
+test("input route opens the node template editor", async ({ page }, testInfo) => {
   const issues = watchPage(page, testInfo);
 
-  await timed(testInfo, "load config route", 4_000, async () => {
-    await page.goto("/config?path=slot-node.html&theme=dark");
+  await timed(testInfo, "load input route", 4_000, async () => {
+    await page.goto("/input?path=slot-node.html&theme=dark");
     await expect(page.getByRole("heading", { name: "slot-node.html" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Slot paths" })).toBeVisible();
     await expect(page.locator(".cm-content")).toContainText("node.shortName");

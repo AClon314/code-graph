@@ -233,14 +233,14 @@ context, so nested values work without extra glue:
 
 `node.shortName` strips the repeated project prefix; long QNs keep their
 meaningful tail (for example `…src.utils.date`). The file header documents all
-available paths; the standalone `/config?path=slot-node.html` route also lists
+available paths; the standalone `/input?path=slot-node.html` route also lists
 them and completes `<slot name="…` values in CodeMirror. HTML has no imports,
 so VSCode/Fresh rely on the header comment instead of TypeScript types. See
 [`docs/node-template.md`](docs/node-template.md).
 
 Config and template links live under **Setup**. In VSCode/Fresh they open the
 file in the editor. In the standalone web shell they open
-`/config?path=<relative_path>` in a new tab: a full-screen CodeMirror 6 editor
+`/input?path=<relative_path>` in a new tab: a full-screen CodeMirror 6 editor
 with HTML/JSON highlighting, copy/download, and slot-path reference.
 
 ### Root symbols and roots.json

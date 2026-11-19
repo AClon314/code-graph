@@ -1,7 +1,7 @@
 import type { ExtensionApi, Runtime } from "../../extension/api";
 import type { StatusState } from "../state/code-graph";
 
-/** Open a workspace config file in the host editor, or the web config route. */
+/** Open a workspace config file in the host editor, or the web input route. */
 export function openConfigPath(
   path: string,
   runtime: Runtime,
@@ -10,7 +10,7 @@ export function openConfigPath(
 ): void {
   if (!path) return;
   if (runtime === "browser") {
-    const url = new URL("/config", window.location.origin);
+    const url = new URL("/input", window.location.origin);
     url.searchParams.set("path", path);
     const theme = document.documentElement.dataset.codeGraphTheme;
     if (theme) url.searchParams.set("theme", theme);
