@@ -81,7 +81,7 @@
     </label>
   {/if}
   <!-- svelte-ignore a11y_label_has_associated_control -->
-  <label class="view-control toggle-control" title="Hide nodes outside the selected node's component">
+  <label class="view-control toggle-control" title="Hide nodes outside the selected node's call paths">
     <input
       type="checkbox"
       checked={focusOnly}

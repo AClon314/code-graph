@@ -37,7 +37,7 @@ export interface ViewState {
   direction: NeighborhoodDirection;
   layout: LayoutAlgorithm;
   renderer: GraphRenderer;
-  /** Hide nodes outside the selected node's connected component. */
+  /** Hide nodes outside the selected node's ancestor/descendant call paths. */
   focusOnly: boolean;
 }
 

@@ -86,7 +86,7 @@ directly. Build output contains only the selected runtime:
   nodes and edges at full opacity, and fades unrelated items to 33%. A
   background click (or tap) clears the selection, while a drag beyond 4 px is
   treated as panning, not a click. The **focus** checkbox hides unrelated
-  nodes and re-runs layout for a compact component view.
+  nodes and re-runs layout for the selected call paths.
 - Root picker: the **Symbol entry** field in the command bar is a `CodeInput`
   with completion candidates from cbm's repository map (entry points, source
   modules, exported classes). The input stays editable, so arbitrary QNs and

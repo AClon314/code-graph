@@ -73,7 +73,8 @@ The SVG renderer emits stable hooks in addition to the legacy
 ```
 
 Prefer overriding the `--cg-*` variables above. `.is-related` keeps full
-opacity; `.is-unrelated` uses `--cg-unrelated-opacity`. The selected glow is a
+opacity; `.is-unrelated` uses `--cg-unrelated-opacity` for nodes outside the
+selected node's call paths. The selected glow is a
 separate rect behind `.code-graph-node-card`, so it never covers the node text
 or border.
 

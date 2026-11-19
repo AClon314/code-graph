@@ -20,10 +20,31 @@ const data: GraphViewData = {
 };
 
 describe("selection neighbourhood", () => {
-  test("follows edges in both directions", () => {
+  test("follows call paths in both directions", () => {
     const related = relatedSelection(data, "b");
     expect([...related.nodes].sort()).toEqual(["a", "b", "c"]);
     expect([...related.edges].sort()).toEqual(["a->b", "b->c"]);
+  });
+
+  test("does not pull in a sibling branch through a shared caller", () => {
+    const branch: GraphViewData = {
+      ...data,
+      nodes: ["a", "b", "c", "d"].map((id) => ({
+        id,
+        label: "Function",
+        name: id,
+        qualifiedName: id,
+      })),
+      edges: [
+        { id: "a->b", source: "a", target: "b", type: "CALLS" },
+        { id: "a->c", source: "a", target: "c", type: "CALLS" },
+        { id: "b->d", source: "b", target: "d", type: "CALLS" },
+      ],
+    };
+    const related = relatedSelection(branch, "b");
+    expect([...related.nodes].sort()).toEqual(["a", "b", "d"]);
+    expect(related.nodes.has("c")).toBe(false);
+    expect(focusSubgraph(branch, "b").nodes.map((node) => node.id)).toEqual(["a", "b", "d"]);
   });
 
   test("does not include disconnected components", () => {

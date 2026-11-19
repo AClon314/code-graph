@@ -6,10 +6,10 @@ export interface RelatedSelection {
 }
 
 /**
- * Nodes reachable from `selectedId` when edges are treated as undirected.
- *
- * The graph is a call graph, but "related" in the UI means connected in either
- * direction: callers, callees and their transitive neighbours all stay lit.
+ * Nodes that participate in the selected node's call paths: transitive
+ * callers (ancestors) and callees (descendants), not every node in the
+ * undirected component. This keeps a sibling branch out of focus mode instead
+ * of treating "shares the root" as related.
  */
 export function relatedSelection(
   data: GraphViewData,
@@ -21,27 +21,32 @@ export function relatedSelection(
     return { nodes, edges };
   }
 
-  const adjacency = new Map<string, string[]>();
-  const add = (from: string, to: string): void => {
-    const list = adjacency.get(from);
+  const forward = new Map<string, string[]>();
+  const backward = new Map<string, string[]>();
+  const add = (map: Map<string, string[]>, from: string, to: string): void => {
+    const list = map.get(from);
     if (list) list.push(to);
-    else adjacency.set(from, [to]);
+    else map.set(from, [to]);
   };
   for (const edge of data.edges) {
-    add(edge.source, edge.target);
-    add(edge.target, edge.source);
+    add(forward, edge.source, edge.target);
+    add(backward, edge.target, edge.source);
   }
 
-  const queue = [selectedId];
-  nodes.add(selectedId);
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    for (const next of adjacency.get(current) ?? []) {
-      if (nodes.has(next)) continue;
-      nodes.add(next);
-      queue.push(next);
+  const walk = (adjacency: Map<string, string[]>): void => {
+    const queue = [selectedId];
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      for (const next of adjacency.get(current) ?? []) {
+        if (nodes.has(next)) continue;
+        nodes.add(next);
+        queue.push(next);
+      }
     }
-  }
+  };
+  nodes.add(selectedId);
+  walk(forward);
+  walk(backward);
 
   for (const edge of data.edges) {
     if (nodes.has(edge.source) && nodes.has(edge.target)) edges.add(edge.id);
@@ -50,7 +55,7 @@ export function relatedSelection(
 }
 
 /**
- * The selected node's connected component, preserving edge order and the
+ * The selected node's ancestor/descendant paths, preserving edge order and the
  * original root/truncated flags. Used by the "focus only" re-layout.
  */
 export function focusSubgraph(data: GraphViewData, selectedId: string): GraphViewData {
