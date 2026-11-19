@@ -76,6 +76,10 @@ export const DEFAULT_NODE_TEMPLATE = `<!--
   Use <slot name="node.name">fallback</slot> for a value; missing values keep
   the fallback. The renderer escapes slot values, so they cannot inject HTML.
 
+  The root must be a rendered element (usually <div>). Do not wrap the
+  fragment in <template>: template content is inert and will not be painted
+  inside the SVG foreignObject.
+
   Common paths:
     node.id, node.symbolId, node.name, node.label, node.qualifiedName,
     node.shortName, node.filePath, node.fileTail, node.startLine,

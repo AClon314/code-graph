@@ -21,6 +21,42 @@ lines are the detail block. It is loaded by `tui/render.ts` from the workspace
 root (or `node.freshTemplate`), so edits are picked up on the next `r` reload.
 If the file is absent, Fresh falls back to the built-in text rendering.
 
+## Root element and `<template>`
+
+The fragment is inserted as the content of an SVG `foreignObject`, so its root
+must be a rendered element, usually a `<div>`. It is not an HTML
+`<template>` document: `<template>` content lives in an inert
+`DocumentFragment`, is not painted by the browser, and would leave the node
+card empty. If a `<template>` root were desired, the renderer would have to
+clone `template.content` into a visible host first; the final visible root
+would still be an ordinary element. Keeping the root a `<div>` avoids that
+extra step and gives the card a real layout box. (The `<slot>` elements are a
+small custom placeholder syntax, not Web Components shadow-DOM slots.)
+
+## No inline JavaScript
+
+Slots are intentionally declarative: the renderer only substitutes escaped
+values. Svelte's `{@html}` does not run `<script>` elements inserted through
+`innerHTML`, and there is no expression evaluator, so `{{ ... }}` or inline
+`<script>` logic will not work. Inline event attributes are also not a
+supported API; host CSP rules differ, and raw `{@html}` content is not
+sanitized beyond slot values.
+
+Safe alternatives, in increasing order of complexity:
+
+- CSS-only states: add classes/data attributes to the node wrapper (kind,
+  entry/test/exported, selection) and target them from template CSS.
+- Per-kind templates: choose a template by `node.label` / `node.kind` instead
+  of branching inside one string (currently all nodes share one template).
+- Declarative directives: add a small, documented set such as
+  `data-when="node.isEntry"` or format helpers, implemented by the renderer
+  rather than evaluated as JavaScript.
+- Host function templates: a module/function template (like the Fresh
+  `slot-node.ts`) that receives the node context and returns HTML/text. This
+  needs an explicit loading, CSP and trust model for the web/VSCode hosts.
+- Sandboxed iframe: only if arbitrary user JavaScript is a hard requirement;
+  it is expensive per node and breaks simple layout/export assumptions.
+
 ## Slot syntax
 
 Slots are dot paths. The renderer walks the context object, so nested paths work
