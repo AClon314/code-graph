@@ -25,6 +25,7 @@ const configPending = new Map<number, Pending<ExtensionConfig>>();
 const cbmPending = new Map<number, Pending<CbmHttpResponse>>();
 const locationPending = new Map<number, Pending<void>>();
 const settingsPending = new Map<number, Pending<void>>();
+const restartPending = new Map<number, Pending<void>>();
 let sequence = 0;
 
 window.addEventListener("message", (event: MessageEvent<HostResponse>) => {
@@ -59,16 +60,25 @@ window.addEventListener("message", (event: MessageEvent<HostResponse>) => {
     return;
   }
 
+  if (message.type === "restarted") {
+    const waiting = restartPending.get(message.id);
+    restartPending.delete(message.id);
+    waiting?.resolve();
+    return;
+  }
+
   if (message.type === "failed") {
     const error = new Error(message.message);
     configPending.get(message.id)?.reject(error);
     cbmPending.get(message.id)?.reject(error);
     locationPending.get(message.id)?.reject(error);
     settingsPending.get(message.id)?.reject(error);
+    restartPending.get(message.id)?.reject(error);
     configPending.delete(message.id);
     cbmPending.delete(message.id);
     locationPending.delete(message.id);
     settingsPending.delete(message.id);
+    restartPending.delete(message.id);
   }
 });
 
@@ -87,6 +97,9 @@ export function createExtensionApi(): ExtensionApi {
     },
     async openSettings(query: string) {
       await request(settingsPending, (id) => ({ type: "openSettings", id, query }));
+    },
+    async restartCbm() {
+      await request(restartPending, (id) => ({ type: "restartCbm", id }));
     },
     setStatus(message, kind) {
       vscode.postMessage({ type: "status", message, kind });

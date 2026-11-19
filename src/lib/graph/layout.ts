@@ -26,7 +26,7 @@ export interface GraphLayout {
 }
 
 export type LayoutDirection = "DOWN" | "UP" | "LEFT" | "RIGHT";
-export type LayoutAlgorithm = "layered" | "stress" | "mrtree" | "force" | "radial";
+export type LayoutAlgorithm = "layered" | "force";
 
 export const NODE_WIDTH = 180;
 export const NODE_HEIGHT = 64;
@@ -57,11 +57,9 @@ function layoutOptions(
   return {
     ...BASE_LAYOUT_OPTIONS,
     "elk.algorithm": algorithm,
-    // Layered and tree layouts route around node boxes; force/stress/radial
-    // layouts have no layered router, so use a polyline there.
-    "elk.edgeRouting": algorithm === "layered" || algorithm === "mrtree" ? "ORTHOGONAL" : "POLYLINE",
+    // Layered routes around node boxes; force has no layered router.
+    "elk.edgeRouting": algorithm === "layered" ? "ORTHOGONAL" : "POLYLINE",
     "elk.direction": direction,
-    ...(algorithm === "stress" ? { "elk.stress.desiredEdgeLength": "180" } : {}),
     ...(algorithm === "force" ? { "elk.force.iterations": "300" } : {}),
   };
 }
@@ -96,6 +94,12 @@ export async function layoutGraphView(
   direction: LayoutDirection = "DOWN",
   algorithm: LayoutAlgorithm = "layered",
 ): Promise<GraphLayout> {
+  // The empty path bar renders a root-entry overview. ELK treats every
+  // disconnected node as its own component and packs them into a very tall
+  // column, so use a compact grid that stays legible when fitted.
+  if (data.root === "" && data.edges.length === 0 && data.nodes.length > 0) {
+    return gridLayout(data.nodes);
+  }
   const nodes = data.nodes.map((node) => ({
     id: node.id,
     width: NODE_WIDTH,
@@ -304,6 +308,29 @@ function fallbackPosition(
   });
 
   return { nodes: positioned, width: maxX, height: maxY, edges: new Map() };
+}
+
+function gridLayout(nodes: readonly GraphViewData["nodes"][number][]): GraphLayout {
+  const columns = Math.ceil(Math.sqrt(nodes.length));
+  const gapX = 64;
+  const gapY = 56;
+  const placed: LaidOutNode[] = nodes.map((node, index) => ({
+    id: node.id,
+    x: round(PADDING_LEFT + (index % columns) * (NODE_WIDTH + gapX)),
+    y: round(PADDING_TOP + Math.floor(index / columns) * (NODE_HEIGHT + gapY)),
+    width: NODE_WIDTH,
+    height: NODE_HEIGHT,
+  }));
+  const width = Math.max(
+    PADDING_LEFT + PADDING_RIGHT,
+    (placed.at(-1)?.x ?? 0) + NODE_WIDTH + PADDING_RIGHT,
+  );
+  const rows = Math.ceil(nodes.length / columns);
+  const height = Math.max(
+    PADDING_TOP + PADDING_BOTTOM,
+    PADDING_TOP + rows * NODE_HEIGHT + Math.max(rows - 1, 0) * gapY + PADDING_BOTTOM,
+  );
+  return { width: round(width), height: round(height), nodes: placed, edges: [] };
 }
 
 function uniqueEdgeId(id: string, index: number, seen: Set<string>): string {

@@ -1,9 +1,13 @@
+import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { defineConfig, type Plugin, type ProxyOptions } from "vite";
+
+const execFileAsync = promisify(execFile);
 
 /** Dev/preview endpoint for raw workspace config files (HTML must not be transformed). */
 function configFilesPlugin(): Plugin {
@@ -17,6 +21,34 @@ function configFilesPlugin(): Plugin {
     },
     next: () => void,
   ): Promise<void> => {
+    if (req.url?.startsWith("/__code-graph/restart-cbm")) {
+      if ((req.method ?? "GET") !== "POST") {
+        res.statusCode = 405;
+        res.end("method not allowed");
+        return;
+      }
+      try {
+        const script = fileURLToPath(new URL("./scripts/restart-cbm.sh", import.meta.url));
+        const port = process.env.CBM_PORT || "9749";
+        await execFileAsync("bash", [script], {
+          timeout: 20_000,
+          env: { ...process.env, CBM_PORT: port, CBM_AUTOSTART: "1" },
+        });
+        res.statusCode = 200;
+        res.setHeader("content-type", "application/json; charset=utf-8");
+        res.end(JSON.stringify({ ok: true, port }));
+      } catch (cause) {
+        res.statusCode = 500;
+        res.setHeader("content-type", "application/json; charset=utf-8");
+        res.end(
+          JSON.stringify({
+            ok: false,
+            error: cause instanceof Error ? cause.message : String(cause),
+          }),
+        );
+      }
+      return;
+    }
     if (!req.url?.startsWith("/api/config-file")) {
       next();
       return;

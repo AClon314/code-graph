@@ -294,3 +294,49 @@ function edgeType(connection: SymbolConnection): string {
 function errorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
 }
+
+/**
+ * Reconstruct the root bundle from an already-loaded graph. A depth change
+ * from the unbounded view can then reuse the exact caller/callee lists instead
+ * of asking cbm for the same root again; that request is the part most likely
+ * to fail on a transiently unhealthy HTTP listener.
+ */
+export function bundleFromGraph(
+  data: GraphViewData,
+  nodeId: string,
+): SymbolBundle | undefined {
+  const node = data.nodes.find((candidate) => candidate.id === nodeId);
+  if (!node) return undefined;
+  const byId = new Map(data.nodes.map((candidate) => [candidate.id, candidate]));
+  const callers: SymbolConnection[] = [];
+  const callees: SymbolConnection[] = [];
+  for (const edge of data.edges) {
+    if (edge.target === nodeId && edge.source !== nodeId) {
+      const caller = byId.get(edge.source);
+      if (caller) callers.push(connectionFor(caller, edge.type));
+    }
+    if (edge.source === nodeId && edge.target !== nodeId) {
+      const callee = byId.get(edge.target);
+      if (callee) callees.push(connectionFor(callee, edge.type));
+    }
+  }
+  const { symbolId, ...rest } = node;
+  return {
+    node: { ...rest, id: symbolId },
+    callers,
+    callees,
+  };
+}
+
+function connectionFor(node: GraphViewNode, type: string): SymbolConnection {
+  return {
+    id: node.symbolId,
+    type,
+    label: node.label,
+    name: node.name,
+    qualifiedName: node.qualifiedName,
+    filePath: node.filePath,
+    startLine: node.startLine,
+    startColumn: node.startColumn,
+  };
+}

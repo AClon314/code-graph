@@ -17,7 +17,7 @@ import {
   type ProjectConfig,
 } from "../../lib/config";
 import { NODE_RENDERER_FILE } from "../../lib/node-renderer";
-import { fetchLocalCbm, resolveLocalCbm } from "./cbm-node";
+import { fetchLocalCbm, resolveLocalCbm, restartLocalCbm } from "./cbm-node";
 
 /**
  * VS Code extension-host implementation. This module may import `vscode`; the
@@ -100,6 +100,15 @@ export function createExtensionApi(backend: GraphBackend = "cbm"): ExtensionApi 
     },
     async openSettings(query) {
       await vscode.commands.executeCommand("workbench.action.openSettings", query);
+    },
+    async restartCbm() {
+      const configuration = vscode.workspace.getConfiguration("codeGraph");
+      const configured = configuration.get<string>(
+        "cbmBaseUrl",
+        DEFAULT_CONFIG.cbmBaseUrl,
+      );
+      await restartLocalCbm(configured);
+      forgetEndpoint(configured);
     },
     async openLocation(location) {
       const uri = resolveUri(location);

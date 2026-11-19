@@ -117,7 +117,7 @@ export interface GraphUiStateInit {
 export function createGraphUiState(init: GraphUiStateInit = {}): GraphUiState {
   const source = init.source ?? "computed";
   const project = init.project ?? "demo";
-  const entry = init.entry ?? "demo.src.features.useAlias";
+  const entry = init.entry ?? "";
   return {
     setup: {
       source,

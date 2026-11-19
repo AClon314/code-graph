@@ -10,6 +10,7 @@ export type HostRequest =
   | { type: "cbmFetch"; id: number; request: CbmHttpRequest }
   | { type: "openLocation"; id: number; location: SourceLocation }
   | { type: "openSettings"; id: number; query: string }
+  | { type: "restartCbm"; id: number }
   | { type: "status"; message: string; kind?: "info" | "error" };
 
 export type HostResponse =
@@ -17,4 +18,5 @@ export type HostResponse =
   | { type: "cbmResponse"; id: number; response: CbmHttpResponse }
   | { type: "opened"; id: number }
   | { type: "settingsOpened"; id: number }
+  | { type: "restarted"; id: number }
   | { type: "failed"; id: number; message: string };

@@ -9,6 +9,7 @@
     roots: RootCandidate[];
     loading?: boolean;
     label?: string;
+    placeholder?: string;
     oncommit?: (value: string) => void;
   }
 
@@ -16,7 +17,8 @@
     value = $bindable(""),
     roots,
     loading = false,
-    label = "Symbol entry (qualified name or #id)",
+    label = "Path bar (qualified name or #id)",
+    placeholder = "All entries (leave empty)",
     oncommit,
   }: Props = $props();
 
@@ -47,7 +49,9 @@
     options={rootOptions}
     debounce={350}
     oncommit={commitValue}
+    onchange={commitValue}
     aria-label={label}
+    {placeholder}
     spellcheck={false}
   />
   {#if loading}<span class="root-status">loading roots…</span>{/if}

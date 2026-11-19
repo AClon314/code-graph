@@ -5,8 +5,8 @@
   import GraphView from "./lib/components/GraphView.svelte";
   import OrchgraphView from "./lib/components/OrchgraphView.svelte";
   import InspectorPanel from "./lib/components/workspace/InspectorPanel.svelte";
-  import RootEntryField from "./lib/components/workspace/RootEntryField.svelte";
-  import GraphViewControls from "./lib/components/workspace/GraphViewControls.svelte";
+  import GraphFooter from "./lib/components/workspace/GraphFooter.svelte";
+  import TopBar from "./lib/components/workspace/TopBar.svelte";
   import SetupPanel from "./lib/components/workspace/SetupPanel.svelte";
   import { CbmHttpSource } from "./lib/graph/cbm-http";
   import {
@@ -23,6 +23,7 @@
     svgMarkup,
   } from "./lib/graph/svg-export";
   import {
+    bundleFromGraph,
     loadNeighborhood,
     MAX_UNBOUNDED_NODES,
   } from "./lib/graph/neighborhood";
@@ -48,7 +49,6 @@
   import { copySymbolPath, jumpToLocation, type JumpRow } from "./lib/actions/symbol";
   import { openConfigPath } from "./lib/actions/config";
   import {
-    cbmUrlFix,
     fixFor,
     type SettingsFix,
   } from "./lib/settings-fix";
@@ -56,11 +56,20 @@
   import { bundleForRef, normalizeEntry } from "./lib/graph/entry";
   import { fetchProjectsFor, fetchRootsFor } from "./lib/graph/loaders";
   import { progressLabel } from "./lib/graph/loading";
+  import { rootsOverview } from "./lib/graph/overview";
+  import { adjacentSibling, firstNeighbor } from "./lib/graph/navigation";
   import { ProgressController } from "./lib/state/progress";
-  import type { NodeHtmlRenderer } from "./lib/node-renderer";
+  import {
+    loadNodeHtmlRenderer,
+    type NodeHtmlRenderer,
+  } from "./lib/node-renderer";
+  import { errorMessage } from "./lib/errors";
   import { applyGraphUrlToState, graphUrlParams } from "./lib/state/url-sync";
   interface GraphViewHandle {
     fit(): void;
+    panScreen?(dx: number, dy: number): void;
+    zoomBy?(factor: number): void;
+    focusNode?(id: string): void;
     snapshotSvg?(): SVGSVGElement | null;
     copy?(): Promise<void>;
   }
@@ -73,7 +82,7 @@
       runtime: extensionApi.runtime,
       source: "computed",
       project: "demo",
-      entry: "demo.src.features.useAlias",
+      entry: "",
     }),
   );
 
@@ -87,7 +96,6 @@
   let detailRequestId = 0;
   let graphView = $state<GraphViewHandle>();
   let nodeRender = $state<NodeHtmlRenderer | null>(null);
-  let searchField: HTMLInputElement | undefined;
   const progress = new ProgressController(codeGraph.current.load);
 
   const selectedNode = $derived(
@@ -105,21 +113,6 @@
   );
   const hostFetch = createHostFetch(extensionApi.fetchCbm);
 
-  async function loadNodeRenderer(url: string): Promise<NodeHtmlRenderer | null> {
-    if (!url) return null;
-    try {
-      const module = (await import(/* @vite-ignore */ url)) as {
-        renderNodeHtml?: unknown;
-      };
-      return typeof module.renderNodeHtml === "function"
-        ? (module.renderNodeHtml as NodeHtmlRenderer)
-        : null;
-    } catch (cause) {
-      console.warn(`[code-graph] renderNode.config.mjs: ${message(cause)}`);
-      return null;
-    }
-  }
-
   function currentSource(): GraphSource {
     return codeGraph.setup.source === "computed"
       ? computedSource
@@ -132,10 +125,25 @@
 
   async function openFix(fix: SettingsFix | null): Promise<void> {
     if (!fix) return;
+    if (fix.action === "restart-cbm") {
+      try {
+        await extensionApi.restartCbm();
+        codeGraph.current.status.error = "";
+        codeGraph.current.status.errorFix = null;
+        codeGraph.current.status.graphError = "";
+        codeGraph.current.status.graphFix = null;
+        await reloadGraph();
+      } catch (cause) {
+        const detail = errorMessage(cause);
+        console.error("[code-graph] restart cbm-http failed", cause);
+        codeGraph.current.status.error = `Restart cbm-http failed: ${detail}`;
+      }
+      return;
+    }
     try {
       await extensionApi.openSettings(fix.query);
     } catch (cause) {
-      codeGraph.current.status.error = `Open settings failed: ${message(cause)}`;
+      codeGraph.current.status.error = `Open settings failed: ${errorMessage(cause)}`;
     }
   }
 
@@ -165,7 +173,6 @@
       syncUrl();
       return;
     }
-    void loadRoots();
     void loadProjects();
     codeGraph.setup.refProject = codeGraph.setup.project;
 
@@ -173,14 +180,14 @@
     if (!entry) {
       codeGraph.current.load.symbol = false;
       codeGraph.current.detail.symbol = null;
-      codeGraph.current.status.error = "Enter a symbol name or #id to load a graph.";
+      codeGraph.current.status.error = "";
       codeGraph.current.status.errorFix = null;
-      codeGraph.current.graph = null;
-      codeGraph.current.load.graph = false;
-      codeGraph.current.status.graphError = "";
+      await loadOverview(id);
       syncUrl();
       return;
     }
+
+    void loadRoots();
 
     progress.begin("Loading symbol", null);
     const source = currentSource();
@@ -200,7 +207,7 @@
       codeGraph.current.detail.symbol = null;
       codeGraph.current.selection.id = "";
       codeGraph.current.selection.node = null;
-      problems.push(`symbol: ${message(symbolResult.reason)}`);
+      problems.push(`symbol: ${errorMessage(symbolResult.reason)}`);
       codeGraph.current.status.errorFix = fixFor(symbolResult.reason, codeGraph.setup.backend);
     }
 
@@ -219,6 +226,38 @@
     syncUrl();
   }
 
+  async function loadOverview(request: number): Promise<void> {
+    const id = ++graphRequestId;
+    codeGraph.current.load.graph = true;
+    codeGraph.current.status.graphError = "";
+    codeGraph.current.status.graphFix = null;
+    codeGraph.current.status.error = "";
+    codeGraph.current.status.errorFix = null;
+    codeGraph.current.graph = null;
+    codeGraph.current.selection.id = "";
+    codeGraph.current.selection.node = null;
+    progress.begin("Loading entries", null);
+    try {
+      await loadRoots();
+      if (id !== graphRequestId || request !== requestId) return;
+      const roots = codeGraph.setup.roots;
+      if (roots.length === 0) {
+        codeGraph.current.status.graphError =
+          codeGraph.setup.source === "cbm"
+            ? "No entry roots found for this project."
+            : "No entry roots configured for this source.";
+        codeGraph.current.graph = null;
+        return;
+      }
+      codeGraph.current.graph = rootsOverview(roots);
+    } finally {
+      if (id === graphRequestId) {
+        codeGraph.current.load.graph = false;
+        progress.stop();
+      }
+    }
+  }
+
   async function loadRoots(): Promise<void> {
     codeGraph.setup.loading.roots = true;
     try {
@@ -228,7 +267,8 @@
         codeGraph.setup.project,
         codeGraph.setup.runtime === "webview" ? hostFetch : undefined,
       );
-    } catch {
+    } catch (cause) {
+      console.warn("[code-graph] could not load root entries", cause);
       codeGraph.setup.roots = [];
     } finally {
       codeGraph.setup.loading.roots = false;
@@ -260,8 +300,9 @@
       codeGraph.setup.cbmBaseUrl = result.baseUrl;
       return true;
     } catch (cause) {
+      console.error("[code-graph] cbm endpoint discovery failed", cause);
       codeGraph.current.status.error = formatCbmEndpointError(cause);
-      codeGraph.current.status.errorFix = cbmUrlFix();
+      codeGraph.current.status.errorFix = fixFor(cause, codeGraph.setup.backend);
       return false;
     }
   }
@@ -297,8 +338,9 @@
       applyPendingLocation(next);
     } catch (cause) {
       if (id !== graphRequestId || request !== requestId) return;
-      codeGraph.current.status.graphError = message(cause);
+      codeGraph.current.status.graphError = errorMessage(cause);
       codeGraph.current.status.graphFix = fixFor(cause, codeGraph.setup.backend);
+      console.error("[code-graph] graph load failed", cause);
     } finally {
       if (id === graphRequestId) {
         codeGraph.current.load.graph = false;
@@ -307,9 +349,9 @@
     }
   }
 
-  async function reloadGraph(): Promise<void> {
+  async function reloadGraph(reuseRootBundle = false): Promise<void> {
     if (!codeGraph.setup.entry.trim()) {
-      await load();
+      await loadOverview(requestId);
       return;
     }
     const id = ++graphRequestId;
@@ -321,7 +363,12 @@
 
     try {
       const source = currentSource();
-      const rootBundle = bundleForRef(codeGraph.current.detail.symbol, codeGraph.setup.entry);
+      const currentGraph = codeGraph.current.graph;
+      const rootBundle =
+        bundleForRef(codeGraph.current.detail.symbol, codeGraph.setup.entry) ??
+        (reuseRootBundle && currentGraph?.root
+          ? bundleFromGraph(currentGraph, codeGraph.current.selection.id)
+          : undefined);
       const next = await loadNeighborhood(source, codeGraph.setup.project, codeGraph.setup.entry, {
         depth: codeGraph.current.view.depth,
         direction: codeGraph.current.view.direction,
@@ -339,8 +386,9 @@
     } catch (cause) {
       if (id !== graphRequestId) return;
       codeGraph.current.graph = null;
-      codeGraph.current.status.graphError = message(cause);
+      codeGraph.current.status.graphError = errorMessage(cause);
       codeGraph.current.status.graphFix = fixFor(cause, codeGraph.setup.backend);
+      console.error("[code-graph] graph load failed", cause);
     } finally {
       if (id === graphRequestId) {
         codeGraph.current.load.graph = false;
@@ -363,13 +411,14 @@
         codeGraph.setup.workspaceRoot = config.workspaceRoot;
         codeGraph.setup.configPath = config.configPath;
         codeGraph.setup.nodeRendererPath = config.nodeRendererPath;
-        nodeRender = await loadNodeRenderer(config.nodeRendererUrl);
+        nodeRender = await loadNodeHtmlRenderer(config.nodeRendererUrl);
         if (disposed) return;
         if (config.project) codeGraph.setup.project = config.project;
         if (config.symbolEntry) codeGraph.setup.entry = config.symbolEntry;
       } catch (cause) {
+        console.error("[code-graph] config load failed", cause);
         codeGraph.current.status.error = formatCbmEndpointError(cause);
-        codeGraph.current.status.errorFix = cbmUrlFix();
+        codeGraph.current.status.errorFix = fixFor(cause, codeGraph.setup.backend);
         return;
       }
 
@@ -440,7 +489,7 @@
         codeGraph.setup.project = config.project;
         codeGraph.setup.entry = config.symbolEntry;
       } catch (cause) {
-        codeGraph.current.status.error = `Backend setup failed: ${message(cause)}`;
+        codeGraph.current.status.error = `Backend setup failed: ${errorMessage(cause)}`;
         return;
       }
     }
@@ -479,7 +528,7 @@
       codeGraph.setup.workspaceRoot = config.workspaceRoot;
       await load();
     } catch (cause) {
-      codeGraph.current.status.error = `Backend switch failed: ${message(cause)}`;
+      codeGraph.current.status.error = `Backend switch failed: ${errorMessage(cause)}`;
     }
   }
 
@@ -515,9 +564,10 @@
       input.value = String(codeGraph.current.view.depth ?? "");
       return;
     }
+    const reuseRootBundle = codeGraph.current.view.depth === null;
     codeGraph.current.view.depth = next;
     syncUrl();
-    void reloadGraph();
+    void reloadGraph(reuseRootBundle);
   }
 
   function changeLayout(value: string): void {
@@ -528,9 +578,10 @@
 
   function changeDirection(value: string): void {
     if (value !== "both" && value !== "callers" && value !== "callees") return;
+    const reuseRootBundle = codeGraph.current.view.depth === null;
     codeGraph.current.view.direction = value;
     syncUrl();
-    void reloadGraph();
+    void reloadGraph(reuseRootBundle);
   }
 
   function openConfigFile(path: string): void {
@@ -584,8 +635,9 @@
       codeGraph.current.detail.symbol = bundle;
     } catch (cause) {
       if (id !== detailRequestId) return;
+      console.error("[code-graph] symbol detail failed", cause);
       codeGraph.current.detail.symbol = null;
-      codeGraph.current.detail.error = `Could not load symbol details: ${message(cause)}`;
+      codeGraph.current.detail.error = `Could not load symbol details: ${errorMessage(cause)}`;
     } finally {
       if (id === detailRequestId) codeGraph.current.detail.loading = false;
     }
@@ -593,8 +645,8 @@
 
   function onEntryCommit(value: string): void {
     const next = normalizeEntry(value);
-    if (!next) return;
-    codeGraph.setup.entry = next;
+    if (!next && value.trim()) return;
+    codeGraph.setup.entry = next ?? "";
     codeGraph.setup.refProject = codeGraph.setup.project;
     void load();
   }
@@ -625,14 +677,19 @@
   }
 
   function focusSearch(): void {
-    searchField?.focus();
+    document.querySelector<HTMLInputElement>('input[aria-label="Search graph"]')?.focus();
   }
 
   function onGlobalKeydown(event: KeyboardEvent): void {
-    const action = resolveShortcut(event, { setupOpen: codeGraph.current.ui.setupOpen, inspectorOpen: codeGraph.current.ui.inspectorOpen });
+    const action = resolveShortcut(event, {
+      setupOpen: codeGraph.current.ui.setupOpen,
+      inspectorOpen: codeGraph.current.ui.inspectorOpen,
+      hasSelection: Boolean(selectedNode),
+    });
     if (!action) return;
     event.preventDefault();
 
+    const step = 80;
     switch (action) {
       case "search":
         focusSearch();
@@ -649,6 +706,43 @@
       case "fit":
         graphView?.fit();
         break;
+      case "pan-up":
+        graphView?.panScreen?.(0, step);
+        break;
+      case "pan-down":
+        graphView?.panScreen?.(0, -step);
+        break;
+      case "pan-left":
+        graphView?.panScreen?.(step, 0);
+        break;
+      case "pan-right":
+        graphView?.panScreen?.(-step, 0);
+        break;
+      case "zoom-in":
+        graphView?.zoomBy?.(1.2);
+        break;
+      case "zoom-out":
+        graphView?.zoomBy?.(1 / 1.2);
+        break;
+      case "nav-callers":
+        navigateGraph("callers");
+        break;
+      case "nav-callees":
+        navigateGraph("callees");
+        break;
+      case "nav-prev-sibling":
+        navigateGraph("sibling", -1);
+        break;
+      case "nav-next-sibling":
+        navigateGraph("sibling", 1);
+        break;
+      case "copy-relative":
+        void copyPath("relative");
+        break;
+      case "copy-relative-or-svg":
+        if (jumpRow()) void copyPath("relative");
+        else void copySvg();
+        break;
       case "close-setup":
         codeGraph.current.ui.setupOpen = false;
         break;
@@ -656,6 +750,19 @@
         codeGraph.current.ui.inspectorOpen = false;
         break;
     }
+  }
+
+  function navigateGraph(direction: "callers" | "callees" | "sibling", offset = 1): void {
+    const graph = codeGraph.current.graph;
+    const current = selectedNode;
+    if (!graph || !current) return;
+    const next =
+      direction === "sibling"
+        ? adjacentSibling(graph, current.id, offset < 0 ? -1 : 1)
+        : firstNeighbor(graph, current.id, direction);
+    if (!next) return;
+    void selectGraphNode(next);
+    graphView?.focusNode?.(next.id);
   }
 
   function firstSearchHit(): GraphViewNode | undefined {
@@ -701,7 +808,7 @@
       await graphView?.copy?.();
       codeGraph.current.status.export = "Copied character art";
     } catch (cause) {
-      codeGraph.current.status.export = `Copy failed: ${message(cause)}`;
+      codeGraph.current.status.export = `Copy failed: ${errorMessage(cause)}`;
     }
   }
 
@@ -719,7 +826,7 @@
       await writeClipboard(svgMarkup(svg));
       codeGraph.current.status.export = "Copied SVG";
     } catch (cause) {
-      codeGraph.current.status.export = `Copy SVG failed: ${message(cause)}`;
+      codeGraph.current.status.export = `Copy SVG failed: ${errorMessage(cause)}`;
     }
   }
 
@@ -733,120 +840,29 @@
       const filename = downloadSvg(svg, svgFilename(codeGraph.setup.entry));
       codeGraph.current.status.export = `Exported ${filename}`;
     } catch (cause) {
-      codeGraph.current.status.export = `Export failed: ${message(cause)}`;
+      codeGraph.current.status.export = `Export failed: ${errorMessage(cause)}`;
     }
-  }
-
-  function textValue(event: Event): string {
-    return (event.currentTarget as HTMLElement & { value: string }).value;
-  }
-
-  function message(cause: unknown): string {
-    return cause instanceof Error ? cause.message : String(cause);
   }
 </script>
 
 <main class="app">
-  <header class="topbar">
-    <div class="brand">
-      <span class="brand-mark" aria-hidden="true">◈</span>
-      <div class="brand-copy">
-        <h1>Code Graph</h1>
-        <button
-          class="context-chip"
-          type="button"
-          aria-expanded={codeGraph.current.ui.setupOpen}
-          title="Project and source setup"
-          onclick={toggleSetup}
-        >
-          {codeGraph.setup.project}<span class="context-kind">{codeGraph.setup.source === "computed" ? "computed" : codeGraph.setup.backend}</span>
-        </button>
-      </div>
-    </div>
-
-    <div class="entry-bar">
-      <RootEntryField
-        bind:value={codeGraph.setup.entry}
-        roots={codeGraph.setup.roots}
-        loading={codeGraph.setup.loading.roots}
-        label="Symbol entry (qualified name or #id)"
-        oncommit={onEntryCommit}
-      />
-    </div>
-
-    <label class="searchbox">
-      <span class="sr-only">Search graph</span>
-      <input
-        type="search"
-        class="search-input"
-        bind:this={searchField}
-        value={codeGraph.current.ui.search}
-        oninput={(event: Event) => (codeGraph.current.ui.search = textValue(event))}
-        onkeydown={onSearchKeydown}
-        aria-label="Search graph"
-        aria-keyshortcuts="/"
-        tabindex="0"
-        placeholder="Search graph"
-        title="Search graph; Enter selects the first hit"
-        spellcheck="false"
-        autocomplete="off"
-      />
-    </label>
-
-    <div class="top-actions" aria-label="Graph actions">
-      {#if codeGraph.current.view.renderer === "d3"}
-        {#if codeGraph.current.graph}
-          <button
-            class="vscode-button secondary tool-button"
-            type="button"
-            onclick={() => graphView?.fit()}
-            title="Fit graph (F)"
-            aria-keyshortcuts="F"
-          >Fit</button>
-        {/if}
-        <button
-          class="vscode-button secondary tool-button"
-          type="button"
-          onclick={() => void copySvg()}
-          disabled={!codeGraph.current.graph}
-          title="Copy SVG to clipboard"
-        >Copy SVG</button>
-        <button
-          class="vscode-button secondary tool-button"
-          type="button"
-          onclick={exportSvg}
-          disabled={!codeGraph.current.graph}
-          title="Download SVG"
-        >Export SVG</button>
-      {:else}
-        <button
-          class="vscode-button secondary tool-button"
-          type="button"
-          onclick={() => void copyTerminalArt()}
-          disabled={!codeGraph.current.graph}
-          title="Copy the character-art graph"
-        >Copy</button>
-      {/if}
-      <button
-        class="vscode-button secondary tool-button"
-        class:active={codeGraph.current.ui.inspectorOpen}
-        type="button"
-        aria-pressed={codeGraph.current.ui.inspectorOpen}
-        aria-keyshortcuts="D"
-        title="Toggle symbol details (D)"
-        onclick={toggleInspector}
-      >Details</button>
-      <button
-        class="vscode-button secondary tool-button"
-        class:active={codeGraph.current.ui.setupOpen}
-        type="button"
-        aria-pressed={codeGraph.current.ui.setupOpen}
-        aria-keyshortcuts="S"
-        title="Toggle source and project setup (S)"
-        onclick={toggleSetup}
-      >Setup</button>
-    </div>
-  </header>
+  <TopBar
+    project={codeGraph.setup.project}
+    sourceLabel={codeGraph.setup.source === "computed" ? "computed" : codeGraph.setup.backend}
+    setupOpen={codeGraph.current.ui.setupOpen}
+    inspectorOpen={codeGraph.current.ui.inspectorOpen}
+    search={codeGraph.current.ui.search}
+    renderer={codeGraph.current.view.renderer}
+    graphLoaded={Boolean(codeGraph.current.graph)}
+    onsearch={(value) => (codeGraph.current.ui.search = value)}
+    onsearchkeydown={onSearchKeydown}
+    ontogglesetup={toggleSetup}
+    ontoggledetails={toggleInspector}
+    onfit={() => graphView?.fit()}
+    oncopysvg={() => void copySvg()}
+    onexportsvg={exportSvg}
+    oncopyterminal={() => void copyTerminalArt()}
+  />
 
   <div class="workbench">
     {#if codeGraph.current.ui.setupOpen}
@@ -913,88 +929,45 @@
         {/if}
       </div>
 
-      {#if codeGraph.current.status.error || codeGraph.current.status.graphError}
-        <div class="canvas-alerts">
-          {#if codeGraph.current.status.error}
-            <div class="canvas-alert" role="alert">
-              <p class="error compact">{codeGraph.current.status.error}</p>
-              {#if codeGraph.current.status.errorFix}
-                <button
-                  class="vscode-button secondary fix-button"
-                  type="button"
-                  onclick={() => void openFix(codeGraph.current.status.errorFix)}
-                >{codeGraph.current.status.errorFix.label}</button>
-              {/if}
-            </div>
-          {/if}
-          {#if codeGraph.current.status.graphError}
-            <div class="canvas-alert" role="alert">
-              <p class="error compact">Neighborhood failed: {codeGraph.current.status.graphError}</p>
-              {#if codeGraph.current.status.graphFix}
-                <button
-                  class="vscode-button secondary fix-button"
-                  type="button"
-                  onclick={() => void openFix(codeGraph.current.status.graphFix)}
-                >{codeGraph.current.status.graphFix.label}</button>
-              {/if}
-            </div>
-          {/if}
-        </div>
-      {/if}
-
-      <footer class="statusbar">
-        <div class="status-left">
-          {#if codeGraph.current.load.progress}
-            <span class="status-load" role="status" aria-live="polite" title={loadStatus}>
-              <progress
-                class="load-progress"
-                aria-label={codeGraph.current.load.progress.label}
-                max={codeGraph.current.load.progress.total ?? 1}
-                value={codeGraph.current.load.progress.total === null
-                  ? undefined
-                  : codeGraph.current.load.progress.completed}
-              ></progress>
-              <span class="status-load-label">{loadStatus}</span>
-            </span>
-          {:else if codeGraph.current.load.layout}
-            <span class="status-load" role="status" title={layoutStatus}>
-              <progress class="load-progress" aria-label="Laying out graph"></progress>
-              <span class="status-load-label">{layoutStatus}</span>
-            </span>
-          {/if}
-          {#if codeGraph.current.graph}
-            <span>{codeGraph.current.graph.nodes.length} nodes · {codeGraph.current.graph.edges.length} edges</span>
-            {#if codeGraph.current.graph.truncated}<span class="badge">truncated</span>{/if}
-            {#if selectedNode}
-              <span class="status-selection" title={selectedNode.qualifiedName}>{selectedNode.name}</span>
-            {/if}
-          {:else}
-            <span>{codeGraph.current.load.symbol || codeGraph.current.load.graph ? "Loading…" : "No graph"}</span>
-          {/if}
-        </div>
-
-        <GraphViewControls
-          depth={codeGraph.current.view.depth}
-          direction={codeGraph.current.view.direction}
-          layout={codeGraph.current.view.layout}
-          renderer={codeGraph.current.view.renderer}
-          focusOnly={codeGraph.current.view.focusOnly}
-          focusAvailable={Boolean(selectedNode)}
-          ondepth={onDepthChange}
-          ondirection={changeDirection}
-          onlayout={changeLayout}
-          onrenderer={changeRenderer}
-          onfocusonly={(value) => (codeGraph.current.view.focusOnly = value)}
-        />
-
-        <div class="status-right">
-          {#if searchHits.size > 0}
-            <span>{searchHits.size} {searchHits.size === 1 ? "hit" : "hits"}</span>
-          {/if}
-          {#if codeGraph.current.status.export}<span class="status-message" title={codeGraph.current.status.export}>{codeGraph.current.status.export}</span>{/if}
-          <span class="runtime">{codeGraph.setup.runtime} · {codeGraph.setup.source === "computed" ? "computed" : codeGraph.setup.backend}</span>
-        </div>
-      </footer>
+      <GraphFooter
+        bind:entry={codeGraph.setup.entry}
+        error={codeGraph.current.status.error}
+        errorFix={codeGraph.current.status.errorFix}
+        graphError={codeGraph.current.status.graphError}
+        graphFix={codeGraph.current.status.graphFix}
+        progress={codeGraph.current.load.progress}
+        {loadStatus}
+        {layoutStatus}
+        graph={codeGraph.current.graph}
+        {selectedNode}
+        searchHitCount={searchHits.size}
+        exportStatus={codeGraph.current.status.export}
+        runtime={codeGraph.setup.runtime}
+        sourceLabel={codeGraph.setup.source === "computed" ? "computed" : codeGraph.setup.backend}
+        depth={codeGraph.current.view.depth}
+        direction={codeGraph.current.view.direction}
+        layout={codeGraph.current.view.layout}
+        renderer={codeGraph.current.view.renderer}
+        focusOnly={codeGraph.current.view.focusOnly}
+        focusAvailable={Boolean(selectedNode)}
+        roots={codeGraph.setup.roots}
+        rootsLoading={codeGraph.setup.loading.roots}
+        ondepth={onDepthChange}
+        ondirection={changeDirection}
+        onlayout={changeLayout}
+        onrenderer={changeRenderer}
+        onfocusonly={(value) => (codeGraph.current.view.focusOnly = value)}
+        onentrycommit={onEntryCommit}
+        onopenfix={(fix) => void openFix(fix)}
+        ondismisserror={() => {
+          codeGraph.current.status.error = "";
+          codeGraph.current.status.errorFix = null;
+        }}
+        ondismissgraph={() => {
+          codeGraph.current.status.graphError = "";
+          codeGraph.current.status.graphFix = null;
+        }}
+      />
     </section>
 
     {#if codeGraph.current.ui.inspectorOpen}

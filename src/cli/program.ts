@@ -27,6 +27,7 @@ export function createProgram(): Command {
   addEntriesCommand(program);
   addProjectsCommand(program);
   addDeleteProjectCommand(program);
+  addDeleteProjectsCommand(program);
   attachCompletion(program);
   return program;
 }
@@ -238,6 +239,33 @@ function addProjectsCommand(program: Command): void {
         return;
       }
       for (const name of projects) console.log(name);
+    });
+}
+
+function addDeleteProjectsCommand(program: Command): void {
+  program
+    .command("delete-projects [names...]")
+    .description("Delete multiple cbm projects (useful for rebuilding old indexes)")
+    .option("--all", "delete every project returned by list_projects")
+    .option("--cbm <url>", "explicit local cbm base URL")
+    .option("--root <path>", "workspace root for the local roots cache", process.cwd())
+    .option("--yes", "confirm deletion (required)")
+    .option("--dry-run", "show targets without deleting")
+    .action(async (names: string[], options: { all?: boolean; cbm?: string; root: string; yes?: boolean; dryRun?: boolean }) => {
+      if (!options.yes && !options.dryRun) {
+        throw new Error("refusing to delete projects without --yes");
+      }
+      const targets = [...new Set(options.all ? await listCbmProjects(options) : names)];
+      if (targets.length === 0) throw new Error("no projects selected; pass names or --all");
+      for (const name of targets) {
+        if (options.dryRun) {
+          console.error(`Would delete ${name} at ${await cbmTarget(options)}`);
+          continue;
+        }
+        await deleteCbmProject(name, options);
+        removeRootsCache(resolve(options.root), name);
+        console.error(`Deleted ${name}`);
+      }
     });
 }
 

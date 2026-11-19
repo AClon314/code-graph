@@ -5,7 +5,7 @@ import { finishPageIssues, timed, watchPage } from "../e2e/support";
 const startUrl =
   "/?source=computed&project=demo&symbol=demo.src.features.useAlias&depth=2&direction=both&layout=layered";
 
-test("project → entry bar → search → jump", async ({ page }, testInfo) => {
+test("project → path bar → search → jump", async ({ page }, testInfo) => {
   const issues = watchPage(page, testInfo);
 
   await timed(testInfo, "load app", 4_000, async () => {
@@ -24,10 +24,8 @@ test("project → entry bar → search → jump", async ({ page }, testInfo) => 
   });
 
   await timed(testInfo, "change symbol entry", 4_000, async () => {
-    await page.getByLabel("Symbol entry (qualified name or #id)").click();
-    const entry = page.getByRole("combobox", {
-      name: "Symbol entry (qualified name or #id)",
-    });
+    await page.getByLabel("Path bar").click();
+    const entry = page.getByRole("combobox", { name: "Path bar" });
     await entry.press("Control+A");
     await entry.pressSequentially("demo.src.main.main");
     await expect(
@@ -53,6 +51,19 @@ test("project → entry bar → search → jump", async ({ page }, testInfo) => 
   finishPageIssues(issues, testInfo);
 });
 
+test("empty path bar shows the root-entry overview", async ({ page }, testInfo) => {
+  const issues = watchPage(page, testInfo);
+
+  await timed(testInfo, "load entry overview", 4_000, async () => {
+    await page.goto("/");
+    await expect(page.getByLabel("Path bar")).toHaveValue("");
+    await expect(page.getByRole("group", { name: /Call graph for all entries/ })).toBeVisible();
+    await expect(page.locator(".code-graph-node")).toHaveCount(1);
+  });
+
+  finishPageIssues(issues, testInfo);
+});
+
 test("view options round-trip through the URL", async ({ page }, testInfo) => {
   const issues = watchPage(page, testInfo);
 
@@ -69,14 +80,14 @@ test("view options round-trip through the URL", async ({ page }, testInfo) => {
   });
 
   await timed(testInfo, "switch layout", 2_000, async () => {
-    await page.getByLabel("Layout algorithm").selectOption("radial");
-    await expect(page).toHaveURL(/layout=radial/);
+    await page.getByLabel("Layout algorithm").selectOption("force");
+    await expect(page).toHaveURL(/layout=force/);
   });
 
   await timed(testInfo, "reload and restore view", 3_000, async () => {
     await page.reload();
     await expect(page.getByLabel("Neighborhood depth")).toHaveValue("3");
-    await expect(page.getByLabel("Layout algorithm")).toHaveValue("radial");
+    await expect(page.getByLabel("Layout algorithm")).toHaveValue("force");
   });
 
   await timed(testInfo, "empty depth = full graph", 4_000, async () => {

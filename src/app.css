@@ -107,8 +107,8 @@ h3 {
   z-index: 2;
   display: grid;
   flex: 0 0 auto;
-  grid-template-areas: "brand entry search actions";
-  grid-template-columns: minmax(14ch, auto) minmax(22ch, 1.8fr) minmax(16ch, 0.9fr) auto;
+  grid-template-areas: "brand search actions";
+  grid-template-columns: minmax(14ch, auto) minmax(16ch, 1fr) auto;
   align-items: center;
   gap: 0.8ch;
   padding: 0.45lh 1ch;
@@ -174,17 +174,29 @@ h3 {
   line-height: 1.5;
 }
 
-.entry-bar {
+.path-bar {
   display: flex;
-  grid-area: entry;
+  flex: 0 0 auto;
   align-items: center;
-  gap: 0.5ch;
+  gap: 0.8ch;
+  min-width: 0;
+  min-height: 2.3lh;
+  padding: 0.25lh 1ch;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.path-bar .root-field {
+  flex: 1;
   min-width: 0;
 }
 
-.entry-bar .root-field {
-  flex: 1;
-  min-width: 0;
+.path-label {
+  flex: none;
+  color: var(--muted);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .searchbox {
@@ -521,6 +533,27 @@ h3 {
   background: transparent;
 }
 
+.alert-close {
+  flex: none;
+  width: 2.2ch;
+  height: 2.2ch;
+  padding: 0;
+  border: 0;
+  border-radius: 0.25rem;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.alert-close:hover,
+.alert-close:focus-visible {
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  color: var(--text);
+  outline: none;
+}
+
 /* ---- status bar -------------------------------------------------------- */
 
 .statusbar {
@@ -670,21 +703,12 @@ h3 {
   opacity: 0.45;
 }
 
-.view-control .layout-select {
-  width: 12ch;
-  min-width: 12ch;
-  font-size: 0.75rem;
-}
-
-.view-control .direction-select {
-  width: 20ch;
-  min-width: 20ch;
-  font-size: 0.75rem;
-}
-
+.view-control .layout-select,
+.view-control .direction-select,
 .view-control .renderer-select {
-  width: 22ch;
-  min-width: 22ch;
+  width: auto;
+  min-width: 0;
+  padding-inline: 0.35ch;
   font-size: 0.75rem;
 }
 
@@ -865,7 +889,6 @@ h3 {
   .topbar {
     grid-template-areas:
       "brand actions"
-      "entry entry"
       "search search";
     grid-template-columns: minmax(0, 1fr) auto;
     row-gap: 0.35lh;
@@ -925,21 +948,6 @@ h3 {
   .view-control .depth-input {
     width: 6ch;
     min-width: 6ch;
-  }
-
-  .view-control .layout-select {
-    width: 10ch;
-    min-width: 10ch;
-  }
-
-  .view-control .direction-select {
-    width: 18ch;
-    min-width: 18ch;
-  }
-
-  .view-control .renderer-select {
-    width: 20ch;
-    min-width: 20ch;
   }
 
   .statusbar {

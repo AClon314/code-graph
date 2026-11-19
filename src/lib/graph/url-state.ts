@@ -16,11 +16,11 @@ export interface SourceDefaults {
 export const SOURCE_DEFAULTS: Record<SourceKind, SourceDefaults> = {
   computed: {
     project: "demo",
-    symbol: "demo.src.features.useAlias",
+    symbol: "",
   },
   cbm: {
     project: "fixture-hard-scip",
-    symbol: "fixture-hard-scip.src.features.useAlias",
+    symbol: "",
   },
 };
 
@@ -45,13 +45,7 @@ export interface ParsedGraphUrl extends GraphUrlState {
 
 const RENDERERS: readonly GraphRenderer[] = ["d3", "orchgraph"];
 const DIRECTIONS: readonly NeighborhoodDirection[] = ["both", "callers", "callees"];
-export const LAYOUT_ALGORITHMS: readonly LayoutAlgorithm[] = [
-  "layered",
-  "stress",
-  "mrtree",
-  "force",
-  "radial",
-];
+export const LAYOUT_ALGORITHMS: readonly LayoutAlgorithm[] = ["layered", "force"];
 
 function isLayout(value: string | null): value is LayoutAlgorithm {
   return LAYOUT_ALGORITHMS.includes(value as LayoutAlgorithm);
@@ -96,7 +90,11 @@ export function parseGraphUrl(search: string, fallback: GraphUrlState): ParsedGr
   const source = parsedSource ?? fallback.source;
   const defaults = SOURCE_DEFAULTS[source];
   const project = params.get("project") || (hasSource ? defaults.project : fallback.project);
-  const symbol = params.get("symbol") || (hasSource ? defaults.symbol : fallback.symbol);
+  const symbol = params.has("symbol")
+    ? params.get("symbol") ?? ""
+    : hasSource
+      ? defaults.symbol
+      : fallback.symbol;
   const rendererParam = params.get("renderer");
   const directionParam = params.get("direction");
 

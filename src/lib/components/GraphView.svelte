@@ -20,6 +20,14 @@
     nodeRelationshipClass,
     relatedSelection,
   } from "../graph/selection";
+  import {
+    boundsForNodes,
+    centerOnNode,
+    edgeRevealTarget,
+    fitRect,
+    panBy,
+    zoomAt,
+  } from "../graph/camera";
   import { shortQualifiedName } from "../graph/node-label";
   import { kindClass, pointList } from "../graph/markup";
   import {
@@ -67,6 +75,7 @@
   let resizeFrame = 0;
   let pointerStart: { x: number; y: number } | null = null;
   let dragged = false;
+  let fitCycle = $state<{ id: string; stage: 1 | 2 }>({ id: "", stage: 1 });
 
   const markerId = "orchgraph-arrow";
   // Focus mode re-layouts only the selected connected component. Keeping this
@@ -83,6 +92,13 @@
     Boolean(selectedId && displayData.nodes.some((node) => node.id === selectedId)),
   );
   const projectName = $derived(project || displayData.root.split(".")[0] || "");
+  const graphTitle = $derived(displayData.root || "all entries");
+
+  $effect(() => {
+    // A new selection starts the fit cycle over; changing the graph does not
+    // move the camera by itself (layout fit handles that separately).
+    if (fitCycle.id !== selectedId) fitCycle = { id: selectedId, stage: 1 };
+  });
 
   $effect(() => {
     const current = displayData;
@@ -112,7 +128,7 @@
 
   $effect(() => {
     if (!layout || !zoomReady) return;
-    const frame = requestAnimationFrame(() => fit());
+    const frame = requestAnimationFrame(() => fitWhole());
     return () => cancelAnimationFrame(frame);
   });
 
@@ -138,9 +154,9 @@
     selection.call(behavior);
     // Double-click on a node means "jump", not "zoom in".
     selection.on("dblclick.zoom", null);
-    // D3's default wheel handler always zooms. Trackpads send ordinary wheel
-    // events for two-finger scrolling; pan those and reserve zoom for pinch
-    // (Ctrl/Meta + wheel).
+    // A mouse wheel always zooms. Trackpads send the same wheel events for
+    // two-finger gestures, so there is no separate pan branch; panning is
+    // available through dragging and the keyboard.
     selection.on("wheel.zoom", (event: WheelEvent) => {
       event.preventDefault();
       event.stopPropagation();
@@ -149,16 +165,13 @@
       const step =
         event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 400 : 1;
       const deltaY = event.deltaY * step;
-      let next: ZoomTransform;
-      if (event.ctrlKey || event.metaKey) {
-        const factor = Math.exp(-deltaY * 0.0025);
-        const [x, y] = pointer(event, svgEl);
-        next = current.translate(x, y).scale(factor).translate(-x, -y);
-      } else {
-        next = current.translate(-event.deltaX * step, -deltaY);
-      }
+      const [x, y] = pointer(event, svgEl);
+      const next = zoomAt(current, Math.exp(-deltaY * 0.0018), { x, y });
       userAdjusted = true;
-      selection.call(behavior.transform, next);
+      selection.call(
+        behavior.transform,
+        zoomIdentity.translate(next.x, next.y).scale(next.k),
+      );
     });
 
     // Side panels change the canvas size. Keep an untouched graph fitted;
@@ -169,7 +182,7 @@
     const resizeObserver = new ResizeObserver(() => {
       if (!layout || !zoomBehavior || userAdjusted) return;
       cancelAnimationFrame(resizeFrame);
-      resizeFrame = requestAnimationFrame(() => fit());
+      resizeFrame = requestAnimationFrame(() => fitWhole());
     });
     resizeObserver.observe(svgEl);
     zoomReady = true;
@@ -185,7 +198,7 @@
     };
   });
 
-  /** Fit the whole graph into the available viewport. */
+  /** Fit the whole graph, or cycle related/direct-neighbour views when selected. */
   export function fit(): void {
     if (!svgEl || !layout || !zoomBehavior) return;
     if (layout.nodes.length === 0) {
@@ -197,17 +210,115 @@
     const height = svgEl.clientHeight || 500;
     if (width <= 0 || height <= 0) return;
 
-    const graphWidth = Math.max(layout.width, 1);
-    const graphHeight = Math.max(layout.height, 1);
-    const scale = Math.min((width / graphWidth) * 0.94, (height / graphHeight) * 0.94, 2);
-    const clamped = Math.max(0.08, scale);
-    const x = (width - graphWidth * clamped) / 2;
-    const y = (height - graphHeight * clamped) / 2;
+    const selected = selectedId && layout.nodes.some((node) => node.id === selectedId);
+    if (!selected) {
+      fitWhole();
+      return;
+    }
+
+    if (fitCycle.id !== selectedId) fitCycle = { id: selectedId, stage: 1 };
+    const ids = new Set<string>();
+    if (fitCycle.stage === 1) {
+      for (const id of related?.nodes ?? []) ids.add(id);
+    } else {
+      ids.add(selectedId);
+      for (const edge of displayData.edges) {
+        if (edge.source === selectedId) ids.add(edge.target);
+        if (edge.target === selectedId) ids.add(edge.source);
+      }
+    }
+    const nodes = layout.nodes.filter((node) => ids.has(node.id));
+    fitNodes(nodes.length > 0 ? nodes : layout.nodes);
+    fitCycle = { id: selectedId, stage: fitCycle.stage === 1 ? 2 : 1 };
+  }
+
+  /** Pan the camera by screen pixels without changing scale. */
+  export function panScreen(dx: number, dy: number): void {
+    if (!svgEl || !zoomBehavior) return;
+    const current = zoomTransform(svgEl);
+    userAdjusted = true;
+    const next = panBy(current, dx, dy);
+    select(svgEl).call(
+      zoomBehavior.transform,
+      zoomIdentity.translate(next.x, next.y).scale(next.k),
+    );
+  }
+
+  /** Linear zoom around the viewport center. */
+  export function zoomBy(factor: number): void {
+    if (!svgEl || !zoomBehavior) return;
+    const current = zoomTransform(svgEl);
+    const anchor = {
+      x: (svgEl.clientWidth || 800) / 2,
+      y: (svgEl.clientHeight || 500) / 2,
+    };
+    userAdjusted = true;
+    const next = zoomAt(current, factor, anchor);
+    select(svgEl).call(
+      zoomBehavior.transform,
+      zoomIdentity.translate(next.x, next.y).scale(next.k),
+    );
+  }
+
+  /** Center one node without changing scale. */
+  export function focusNode(id: string): void {
+    if (!svgEl || !layout || !zoomBehavior) return;
+    const node = layout.nodes.find((candidate) => candidate.id === id);
+    if (!node) return;
+    const current = zoomTransform(svgEl);
+    const next = centerOnNode(
+      node,
+      { width: svgEl.clientWidth || 800, height: svgEl.clientHeight || 500 },
+      current.k,
+    );
+    userAdjusted = true;
+    select(svgEl).call(
+      zoomBehavior.transform,
+      zoomIdentity.translate(next.x, next.y).scale(next.k),
+    );
+  }
+
+  function fitWhole(): void {
+    if (!layout) return;
+    fitNodes(layout.nodes);
+  }
+
+  function fitNodes(nodes: Array<{ x: number; y: number; width: number; height: number }>): void {
+    if (!svgEl || !zoomBehavior) return;
+    const bounds = boundsForNodes(nodes);
+    if (!bounds) return;
+    const width = svgEl.clientWidth || 800;
+    const height = svgEl.clientHeight || 500;
+    const next = fitRect(bounds, { width, height });
     userAdjusted = false;
     select(svgEl).call(
       zoomBehavior.transform,
-      zoomIdentity.translate(x, y).scale(clamped),
+      zoomIdentity.translate(next.x, next.y).scale(next.k),
     );
+  }
+
+  function onEdgeClick(event: MouseEvent, edge: { source: string; target: string }): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!svgEl) return;
+    if (dragged) {
+      dragged = false;
+      return;
+    }
+    const source = layout?.nodes.find((node) => node.id === edge.source);
+    const target = layout?.nodes.find((node) => node.id === edge.target);
+    if (!source || !target) return;
+    const viewport = {
+      width: svgEl.clientWidth || 800,
+      height: svgEl.clientHeight || 500,
+    };
+    const reveal = edgeRevealTarget(source, target, zoomTransform(svgEl), viewport);
+    if (!reveal) return;
+    const focusId = reveal === "source" ? edge.source : edge.target;
+    const focus = nodeById.get(focusId);
+    if (!focus) return;
+    focusNode(focusId);
+    onselect(focus);
   }
 
   /** Return a full-graph, unzoomed SVG clone for copy or download. */
@@ -270,7 +381,7 @@
     class="graph-svg code-graph-view"
     class:is-focus-only={focusOnly}
     role="group"
-    aria-label={`Call graph for ${displayData.root}: ${displayData.nodes.length} nodes, ${displayData.edges.length} edges`}
+    aria-label={`Call graph for ${graphTitle}: ${displayData.nodes.length} nodes, ${displayData.edges.length} edges`}
     preserveAspectRatio="xMidYMid meet"
     onpointerdown={onPointerDown}
     onpointermove={onPointerMove}
@@ -278,7 +389,7 @@
     onpointercancel={onPointerUp}
     onclick={onBackgroundClick}
   >
-    <title>Call graph for {displayData.root}</title>
+    <title>Call graph for {graphTitle}</title>
     <defs>
       <marker
         id={markerId}
@@ -318,6 +429,13 @@
               data-related={related ? related.edges.has(edge.id) : undefined}
               points={pointList(edge.points)}
               marker-end={`url(#${markerId})`}
+            />
+            <polyline
+              class="code-graph-edge-hit"
+              data-edge-id={edge.id}
+              points={pointList(edge.points)}
+              aria-hidden="true"
+              onclick={(event) => onEdgeClick(event, edge)}
             />
           {/each}
         </g>

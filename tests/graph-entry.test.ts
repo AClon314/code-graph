@@ -36,6 +36,8 @@ describe("graph entry helpers", () => {
     expect(await fetchProjectsFor("computed", async () => ({ status: 500, body: "" }))).toEqual([
       "demo",
     ]);
-    expect(await fetchRootsFor("computed", "", "demo")).toEqual([]);
+    expect((await fetchRootsFor("computed", "", "demo")).map((root) => root.name)).toEqual([
+      "main",
+    ]);
   });
 });

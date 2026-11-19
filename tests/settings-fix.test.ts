@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { cbmUrlFix, fixFor } from "../src/lib/settings-fix";
+import { cbmUrlFix, fixFor, restartCbmFix } from "../src/lib/settings-fix";
 
 describe("settings fixes", () => {
   test("routes missing projects to the active backend setting", () => {
@@ -16,6 +16,13 @@ describe("settings fixes", () => {
     expect(fixFor(new Error("symbol entry missing"), "cbm").query).toBe(
       "codeGraph.symbolEntry",
     );
-    expect(fixFor(new Error("connection refused"), "cbm")).toEqual(cbmUrlFix());
+    expect(fixFor(new Error("connection refused"), "cbm")).toEqual({
+      ...restartCbmFix(),
+    });
+    expect(fixFor(new Error("something else"), "cbm")).toEqual({
+      ...cbmUrlFix(),
+      action: "settings",
+    });
+    expect(fixFor(new Error("cbm /api/symbol 500: "), "cbm")).toEqual(restartCbmFix());
   });
 });

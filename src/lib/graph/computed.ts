@@ -1,4 +1,18 @@
 import type { GraphSource, SymbolBundle } from "./types";
+import type { RootCandidate } from "./roots";
+
+/** Offline entry overview; mirrors the sample root with no caller. */
+export const COMPUTED_ROOTS: RootCandidate[] = [
+  {
+    qualifiedName: "demo.src.main.main",
+    name: "main",
+    label: "Function",
+    filePath: "src/main.ts",
+    startLine: 3,
+    reason: "name main",
+    kind: "entry",
+  },
+];
 
 const SYMBOLS: Record<string, SymbolBundle> = {
   "demo.src.features.useAlias": {

@@ -5,8 +5,7 @@
   "node": { "renderer": "renderNode.config.mjs" },
   "backends": {
     "cbm": {
-      "project": "graph-ui-svelte",
-      "symbolEntry": "graph-ui-svelte.src.App"
+      "project": "graph-ui-svelte"
     },
     "scip": { "project": "graph-ui-svelte-scip" }
   }

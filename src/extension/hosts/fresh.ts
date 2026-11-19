@@ -55,6 +55,9 @@ export function createExtensionApi(): ExtensionApi {
     async openSettings(query) {
       getEditor().setStatus("Code Graph: configure " + query + " in your settings");
     },
+    async restartCbm() {
+      throw new Error("restart cbm-http from the terminal in Fresh");
+    },
     async openLocation(location) {
       const target = resolvePath(location);
       getEditor().openFile(

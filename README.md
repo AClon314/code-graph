@@ -67,19 +67,20 @@ directly. Build output contains only the selected runtime:
   **Setup**. Use Open in New Tab to compare two projects or backends side by
   side.
 - File tree: **VS Code Explorer**, not a webview. The old tree panel is removed.
-- Layout: the graph is the full workbench. A compact command bar carries the
-  entry/load/search fields and global actions; **Setup** and **Details** are
-  edge panels, closed by default and mutually exclusive. The bottom status bar
-  holds loading progress/ETA, depth/direction/layout/renderer, graph counts and
-  transient messages. Loading is never modal: the graph stays interactive while
-  the status bar updates.
+- Layout: the graph is the full workbench. The top bar carries search and
+  global actions; **Setup** and **Details** are edge panels, closed by default
+  and mutually exclusive. The status bar sits under the canvas, and the path
+  bar sits under the status bar. Loading is never modal: the graph stays
+  interactive while the status bar updates.
 - Graph: D3/SVG or the orchgraph character canvas, with search, fit, and
-  separate **Copy SVG** / **Export SVG** actions. Trackpad/mouse wheel pans;
-  Ctrl/Meta + wheel (or pinch) zooms.
+  separate **Copy SVG** / **Export SVG** actions. The mouse wheel zooms around
+  the pointer; drag pans. Edge clicks reveal the missing endpoint without
+  changing zoom (both endpoints visible is a no-op).
   Touch pinch/pan uses D3's touch gestures. Graph controls stay out of the
   canvas; opening an edge panel only resizes the graph, and an untouched graph
-  re-fits itself. D3 supports ELK **layered**, **stress**, **mrtree**,
-  **force**, and **radial** layouts; depth is any positive integer, and an empty
+  re-fits itself. D3 supports ELK **layered** and **force** layouts (the
+  overlapping stress/mrtree/radial variants were removed); depth is any
+  positive integer, and an empty
   depth field (the default) expands the full reachable graph (up to the
   2000-node safety budget, which shows the `truncated` badge).
 - Selection: selecting a node gives it a soft spotlight glow, keeps connected
@@ -87,13 +88,14 @@ directly. Build output contains only the selected runtime:
   background click (or tap) clears the selection, while a drag beyond 4 px is
   treated as panning, not a click. The **focus** checkbox hides unrelated
   nodes and re-runs layout for the selected call paths.
-- Root picker: the **Symbol entry** field in the command bar is a `CodeInput`
+- Path bar: the **Path bar** field below the status bar is a `CodeInput`
   with completion candidates from cbm's repository map (entry points, source
   modules, exported classes). The input stays editable, so arbitrary QNs and
   `#id` values still work; selecting a root fills the field. Valid input is
   committed after 350 ms of inactivity (no separate **Load** button). Project
-  selection also commits after that delay, retargets the symbol prefix, and
-  reloads roots; an empty entry still populates the root dropdown.
+  selection also commits after that delay and retargets the symbol prefix. When
+  the path bar is empty, the canvas shows every project root entry in a compact
+  grid.
 - Details: **Details** opens an edge inspector with the symbol bundle;
   callers/callees are collapsible sections. Selecting a graph node does **not**
   open the panel; click **Details** when you want it. If the panel is already
@@ -104,8 +106,11 @@ directly. Build output contains only the selected runtime:
 - Progressive disclosure: source/project live under **Setup** instead of the
   main toolbar. The Project field is a `CodeInput` with all indexed names
   fetched from cbm's read-only `list_projects` RPC; free-form names still work.
-  Keyboard shortcuts for experienced users: `/` search, `f` fit, `r` reload
-  graph, `d` details, `s` setup, `Esc` close panel.
+  Keyboard shortcuts: `/` search, `f` or `.` fit, `r` reload, `←/↑/→/↓` pan,
+  `+`/`-` zoom, and `Ctrl+C` copy relative path; `Ctrl+Shift+C` copies the SVG
+  when no node is active. With a node active, `w`/`s` jump to the first
+  caller/callee, `a`/`d` move to the previous/next sibling, and `d`/`s` no
+  longer toggle Details/Setup. `Esc` closes panels.
 - Workspace Trust: declared supported for untrusted and virtual workspaces, so
   the graph viewer is usable in Restricted Mode. cbm requests are made by the
   Node extension host, not the webview.
@@ -158,14 +163,17 @@ wired into the main workbench.
 | `codeGraph.project` | `demo` | fallback project for both backends |
 | `codeGraph.cbmProject` | `codeGraph.project` | cbm-native project for `(cbm)` |
 | `codeGraph.scipProject` | `codeGraph.project` | scip-cbm-writer project for `(SCIP)` |
-| `codeGraph.symbolEntry` | `demo.src.features.useAlias` | initial graph root symbol entry (qualified name or `#id`) |
+| `codeGraph.symbolEntry` | `(empty)` | initial path bar entry (qualified name or `#id`); empty shows all root entries |
 
 Computed works without a daemon. For `cbm`, the Node extension host runs
 `config get ui_port`, probes that endpoint, then `codeGraph.cbmBaseUrl`, then
 `http://127.0.0.1:9749` (duplicates are skipped). The webview only talks to the
 host; it never fetches cbm directly. Remote/cross-origin cbm is not supported.
 If no local cbm responds, the panel shows the full probe/stack error instead of
-failing the whole webview.
+failing the whole webview. A 5xx or transport failure offers **Restart
+cbm-http service?** (web restarts the Vite-owned listener; VS Code restarts the
+local process). Error banners can be dismissed without hiding the raw exception
+from the browser/devtools console.
 
 ### Project config
 
@@ -205,10 +213,11 @@ missing, the renderer is created on the next load.
 }
 ```
 
-`symbolEntry` is the qualified name of the graph root. It is not a list, filter,
-or cbm entry-point flag; `/api/symbol` calls it `qn` because cbm identifies any
-node by qualified name. GUI, CLI and TUI also expose a finite project-root
-picker; free-form QNs remain valid.
+`symbolEntry` is the qualified name of the graph root. Leave it empty (the
+default) to open the all-root-entry overview. It is not a list, filter, or cbm
+entry-point flag; `/api/symbol` calls it `qn` because cbm identifies any node by
+qualified name. GUI, CLI and TUI also expose a finite project-root picker;
+free-form QNs remain valid.
 
 The shared module exports two named functions, one for each output model:
 
@@ -342,13 +351,17 @@ then press `r` in the graph panel. Existing project names can be listed and prun
 code-graph projects                 # one name per line
 code-graph projects --json          # JSON array
 code-graph delete-project old-index --yes
+code-graph delete-projects old-a old-b --yes
+code-graph delete-projects --all --dry-run
+code-graph delete-projects --all --yes
 ```
 
-`delete-project` removes the cbm graph database and the workspace roots-cache
-entry. With the default local daemon it uses the MCP delete path, which also
-removes the ADR sidecar; an explicit `--cbm` URL uses the HTTP endpoint.
-It requires `--yes`; `--dry-run` prints the target without deleting. Deletion
-is limited to loopback cbm endpoints.
+`delete-project` removes one cbm graph database; `delete-projects` handles
+several names or `--all` for rebuilding stale indexes. Both remove the
+workspace roots-cache entry. With the default local daemon deletion uses the
+MCP path, which also removes the ADR sidecar; an explicit `--cbm` URL uses the
+HTTP endpoint. It requires `--yes`; `--dry-run` prints the target without
+deleting. Deletion is limited to loopback cbm endpoints.
 
 The Commander entry point exposes the GUI/TUI inputs without a source
 checkout around a script:

@@ -20,7 +20,7 @@ test("source defaults supply project and symbol", () => {
   expect(parseGraphUrl("?source=computed", fallback)).toEqual({
     ...fallback,
     project: "demo",
-    symbol: "demo.src.features.useAlias",
+    symbol: "",
     location: null,
   });
 
@@ -28,7 +28,7 @@ test("source defaults supply project and symbol", () => {
     ...fallback,
     source: "cbm",
     project: "fixture-hard-scip",
-    symbol: "fixture-hard-scip.src.features.useAlias",
+    symbol: "",
     location: null,
   });
 });
@@ -73,7 +73,7 @@ test("invalid values fall back and invalid locations are ignored", () => {
     fallback,
   );
 
-  expect(parsed).toEqual({ ...fallback, location: null });
+  expect(parsed).toEqual({ ...fallback, symbol: "", location: null });
 });
 
 test("formatGraphUrl emits a canonical query with an optional location", () => {
@@ -84,14 +84,14 @@ test("formatGraphUrl emits a canonical query with an optional location", () => {
     renderer: "orchgraph",
     depth: 1,
     direction: "callees",
-    layout: "stress",
+    layout: "force",
   };
 
   expect(formatGraphUrl(state, null)).toBe(
-    "?source=cbm&project=my+project&symbol=pkg.main&renderer=orchgraph&depth=1&direction=callees&layout=stress",
+    "?source=cbm&project=my+project&symbol=pkg.main&renderer=orchgraph&depth=1&direction=callees&layout=force",
   );
   expect(formatGraphUrl(state, { file: "src/a b.ts", line: 7 })).toBe(
-    "?source=cbm&project=my+project&symbol=pkg.main&renderer=orchgraph&depth=1&direction=callees&layout=stress&file=src%2Fa+b.ts&line=7",
+    "?source=cbm&project=my+project&symbol=pkg.main&renderer=orchgraph&depth=1&direction=callees&layout=force&file=src%2Fa+b.ts&line=7",
   );
 });
 

@@ -8,7 +8,7 @@ describe("state URL bridge", () => {
     const state = createGraphUiState();
     applyGraphUrlToState(
       state,
-      "?source=cbm&project=p&symbol=p.main&renderer=orchgraph&depth=&direction=callers&layout=stress",
+      "?source=cbm&project=p&symbol=p.main&renderer=orchgraph&depth=&direction=callers&layout=force",
     );
     expect(state.setup.source).toBe("cbm");
     expect(state.setup.project).toBe("p");
@@ -16,7 +16,7 @@ describe("state URL bridge", () => {
     expect(state.current.view.renderer).toBe("orchgraph");
     expect(state.current.view.depth).toBeNull();
     expect(state.current.view.direction).toBe("callers");
-    expect(state.current.view.layout).toBe("stress");
+    expect(state.current.view.layout).toBe("force");
   });
 
   test("keeps the canonical depth slot for an empty depth", () => {

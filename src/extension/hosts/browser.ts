@@ -74,6 +74,15 @@ export function createExtensionApi(): ExtensionApi {
     async openSettings(query) {
       console.info(`[code-graph] open settings: ${query}`);
     },
+    async restartCbm() {
+      const response = await fetch("/__code-graph/restart-cbm", {
+        method: "POST",
+        headers: { accept: "application/json" },
+      });
+      if (!response.ok) {
+        throw new Error(`restart cbm-http: HTTP ${response.status} ${(await response.text()).slice(0, 300)}`);
+      }
+    },
     async openLocation(location: SourceLocation) {
       await jump.send({
         project: location.project ?? DEFAULT_CONFIG.project,

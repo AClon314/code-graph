@@ -45,6 +45,8 @@ export interface ExtensionApi {
   fetchCbm(request: CbmHttpRequest): Promise<CbmHttpResponse>;
   openLocation(location: SourceLocation): Promise<void>;
   openSettings(query: string): Promise<void>;
+  /** Restart a local cbm HTTP listener after a 5xx/transport failure. */
+  restartCbm(): Promise<void>;
   setStatus(message: string, kind?: "info" | "error"): void;
 }
 
@@ -53,7 +55,7 @@ export const DEFAULT_CONFIG: ExtensionConfig = {
   source: "computed",
   cbmBaseUrl: "http://127.0.0.1:9749",
   project: "demo",
-  symbolEntry: "demo.src.features.useAlias",
+  symbolEntry: "",
   workspaceRoot: "",
   configPath: "code-graph.config.jsonc",
   nodeRendererPath: NODE_RENDERER_FILE,

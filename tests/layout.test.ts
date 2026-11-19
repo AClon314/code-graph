@@ -84,7 +84,7 @@ test("layoutGraphView handles empty and disconnected graphs", async () => {
 });
 
 test("all supported ELK algorithms produce finite geometry", async () => {
-  for (const algorithm of ["layered", "stress", "mrtree", "force", "radial"] as LayoutAlgorithm[]) {
+  for (const algorithm of ["layered", "force"] as LayoutAlgorithm[]) {
     const layout = await layoutGraphView(DATA, "DOWN", algorithm);
     expect(layout.nodes).toHaveLength(2);
     expect(layout.width).toBeGreaterThan(0);
@@ -93,4 +93,23 @@ test("all supported ELK algorithms produce finite geometry", async () => {
       true,
     );
   }
+});
+
+test("root overview uses a compact deterministic grid", async () => {
+  const roots = Array.from({ length: 9 }, (_, index) => ({
+    id: `root.${index}`,
+    label: "Function",
+    name: `root${index}`,
+    qualifiedName: `root.${index}`,
+  }));
+  const layout = await layoutGraphView({
+    root: "",
+    nodes: roots,
+    edges: [],
+    truncated: false,
+  });
+  expect(layout.nodes).toHaveLength(9);
+  expect(new Set(layout.nodes.map((node) => node.x)).size).toBe(3);
+  expect(new Set(layout.nodes.map((node) => node.y)).size).toBe(3);
+  expect(layout.edges).toEqual([]);
 });

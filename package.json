@@ -133,7 +133,7 @@
         },
         "codeGraph.symbolEntry": {
           "type": "string",
-          "default": "demo.src.features.useAlias",
+          "default": "",
           "description": "Initial graph root symbol entry (qualified name or #id)."
         }
       }

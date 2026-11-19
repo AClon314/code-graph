@@ -120,3 +120,25 @@ export function buildNodeRenderContext(
     project: effectiveProject,
   };
 }
+
+/** Import the workspace renderer and return its HTML function, if present. */
+export async function loadNodeHtmlRenderer(
+  url: string,
+): Promise<NodeHtmlRenderer | null> {
+  if (!url) return null;
+  try {
+    const module = (await import(/* @vite-ignore */ url)) as {
+      renderNodeHtml?: unknown;
+    };
+    return typeof module.renderNodeHtml === "function"
+      ? (module.renderNodeHtml as NodeHtmlRenderer)
+      : null;
+  } catch (cause) {
+    console.warn(
+      `[code-graph] renderNode.config.mjs: ${
+        cause instanceof Error ? cause.message : String(cause)
+      }`,
+    );
+    return null;
+  }
+}

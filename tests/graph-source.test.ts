@@ -62,3 +62,19 @@ function json(value: unknown): Response {
     headers: { "content-type": "application/json" },
   });
 }
+
+test("CbmHttpSource retries one transient 5xx", async () => {
+  let calls = 0;
+  const source = new CbmHttpSource({
+    baseUrl: "http://cbm.test",
+    project: "p",
+    fetchImpl: (async () => {
+      calls += 1;
+      if (calls === 1) return new Response("busy", { status: 500 });
+      return json({ node: { id: 1, label: "Function", name: "a", qualified_name: "p.a" } });
+    }) as unknown as typeof fetch,
+  });
+  const bundle = await source.symbol("p", "p.a");
+  expect(calls).toBe(2);
+  expect(bundle.node.name).toBe("a");
+});

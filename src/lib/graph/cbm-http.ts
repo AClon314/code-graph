@@ -67,12 +67,26 @@ export class CbmHttpSource implements GraphSource {
     if (!base) throw new Error("CbmHttpSource requires baseUrl outside a browser");
     const url = new URL(path, base);
     for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
-    const response = await this.fetchImpl(url.toString(), { headers: { accept: "application/json" } });
-    if (!response.ok) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      let response: Response;
+      try {
+        response = await this.fetchImpl(url.toString(), {
+          headers: { accept: "application/json" },
+        });
+      } catch (cause) {
+        if (attempt === 1) throw cause;
+        await new Promise((resolve) => setTimeout(resolve, 120));
+        continue;
+      }
+      if (response.ok) return (await response.json()) as T;
       const body = await response.text();
-      throw new Error(`cbm ${path} ${response.status}: ${body.slice(0, 300)}`);
+      const error = new Error(`cbm ${path} ${response.status}: ${body.slice(0, 300)}`);
+      // A single immediate retry recovers from the common transient 5xx
+      // while cbm finishes a background index refresh. 4xx is final.
+      if (response.status < 500 || attempt === 1) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 120));
     }
-    return (await response.json()) as T;
+    throw new Error(`cbm ${path}: request failed`);
   }
 }
 

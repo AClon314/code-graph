@@ -111,6 +111,12 @@ async function handleMessage(
       return;
     }
 
+    if (message.type === "restartCbm") {
+      await api.restartCbm();
+      post(panel, { type: "restarted", id: message.id });
+      return;
+    }
+
     api.setStatus(message.message, message.kind);
   } catch (cause) {
     const id = "id" in message ? message.id : undefined;
@@ -134,6 +140,7 @@ function isHostRequest(value: unknown): value is HostRequest {
     message.type === "cbmFetch" ||
     message.type === "openLocation" ||
     message.type === "openSettings" ||
+    message.type === "restartCbm" ||
     message.type === "status"
   );
 }

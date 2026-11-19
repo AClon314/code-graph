@@ -142,6 +142,18 @@
   fill: var(--edge);
 }
 
+/* Invisible, wider stroke so an edge is easy to click without changing its
+   visual weight. The nodes stay above this hit layer. */
+.code-graph-edge-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
 .orchgraph-node {
   cursor: pointer;
   outline: none;

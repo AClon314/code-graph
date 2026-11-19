@@ -229,3 +229,17 @@ class FakeSource implements GraphSource {
     return structuredClone(found);
   }
 }
+
+test("bundleFromGraph reconstructs root connections without a request", async () => {
+  const data = await loadNeighborhood(
+    new FakeSource(graph()),
+    "p",
+    "a",
+    { depth: 1 },
+  );
+  const { bundleFromGraph } = await import("../src/lib/graph/neighborhood");
+  const bundle = bundleFromGraph(data, "a");
+  expect(bundle?.node.qualifiedName).toBe("a");
+  expect(bundle?.callers.map((row) => row.qualifiedName)).toEqual(["b"]);
+  expect(bundle?.callees.map((row) => row.qualifiedName)).toEqual(["c"]);
+});
