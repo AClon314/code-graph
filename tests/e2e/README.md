@@ -31,8 +31,12 @@ bun run test:web:perf
 
 The reporter requires Chromium and one worker; both are already configured in
 `playwright.web.config.ts`. `CODE_GRAPH_PERF_PORT` selects the CDP port
-(default `9222`). Performance metrics are passive: they never fail a test;
-budgets are enforced only by the explicit `timed()` warnings.
+(default `9222`). Performance metrics are passive: they never fail a test.
+
+`timed()` is now only a wall-clock policy guard: it creates the `test.step`
+(so the reporter can measure it) and emits a warning above the budget. Step
+durations and browser metrics themselves come from the performance report, not
+from a second custom collector.
 
 Rules for new tests:
 

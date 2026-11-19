@@ -70,7 +70,13 @@ export function finishPageIssues(issues: PageIssues, testInfo: TestInfo): void {
   expect(issues.errors, "browser console/page errors").toEqual([]);
 }
 
-/** Run a journey step and warn, without failing, when it exceeds its budget. */
+/**
+ * Run a journey step as a Playwright step.
+ *
+ * Step timings and browser performance metrics come from
+ * playwright-performance-reporter; this wrapper only keeps the product rule
+ * that a step over its wall-clock budget is a warning, not a failure.
+ */
 export async function timed<T>(
   testInfo: TestInfo,
   label: string,
@@ -79,15 +85,9 @@ export async function timed<T>(
 ): Promise<T> {
   const started = performance.now();
   try {
-    // Playwright steps are what the performance reporter measures; keeping the
-    // budget wrapper here makes timing data and the assertion share a name.
     return await test.step(label, action);
   } finally {
     const elapsed = Math.round(performance.now() - started);
-    testInfo.annotations.push({
-      type: "timing",
-      description: `${label}: ${elapsed}ms (budget ${budgetMs}ms)`,
-    });
     if (elapsed > budgetMs) {
       console.warn(`[e2e slow] ${label}: ${elapsed}ms > ${budgetMs}ms budget`);
       testInfo.annotations.push({

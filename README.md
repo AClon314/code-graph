@@ -575,7 +575,9 @@ journey, `tests/vscode/` for code-server, and `tests/fresh/` for the PTY.
 `bun run test:web` uses the offline computed source and needs no cbm daemon.
 The e2e suites treat browser console errors and `pageerror` as failures, record
 warnings as report annotations, and log a warning (without failing) when a
-journey step exceeds its time budget. `test:web` also writes
+journey step exceeds its time budget. Step timing data comes from the
+performance report; the small `timed()` wrapper only owns the warning policy.
+`test:web` also writes
 `test-results/performance/web.json` and `web.html` with per-step CPU, Web
 Vitals, long-task, heap, and navigation metrics; `bun run test:web:perf` adds
 Chrome Performance traces under `test-results/performance/traces/` for
