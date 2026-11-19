@@ -1,4 +1,4 @@
-import { expect, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 export interface PageIssues {
   errors: string[];
@@ -79,7 +79,9 @@ export async function timed<T>(
 ): Promise<T> {
   const started = performance.now();
   try {
-    return await action();
+    // Playwright steps are what the performance reporter measures; keeping the
+    // budget wrapper here makes timing data and the assertion share a name.
+    return await test.step(label, action);
   } finally {
     const elapsed = Math.round(performance.now() - started);
     testInfo.annotations.push({

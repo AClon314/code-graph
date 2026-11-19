@@ -54,26 +54,35 @@ test("project → entry bar → search → jump", async ({ page }, testInfo) => 
 test("view options round-trip through the URL", async ({ page }, testInfo) => {
   const issues = watchPage(page, testInfo);
 
-  await page.goto("/?source=computed&project=demo&symbol=demo.src.features.useAlias");
-  await expect(page.getByRole("group", { name: /Call graph for/ })).toBeVisible();
+  await timed(testInfo, "load graph", 4_000, async () => {
+    await page.goto("/?source=computed&project=demo&symbol=demo.src.features.useAlias");
+    await expect(page.getByRole("group", { name: /Call graph for/ })).toBeVisible();
+  });
 
-  const depth = page.getByLabel("Neighborhood depth");
-  await depth.fill("3");
-  await depth.press("Enter");
-  await expect(page).toHaveURL(/depth=3/);
+  await timed(testInfo, "set depth", 2_000, async () => {
+    const depth = page.getByLabel("Neighborhood depth");
+    await depth.fill("3");
+    await depth.press("Enter");
+    await expect(page).toHaveURL(/depth=3/);
+  });
 
-  await page.getByLabel("Layout algorithm").selectOption("radial");
-  await expect(page).toHaveURL(/layout=radial/);
+  await timed(testInfo, "switch layout", 2_000, async () => {
+    await page.getByLabel("Layout algorithm").selectOption("radial");
+    await expect(page).toHaveURL(/layout=radial/);
+  });
 
-  await page.reload();
-  await expect(page.getByLabel("Neighborhood depth")).toHaveValue("3");
-  await expect(page.getByLabel("Layout algorithm")).toHaveValue("radial");
+  await timed(testInfo, "reload and restore view", 3_000, async () => {
+    await page.reload();
+    await expect(page.getByLabel("Neighborhood depth")).toHaveValue("3");
+    await expect(page.getByLabel("Layout algorithm")).toHaveValue("radial");
+  });
 
-  // Empty depth means "full reachable graph"; the URL keeps the key explicit.
-  await page.getByLabel("Neighborhood depth").fill("");
-  await page.getByLabel("Neighborhood depth").press("Enter");
-  await expect(page).toHaveURL(/[?&]depth=(?:&|$)/);
-  await expect(page.getByRole("group", { name: /Call graph for/ })).toBeVisible();
+  await timed(testInfo, "empty depth = full graph", 4_000, async () => {
+    await page.getByLabel("Neighborhood depth").fill("");
+    await page.getByLabel("Neighborhood depth").press("Enter");
+    await expect(page).toHaveURL(/[?&]depth=(?:&|$)/);
+    await expect(page.getByRole("group", { name: /Call graph for/ })).toBeVisible();
+  });
 
   finishPageIssues(issues, testInfo);
 });

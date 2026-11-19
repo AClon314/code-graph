@@ -33,7 +33,7 @@ writeFileSync(
 
 export default defineConfig({
   testDir: "./tests/vscode",
-  outputDir: "test-results",
+  outputDir: "test-results/vscode",
   fullyParallel: false,
   workers: 1,
   timeout: 90_000,

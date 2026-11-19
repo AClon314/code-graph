@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+import { performanceOptions, performancePort } from "./tests/e2e/performance";
+
 const port = Number(process.env.CODE_GRAPH_WEB_TEST_PORT || "5174");
 const bridgePort = Number(process.env.CODE_NAV_TEST_PORT || "9752");
 
@@ -10,11 +12,18 @@ export default defineConfig({
   workers: 1,
   timeout: 60_000,
   expect: { timeout: 15_000 },
-  reporter: [["list"], ["html", { outputFolder: "playwright-report/web", open: "never" }]],
+  reporter: [
+    ["list"],
+    ["html", { outputFolder: "playwright-report/web", open: "never" }],
+    ["playwright-performance-reporter", performanceOptions],
+  ],
   use: {
     ...devices["Desktop Chrome"],
     baseURL: `http://127.0.0.1:${port}`,
     trace: "retain-on-failure",
+    launchOptions: {
+      args: [`--remote-debugging-port=${performancePort}`],
+    },
   },
   webServer: [
     {

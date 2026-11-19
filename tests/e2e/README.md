@@ -10,6 +10,30 @@ The same user journey is checked through the three shells that share `App.svelte
 | Inspect | node → details | node → details | node click → status line |
 | Jump | Jump → bridge receipt | Jump → editor tab | node + `o` → file tab |
 
+## Performance data
+
+The web suite uses `playwright-performance-reporter` (CDP) in addition to
+Playwright's official `trace: "retain-on-failure"`. Each `timed()` step is a
+Playwright `test.step`, so the reporter writes per-step CPU profile summaries,
+Web Vitals, long tasks, heap samples, and navigation timing to:
+
+```text
+test-results/performance/web.json   raw per-test/per-step metrics
+test-results/performance/web.html   Chart.js metrics report
+```
+
+Chrome Performance traces are opt-in because they are large and slow:
+
+```bash
+bun run test:web:perf
+# then open test-results/performance/traces/*.json.gz in DevTools > Performance
+```
+
+The reporter requires Chromium and one worker; both are already configured in
+`playwright.web.config.ts`. `CODE_GRAPH_PERF_PORT` selects the CDP port
+(default `9222`). Performance metrics are passive: they never fail a test;
+budgets are enforced only by the explicit `timed()` warnings.
+
 Rules for new tests:
 
 - Prefer role/name/label selectors (`getByRole`, `getByLabel`, `getByText`), not CSS classes.

@@ -556,7 +556,8 @@ example `graph-ui-svelte.src.App`); folder views are still not implemented.
 bun run check           # svelte-check, includes extension host types
 bun run lint            # oxlint (correctness + import cycle checks)
 bun test                # graph, neighborhood, layout, fonts, host adapter
-bun run test:web        # Playwright: standalone web journey
+bun run test:web        # Playwright: web journey + performance report
+bun run test:web:perf   # same run + Chrome Performance traces
 bun run test:fresh      # @microsoft/tui-test: real Fresh PTY
 bun run test:vscode     # Playwright: code-server + webview
 bun run test:e2e        # all three e2e suites
@@ -574,7 +575,11 @@ journey, `tests/vscode/` for code-server, and `tests/fresh/` for the PTY.
 `bun run test:web` uses the offline computed source and needs no cbm daemon.
 The e2e suites treat browser console errors and `pageerror` as failures, record
 warnings as report annotations, and log a warning (without failing) when a
-journey step exceeds its time budget.
+journey step exceeds its time budget. `test:web` also writes
+`test-results/performance/web.json` and `web.html` with per-step CPU, Web
+Vitals, long-task, heap, and navigation metrics; `bun run test:web:perf` adds
+Chrome Performance traces under `test-results/performance/traces/` for
+DevTools "Load profile".
 
 Jujutsu does not execute git hooks. Use `scripts/jj-commit.sh` / `scripts/jj-push.sh`
 (or run `check:commit` / `check:push` yourself) so the same gates apply.
