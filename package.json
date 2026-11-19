@@ -50,7 +50,7 @@
     "@types/d3-selection": "^3.0.12",
     "@types/d3-zoom": "^3.0.9",
     "@types/vscode": "^1.85.0",
-    "esbuild": "^0.28.2",
+    "esbuild": "^0.25.0",
     "oxlint": "^1.77.0",
     "playwright-performance-reporter": "3.14.0",
     "svelte": "^5.56.10",
