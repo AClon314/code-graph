@@ -11,8 +11,12 @@ import {
 } from "../api";
 import {
   backendConfig,
+  loadNodeTemplate,
   loadOrCreateProjectConfig,
+  projectConfigPaths,
+  type ProjectConfig,
 } from "../../lib/config";
+import { DEFAULT_NODE_TEMPLATE, NODE_TEMPLATE_FILE } from "../../lib/node-template";
 import { fetchLocalCbm, resolveLocalCbm } from "./cbm-node";
 
 /**
@@ -53,7 +57,7 @@ export function createExtensionApi(backend: GraphBackend = "cbm"): ExtensionApi 
         DEFAULT_CONFIG.project,
       );
       const projectConfig = await readProjectConfig();
-      const resolved = backendConfig(projectConfig, activeBackend);
+      const resolved = backendConfig(projectConfig.config, activeBackend);
       const configuredSource = configuration.get<string>("source", "cbm");
       const source: ExtensionConfig["source"] =
         configuredSource === "computed" ? "computed" : "cbm";
@@ -71,6 +75,9 @@ export function createExtensionApi(backend: GraphBackend = "cbm"): ExtensionApi 
           resolved.symbolEntry ||
           configuration.get<string>("symbolEntry", DEFAULT_CONFIG.symbolEntry),
         workspaceRoot: activeWorkspaceFolder()?.uri.fsPath ?? "",
+        configPath: projectConfig.configPath,
+        nodeTemplatePath: projectConfig.nodeTemplatePath,
+        nodeTemplate: projectConfig.nodeTemplate,
       };
     },
     async fetchCbm(request: CbmHttpRequest): Promise<CbmHttpResponse> {
@@ -118,12 +125,27 @@ export function createExtensionApi(backend: GraphBackend = "cbm"): ExtensionApi 
   };
 }
 
-async function readProjectConfig() {
+interface HostProjectConfig {
+  config: ProjectConfig;
+  configPath: string;
+  nodeTemplatePath: string;
+  nodeTemplate: string;
+}
+
+async function readProjectConfig(): Promise<HostProjectConfig> {
   const folder = activeWorkspaceFolder();
-  if (!folder) return {};
+  if (!folder) {
+    return {
+      config: {},
+      configPath: projectConfigPaths("").team.replace(/^\//, ""),
+      nodeTemplatePath: NODE_TEMPLATE_FILE,
+      nodeTemplate: DEFAULT_NODE_TEMPLATE,
+    };
+  }
+  const root = folder.uri.fsPath;
   const relative = (path: string): string => {
-    const root = folder.uri.fsPath.replace(/[/\\]+$/, "");
-    return path.startsWith(root) ? path.slice(root.length).replace(/^[/\\]+/, "") : path;
+    const base = root.replace(/[/\\]+$/, "");
+    return path.startsWith(base) ? path.slice(base.length).replace(/^[/\\]+/, "") : path;
   };
   const uriFor = (path: string): vscode.Uri =>
     vscode.Uri.joinPath(folder.uri, relative(path));
@@ -139,7 +161,7 @@ async function readProjectConfig() {
     }
   };
 
-  const loaded = await loadOrCreateProjectConfig(folder.uri.fsPath, {
+  const loaded = await loadOrCreateProjectConfig(root, {
     readFile,
     writeFile: async (path, content) => {
       await vscode.workspace.fs.writeFile(
@@ -148,7 +170,13 @@ async function readProjectConfig() {
       );
     },
   });
-  return loaded.config;
+  const template = await loadNodeTemplate(root, loaded.config, readFile);
+  return {
+    config: loaded.config,
+    configPath: relative(projectConfigPaths(root).team),
+    nodeTemplatePath: relative(template.path),
+    nodeTemplate: template.text,
+  };
 }
 
 function activeWorkspaceFolder(): vscode.WorkspaceFolder | undefined {

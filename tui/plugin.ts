@@ -18,6 +18,8 @@ import { frameCachePath, panelName as sharedPanelName } from "../src/lib/graph/c
 import {
   backendConfig,
   loadOrCreateProjectConfig,
+  nodeTemplatePath,
+  projectConfigPaths,
   type ProjectConfig,
 } from "../src/lib/config";
 import {
@@ -144,6 +146,10 @@ function runToolbarAction(panel: PanelState, action: ToolbarAction): void {
     void (async () => {
       if (await loadPanelConfig(panel)) await reloadFrame(panel);
     })();
+    return;
+  }
+  if (action === "config" || action === "template") {
+    openConfigFile(panel, action);
     return;
   }
   if (panel.bufferId !== null) editor.closeBuffer(panel.bufferId, true);
@@ -312,6 +318,19 @@ function setPanelContent(
   panel.lineTexts = lines;
   panel.lineStarts = computeLineStarts(lines);
   editor.setVirtualBufferContent(panel.bufferId!, entries);
+}
+
+function openConfigFile(panel: PanelState, kind: "config" | "template"): void {
+  const path =
+    kind === "config"
+      ? projectConfigPaths(panel.root).team
+      : nodeTemplatePath(panel.root, panel.config);
+  try {
+    editor.openFile(path, 1, 1);
+    extensionApi.setStatus("Code Graph: opened " + path);
+  } catch (error) {
+    extensionApi.setStatus("Code Graph: cannot open " + path + " — " + String(error));
+  }
 }
 
 function paintHelp(panel: PanelState): void {

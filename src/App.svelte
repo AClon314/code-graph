@@ -46,6 +46,7 @@
   import type { PathCopyKind } from "./lib/path-location";
   import { writeClipboard } from "./lib/clipboard";
   import { copySymbolPath, jumpToLocation, type JumpRow } from "./lib/actions/symbol";
+  import { openConfigPath } from "./lib/actions/config";
   import {
     cbmUrlFix,
     fixFor,
@@ -80,15 +81,10 @@
   if (typeof window !== "undefined") {
     (window as unknown as { codeGraph: typeof codeGraph }).codeGraph = codeGraph;
   }
-
   let requestId = 0;
-
   let graphRequestId = 0;
-
   let detailRequestId = 0;
-
   let graphView = $state<GraphViewHandle>();
-
   let searchField: HTMLInputElement | undefined;
   const progress = new ProgressController(codeGraph.current.load);
 
@@ -348,6 +344,9 @@
         if (config.source === "computed" || config.source === "cbm") codeGraph.setup.source = config.source;
         codeGraph.setup.cbmBaseUrl = config.cbmBaseUrl;
         codeGraph.setup.workspaceRoot = config.workspaceRoot;
+        codeGraph.setup.configPath = config.configPath;
+        codeGraph.setup.nodeTemplatePath = config.nodeTemplatePath;
+        if (config.nodeTemplate) codeGraph.setup.nodeTemplate = config.nodeTemplate;
         if (config.project) codeGraph.setup.project = config.project;
         if (config.symbolEntry) codeGraph.setup.entry = config.symbolEntry;
       } catch (cause) {
@@ -516,12 +515,13 @@
     void reloadGraph();
   }
 
-  function changeFocusOnly(value: boolean): void {
-    codeGraph.current.view.focusOnly = value;
-  }
-
-  function setLayoutLoading(value: boolean): void {
-    codeGraph.current.load.layout = value;
+  function openConfigFile(path: string): void {
+    openConfigPath(
+      path,
+      codeGraph.setup.runtime,
+      extensionApi,
+      codeGraph.current.status,
+    );
   }
 
   function clearSelection(): void {
@@ -538,9 +538,18 @@
     codeGraph.current.selection.id = node.id;
     codeGraph.current.selection.node = node;
     codeGraph.setup.entry = node.qualifiedName || node.id;
-    codeGraph.current.ui.inspectorOpen = true;
     codeGraph.current.ui.setupOpen = false;
     syncUrl();
+    if (codeGraph.current.ui.inspectorOpen) {
+      await loadDetail(node);
+    } else {
+      codeGraph.current.detail.symbol = null;
+      codeGraph.current.detail.error = "";
+      codeGraph.current.detail.loading = false;
+    }
+  }
+
+  async function loadDetail(node: GraphViewNode): Promise<void> {
     codeGraph.current.detail.symbol = null;
     codeGraph.current.detail.error = "";
     codeGraph.current.detail.loading = true;
@@ -584,7 +593,17 @@
 
   function toggleInspector(): void {
     codeGraph.current.ui.inspectorOpen = !codeGraph.current.ui.inspectorOpen;
-    if (codeGraph.current.ui.inspectorOpen) codeGraph.current.ui.setupOpen = false;
+    if (codeGraph.current.ui.inspectorOpen) {
+      codeGraph.current.ui.setupOpen = false;
+      const node = selectedNode;
+      if (
+        node &&
+        !codeGraph.current.detail.loading &&
+        codeGraph.current.detail.symbol?.node.qualifiedName !== node.qualifiedName
+      ) {
+        void loadDetail(node);
+      }
+    }
   }
 
   function focusSearch(): void {
@@ -820,10 +839,13 @@
         projectsLoading={codeGraph.setup.loading.projects}
         runtime={codeGraph.setup.runtime}
         backend={codeGraph.setup.backend}
+        configPath={codeGraph.setup.configPath}
+        nodeTemplatePath={codeGraph.setup.nodeTemplatePath}
         onsource={setKind}
         onbackend={setBackend}
         onproject={(value) => setProject(value)}
         onprojectcommit={(value) => setProject(value, true)}
+        onopenconfig={openConfigFile}
         onclose={() => (codeGraph.current.ui.setupOpen = false)}
       />
     {/if}
@@ -844,7 +866,7 @@
               focusOnly={codeGraph.current.view.focusOnly}
               onselect={(node) => void selectGraphNode(node)}
               onjump={jumpFromNode}
-              onlayoutstatus={setLayoutLoading}
+              onlayoutstatus={(value) => (codeGraph.current.load.layout = value)}
               onclear={clearSelection}
             />
           {:else}
@@ -855,9 +877,11 @@
               {searchHits}
               layoutAlgorithm={codeGraph.current.view.layout}
               focusOnly={codeGraph.current.view.focusOnly}
+              project={codeGraph.setup.project}
+              nodeTemplate={codeGraph.setup.nodeTemplate}
               onselect={(node) => void selectGraphNode(node)}
               onjump={jumpFromNode}
-              onlayoutstatus={setLayoutLoading}
+              onlayoutstatus={(value) => (codeGraph.current.load.layout = value)}
               onclear={clearSelection}
             />
           {/if}
@@ -942,7 +966,7 @@
           ondirection={changeDirection}
           onlayout={changeLayout}
           onrenderer={changeRenderer}
-          onfocusonly={changeFocusOnly}
+          onfocusonly={(value) => (codeGraph.current.view.focusOnly = value)}
         />
 
         <div class="status-right">

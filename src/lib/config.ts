@@ -2,14 +2,17 @@
  * Project-level configuration shared by the VS Code host, Fresh plugin, and
  * Bun-side scripts.
  *
- * Only two files are read:
+ * Files:
  *   code-graph.config.jsonc       team defaults, normally committed
  *   .code-graph.config.jsonc      personal overrides, normally ignored
+ *   slot-node.html                optional node template (path configurable)
  *
- * Both are optional. They are merged at runtime by `priority` (larger wins);
- * the result is never written back. When neither exists, hosts create only the
- * team file.
+ * JSONC files are optional and merged at runtime by `priority` (larger wins);
+ * the result is never written back. When neither exists, hosts create the team
+ * file plus the default node template. Missing templates are also backfilled.
  */
+
+import { DEFAULT_NODE_TEMPLATE, NODE_TEMPLATE_FILE } from "./node-template";
 
 export type ConfigBackend = "cbm" | "scip";
 
@@ -18,9 +21,16 @@ export interface BackendConfig {
   symbolEntry?: string;
 }
 
+export interface NodeConfig {
+  /** Workspace-relative path to the slot-node.html template. */
+  template?: string;
+}
+
 export interface ProjectConfig {
   /** Higher wins. Defaults: team 100, personal 200. */
   priority?: number;
+  /** Optional node presentation template. */
+  node?: NodeConfig;
   backend?: ConfigBackend;
   /** Fallback project for both backends. */
   project?: string;
@@ -48,6 +58,8 @@ export const PERSONAL_DEFAULT_PRIORITY = 200;
 export const TEAM_CONFIG_TEMPLATE = `{
   "priority": ${TEAM_DEFAULT_PRIORITY},
   "backend": "cbm",
+  // Optional: customize node presentation with slot-node.html.
+  "node": { "template": "slot-node.html" },
   "backends": {
     // "cbm": { "project": "my-cbm-project" },
     // "scip": { "project": "my-scip-project" }
@@ -72,6 +84,29 @@ export function projectConfigPaths(root: string): { team: string; personal: stri
     team: `${base}/${TEAM_CONFIG_FILE}`,
     personal: `${base}/${PERSONAL_CONFIG_FILE}`,
   };
+}
+
+/** Absolute path of the configured node template (default slot-node.html). */
+export function nodeTemplatePath(root: string, config: ProjectConfig): string {
+  const base = root.replace(/[/\\]+$/, "");
+  const relative = config.node?.template?.trim() || NODE_TEMPLATE_FILE;
+  return relative.startsWith("/") ? relative : `${base}/${relative.replace(/^[/\\]+/, "")}`;
+}
+
+/** Read the node template, replacing a missing/broken file with the default. */
+export async function loadNodeTemplate(
+  root: string,
+  config: ProjectConfig,
+  readFile: (path: string) => string | null | Promise<string | null>,
+): Promise<{ path: string; text: string }> {
+  const path = nodeTemplatePath(root, config);
+  try {
+    const text = await readFile(path);
+    if (text && text.trim()) return { path, text };
+  } catch {
+    // A missing template is a normal fallback, not a config failure.
+  }
+  return { path, text: DEFAULT_NODE_TEMPLATE };
 }
 
 /** Load and merge both files. Missing files are reported in `sources`. */
@@ -140,7 +175,10 @@ export async function loadOrCreateProjectConfig(
   },
 ): Promise<LoadedProjectConfig> {
   const loaded = await loadProjectConfig(root, io.readFile);
-  if (loaded.sources.some((source) => source.found)) return loaded;
+  if (loaded.sources.some((source) => source.found)) {
+    await ensureNodeTemplate(root, loaded.config, io);
+    return loaded;
+  }
 
   try {
     await io.writeFile(projectConfigPaths(root).team, TEAM_CONFIG_TEMPLATE);
@@ -149,7 +187,25 @@ export async function loadOrCreateProjectConfig(
     // failing the whole graph panel.
     return loaded;
   }
+  await ensureNodeTemplate(root, loaded.config, io);
   return loadProjectConfig(root, io.readFile);
+}
+
+async function ensureNodeTemplate(
+  root: string,
+  config: ProjectConfig,
+  io: {
+    readFile: (path: string) => string | null | Promise<string | null>;
+    writeFile: (path: string, content: string) => void | boolean | Promise<void | boolean>;
+  },
+): Promise<void> {
+  try {
+    const path = nodeTemplatePath(root, config);
+    const existing = await io.readFile(path);
+    if (!existing || !existing.trim()) await io.writeFile(path, DEFAULT_NODE_TEMPLATE);
+  } catch {
+    // The built-in default is still used in memory when the file is read-only.
+  }
 }
 
 /** Resolve project and graph root for one backend. */

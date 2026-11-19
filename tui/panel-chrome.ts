@@ -1,12 +1,23 @@
 /** Pure toolbar/help presentation shared by the Fresh graph panel. */
-export type ToolbarAction = "help" | "entry" | "reload" | "close";
+export type ToolbarAction = "help" | "entry" | "reload" | "config" | "template" | "close";
 
 export const HEADER_ROWS = 2;
+
+const TOOLBAR_KEYS: Record<ToolbarAction, string> = {
+  help: "H",
+  entry: "E",
+  reload: "R",
+  config: "F",
+  template: "T",
+  close: "C",
+};
 
 const TOOLBAR_ACTIONS: Array<{ label: string; action: ToolbarAction }> = [
   { label: "Help", action: "help" },
   { label: "Entry", action: "entry" },
   { label: "Reload", action: "reload" },
+  { label: "Config", action: "config" },
+  { label: "Template", action: "template" },
   { label: "Close", action: "close" },
 ];
 
@@ -20,6 +31,8 @@ export const HELP_LINES = [
   "  c             custom root (free-form qn)",
   "  Esc           cancel the root picker",
   "  r / [Reload]  reload config and graph",
+  "  [Config]      open code-graph.config.jsonc",
+  "  [Template]    open slot-node.html",
   "  o / Enter     open the selected node",
   "  q / [Close]   close this panel",
   "",
@@ -33,7 +46,7 @@ export const HELP_LINES = [
 function actionLabel(action: ToolbarAction, helpVisible: boolean): string {
   if (action === "help" && helpVisible) return "[G] Graph";
   const label = TOOLBAR_ACTIONS.find((item) => item.action === action)!.label;
-  return `[${label[0]}] ${label}`;
+  return `[${TOOLBAR_KEYS[action]}] ${label}`;
 }
 
 export function toolbarLabel(helpVisible: boolean): string {

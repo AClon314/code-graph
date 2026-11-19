@@ -1,7 +1,58 @@
+import { readFile } from "node:fs/promises";
+import { resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { svelte } from "@sveltejs/vite-plugin-svelte";
-import { defineConfig, type ProxyOptions } from "vite";
+import { defineConfig, type Plugin, type ProxyOptions } from "vite";
+
+/** Dev/preview endpoint for raw workspace config files (HTML must not be transformed). */
+function configFilesPlugin(): Plugin {
+  const workspace = resolve(process.env.CODE_GRAPH_WORKSPACE_ROOT ?? process.cwd());
+  const handler = async (
+    req: { url?: string; method?: string },
+    res: {
+      statusCode: number;
+      setHeader: (name: string, value: string) => void;
+      end: (body?: string) => void;
+    },
+    next: () => void,
+  ): Promise<void> => {
+    if (!req.url?.startsWith("/api/config-file")) {
+      next();
+      return;
+    }
+    if ((req.method ?? "GET") !== "GET") {
+      res.statusCode = 405;
+      res.end("method not allowed");
+      return;
+    }
+    const requested = new URL(req.url, "http://code-graph.local").searchParams.get("path") ?? "";
+    const absolute = resolve(workspace, requested);
+    if (absolute !== workspace && !absolute.startsWith(workspace + sep)) {
+      res.statusCode = 403;
+      res.end("path outside workspace");
+      return;
+    }
+    try {
+      const text = await readFile(absolute, "utf8");
+      res.setHeader("content-type", "text/plain; charset=utf-8");
+      res.setHeader("cache-control", "no-store");
+      res.end(text);
+    } catch {
+      res.statusCode = 404;
+      res.end("file not found");
+    }
+  };
+  return {
+    name: "code-graph-config-files",
+    configureServer(server) {
+      server.middlewares.use(handler);
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(handler);
+    },
+  };
+}
 
 export default defineConfig(({ mode }) => {
   const standalone = mode === "development" || mode === "web";
@@ -27,7 +78,7 @@ export default defineConfig(({ mode }) => {
   };
 
   return {
-    plugins: [svelte()],
+    plugins: [svelte(), configFilesPlugin()],
     define: {
       // The browser host has no Node `process`; bake the caller's cwd in so
       // copied absolute paths are meaningful in `bun run web`.

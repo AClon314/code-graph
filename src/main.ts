@@ -31,12 +31,18 @@ const target = document.getElementById("app")!;
 const path = window.location.pathname.replace(/\/+$/, "") || "/";
 const isDebugPage =
   path === "/debug" && (import.meta.env.DEV || import.meta.env.MODE === "web");
+const isConfigPage = path === "/config";
 if (isDebugPage) document.title = "CodeInput · debug";
+if (isConfigPage) document.title = "Config · Code Graph";
 
 const app = isDebugPage
   ? import("./routes/debug/+page.svelte").then(({ default: DebugPage }) =>
       mount(DebugPage, { target }),
     )
-  : mount(App, { target });
+  : isConfigPage
+    ? import("./routes/config/+page.svelte").then(({ default: ConfigPage }) =>
+        mount(ConfigPage, { target }),
+      )
+    : mount(App, { target });
 
 export default app;

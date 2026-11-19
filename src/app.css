@@ -419,6 +419,18 @@ h3 {
   color: var(--vscode-button-foreground, #ffffff);
 }
 
+.config-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35lh 1ch;
+}
+
+.config-links .link:disabled {
+  color: var(--muted);
+  cursor: default;
+  opacity: 0.5;
+}
+
 .setup-meta {
   margin: 0;
   color: var(--muted);
@@ -939,4 +951,105 @@ h3 {
   .status-message {
     max-width: 16ch;
   }
+}
+
+/* ---- standalone config editor route ----------------------------------- */
+
+.config-page {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.config-head {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1ch;
+  padding: 0.8lh 1ch;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.config-head h1 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.config-path {
+  margin: 0.15lh 0 0;
+  color: var(--muted);
+  font-family: var(--font-code);
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+}
+
+.config-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.5ch;
+}
+
+.config-actions a {
+  text-decoration: none;
+}
+
+.config-workbench {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.config-editor {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--graph-bg);
+}
+
+.config-hints {
+  width: min(34ch, 34vw);
+  overflow: auto;
+  padding: 0.8lh 1ch;
+  border-left: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.config-hints h2 {
+  margin: 0 0 0.35lh;
+  color: var(--text);
+  font-size: 0.78rem;
+}
+
+.config-hints ul {
+  margin: 0;
+  padding-left: 1.6ch;
+}
+
+.config-hints li {
+  margin: 0.15lh 0;
+}
+
+.config-hints code {
+  color: var(--text);
+  font-family: var(--font-code);
+  font-size: 0.68rem;
+}
+
+.config-status {
+  flex: 0 0 auto;
+  padding: 0.35lh 1ch;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 0.7rem;
 }

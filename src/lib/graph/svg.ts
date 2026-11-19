@@ -1,4 +1,5 @@
 import { layoutGraphView, type GraphLayout, type LayoutDirection } from "./layout";
+import { shortQualifiedName } from "./node-label";
 import type { GraphViewData } from "./types";
 
 export interface SvgOptions {
@@ -92,6 +93,7 @@ export async function renderGraphSvg(
 ): Promise<string> {
   const layout: GraphLayout = await layoutGraphView(data, options.direction ?? "DOWN");
   const nodeById = new Map(data.nodes.map((node) => [node.id, node]));
+  const project = data.root.split(".")[0] ?? "";
   const width = Math.max(Math.ceil(layout.width), 1);
   const height = Math.max(Math.ceil(layout.height), 1);
   const markerId = "code-graph-arrow";
@@ -121,7 +123,7 @@ export async function renderGraphSvg(
 <text class="orchgraph-node-kind code-graph-node-kind" x="${positioned.x + positioned.width - 10}" y="${positioned.y + 17}" text-anchor="end">${escapeXml(node.label)}</text>
 <g clip-path="url(#code-graph-clip-${index})">
 <text class="orchgraph-node-label code-graph-node-label" x="${positioned.x + 12}" y="${positioned.y + 33}">${escapeXml(node.name)}</text>
-<text class="orchgraph-node-detail code-graph-node-detail" x="${positioned.x + 12}" y="${positioned.y + 51}">${escapeXml(node.qualifiedName)}</text>
+<text class="orchgraph-node-detail code-graph-node-detail" x="${positioned.x + 12}" y="${positioned.y + 51}">${escapeXml(shortQualifiedName(node.qualifiedName, project))}</text>
 </g>
 </g>`;
     })

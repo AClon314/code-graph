@@ -39,6 +39,8 @@ test("project → entry bar → search → jump", async ({ page }, testInfo) => 
     await page.getByLabel("Search graph").fill("UserRepo");
     await page.getByLabel("Search graph").press("Enter");
     const details = page.getByRole("complementary", { name: "Symbol details" });
+    await expect(details).toBeHidden();
+    await page.getByRole("button", { name: "Details" }).click();
     await expect(details).toBeVisible();
     await expect(details.getByRole("heading", { name: "UserRepo" })).toBeVisible();
   });
@@ -82,6 +84,19 @@ test("view options round-trip through the URL", async ({ page }, testInfo) => {
     await page.getByLabel("Neighborhood depth").press("Enter");
     await expect(page).toHaveURL(/[?&]depth=(?:&|$)/);
     await expect(page.getByRole("group", { name: /Call graph for/ })).toBeVisible();
+  });
+
+  finishPageIssues(issues, testInfo);
+});
+
+test("config route opens the node template editor", async ({ page }, testInfo) => {
+  const issues = watchPage(page, testInfo);
+
+  await timed(testInfo, "load config route", 4_000, async () => {
+    await page.goto("/config?path=slot-node.html&theme=dark");
+    await expect(page.getByRole("heading", { name: "slot-node.html" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Slot paths" })).toBeVisible();
+    await expect(page.locator(".cm-content")).toContainText("node.shortName");
   });
 
   finishPageIssues(issues, testInfo);

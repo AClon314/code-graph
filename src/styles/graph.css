@@ -215,3 +215,55 @@
   stroke: var(--cg-selection, var(--accent));
   stroke-width: var(--cg-edge-strong-width, 2.5px);
 }
+
+/* ---- slot-node.html (foreignObject) ---------------------------------- */
+
+.code-graph-node-html {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 0.55lh 0.8ch;
+  overflow: hidden;
+  color: var(--text);
+  font-family: var(--font-code);
+  pointer-events: none;
+}
+
+.code-graph-node-html .node-template {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+  gap: 0.1lh;
+}
+
+.code-graph-node-html .node-template-kind {
+  position: absolute;
+  top: 0;
+  right: 0;
+  color: var(--muted);
+  font-size: var(--cg-node-kind-size, 10px);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.code-graph-node-html .node-template-name {
+  overflow: hidden;
+  color: var(--text);
+  font-size: var(--cg-node-label-size, 15px);
+  font-weight: 600;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.code-graph-node-html .node-template-path {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--cg-node-detail-size, 9.5px);
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

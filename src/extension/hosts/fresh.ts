@@ -5,9 +5,12 @@ import {
   type SourceLocation,
 } from "../api";
 import { requestCbm } from "../../lib/cbm-request";
+import { DEFAULT_NODE_TEMPLATE, NODE_TEMPLATE_FILE } from "../../lib/node-template";
+import { TEAM_CONFIG_FILE } from "../../lib/config";
 
 interface FreshEditor {
   openFile(path: string, line: number, column: number): void;
+  readFile?(path: string): string | null;
   setStatus(message: string): void;
 }
 
@@ -19,6 +22,8 @@ type FreshGlobals = {
   CODE_NAV_PROJECT?: string;
   CODE_NAV_SYMBOL_ENTRY?: string;
   CODE_NAV_SOURCE?: ExtensionConfig["source"];
+  CODE_NAV_CONFIG?: string;
+  CODE_NAV_NODE_TEMPLATE?: string;
 };
 
 /**
@@ -30,6 +35,15 @@ export function createExtensionApi(): ExtensionApi {
     runtime: "fresh",
     async getConfig(requestedBackend?: ExtensionConfig["backend"]) {
       const globals = globalThis as unknown as FreshGlobals;
+      const root = (globals.CODE_NAV_ROOT ?? "").replace(/\/+$/, "");
+      const nodeTemplatePath = globals.CODE_NAV_NODE_TEMPLATE ?? NODE_TEMPLATE_FILE;
+      let nodeTemplate = DEFAULT_NODE_TEMPLATE;
+      try {
+        const text = root ? getEditor().readFile?.(`${root}/${nodeTemplatePath}`) : null;
+        if (text && text.trim()) nodeTemplate = text;
+      } catch {
+        // Fall back to the built-in template when the editor cannot read it.
+      }
       return {
         backend: requestedBackend ?? globals.CODE_NAV_BACKEND ?? DEFAULT_CONFIG.backend,
         source: globals.CODE_NAV_SOURCE ?? DEFAULT_CONFIG.source,
@@ -37,6 +51,9 @@ export function createExtensionApi(): ExtensionApi {
         project: globals.CODE_NAV_PROJECT ?? DEFAULT_CONFIG.project,
         symbolEntry: globals.CODE_NAV_SYMBOL_ENTRY ?? DEFAULT_CONFIG.symbolEntry,
         workspaceRoot: globals.CODE_NAV_ROOT ?? "",
+        configPath: globals.CODE_NAV_CONFIG ?? TEAM_CONFIG_FILE,
+        nodeTemplatePath,
+        nodeTemplate,
       };
     },
     async fetchCbm(request) {

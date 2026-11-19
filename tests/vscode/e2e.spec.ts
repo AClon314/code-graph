@@ -47,7 +47,10 @@ test("opens the computed Code Graph webview", async ({ page }, testInfo) => {
   const firstNode = app.getByRole("button", { name: /useAlias/ }).first();
   await expect(firstNode).toBeVisible({ timeout: 30_000 });
   await firstNode.click();
-  await expect(app.getByRole("complementary", { name: "Symbol details" })).toBeVisible();
+  const details = app.getByRole("complementary", { name: "Symbol details" });
+  await expect(details).toBeHidden();
+  await app.getByRole("button", { name: "Details", exact: true }).click();
+  await expect(details).toBeVisible();
   await app.getByRole("button", { name: "Close details" }).click();
 
   await app.getByRole("button", { name: "Setup", exact: true }).click();
@@ -56,10 +59,10 @@ test("opens the computed Code Graph webview", async ({ page }, testInfo) => {
 
   await app.getByLabel("Search graph").fill("UserRepo");
   await app.getByLabel("Search graph").press("Enter");
-  await expect(app.getByRole("complementary", { name: "Symbol details" })).toBeVisible();
-  await expect(
-    app.getByRole("complementary", { name: "Symbol details" }).getByRole("heading", { name: "UserRepo" }),
-  ).toBeVisible();
+  await expect(details).toBeHidden();
+  await app.getByRole("button", { name: "Details", exact: true }).click();
+  await expect(details).toBeVisible();
+  await expect(details.getByRole("heading", { name: "UserRepo" })).toBeVisible();
   await timed(testInfo, "jump to source", 10_000, async () => {
     await app.getByRole("button", { name: "Jump", exact: true }).click();
     await expect(page.getByRole("tab", { name: /user-repo\.ts/ })).toBeVisible({

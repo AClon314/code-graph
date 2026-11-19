@@ -4,8 +4,10 @@ import {
   PERSONAL_CONFIG_FILE,
   TEAM_CONFIG_FILE,
   backendConfig,
+  loadNodeTemplate,
   loadOrCreateProjectConfig,
   loadProjectConfig,
+  nodeTemplatePath,
   parseJsonc,
   projectConfigPaths,
 } from "../src/lib/config";
@@ -36,6 +38,15 @@ describe("project config JSONC", () => {
       team: `${root}/${TEAM_CONFIG_FILE}`,
       personal: `${root}/${PERSONAL_CONFIG_FILE}`,
     });
+  });
+
+  test("resolves the configured node template and falls back to the default", async () => {
+    expect(nodeTemplatePath(root, { node: { template: "ui/nodes.html" } })).toBe(
+      `${root}/ui/nodes.html`,
+    );
+    const missing = await loadNodeTemplate(root, {}, () => null);
+    expect(missing.path).toBe(`${root}/slot-node.html`);
+    expect(missing.text).toContain("node.shortName");
   });
 });
 
@@ -135,7 +146,7 @@ describe("project config merge", () => {
 });
 
 describe("project config creation", () => {
-  test("creates only the team file when neither exists", async () => {
+  test("creates the team config and node template when neither exists", async () => {
     const written: Record<string, string> = {};
     const io = {
       readFile: (path: string) => written[path] ?? null,
@@ -145,15 +156,19 @@ describe("project config creation", () => {
     };
 
     const loaded = await loadOrCreateProjectConfig(root, io);
-    expect(Object.keys(written)).toEqual([`${root}/${TEAM_CONFIG_FILE}`]);
+    expect(Object.keys(written)).toEqual([
+      `${root}/${TEAM_CONFIG_FILE}`,
+      `${root}/slot-node.html`,
+    ]);
     expect(loaded.config.priority).toBe(100);
+    expect(written[`${root}/slot-node.html`]).toContain("node.shortName");
     expect(loaded.sources).toEqual([
       { path: `${root}/${TEAM_CONFIG_FILE}`, priority: 100, found: true },
       { path: `${root}/${PERSONAL_CONFIG_FILE}`, priority: 200, found: false },
     ]);
   });
 
-  test("does not create anything when either file already exists", async () => {
+  test("adds a missing node template without rewriting existing config", async () => {
     const written: string[] = [];
     const loaded = await loadOrCreateProjectConfig(root, {
       readFile: (path) =>
@@ -163,7 +178,7 @@ describe("project config creation", () => {
       },
     });
 
-    expect(written).toEqual([]);
+    expect(written).toEqual([`${root}/slot-node.html`]);
     expect(loaded.config.project).toBe("personal");
   });
 

@@ -6,6 +6,11 @@ import {
 } from "../api";
 import { requestCbm } from "../../lib/cbm-request";
 import { JumpClient } from "../../lib/jump/client";
+import {
+  DEFAULT_NODE_TEMPLATE,
+  NODE_TEMPLATE_FILE,
+} from "../../lib/node-template";
+import { TEAM_CONFIG_FILE } from "../../lib/config";
 
 /**
  * Standalone `vite dev` host. It keeps the previous behaviour: jump through
@@ -27,6 +32,24 @@ export function createExtensionApi(): ExtensionApi {
           ? env.VITE_SCIP_PROJECT ??
             (baseProject.endsWith("-scip") ? baseProject : `${baseProject}-scip`)
           : baseProject;
+      const nodeTemplatePath =
+        env.VITE_NODE_TEMPLATE ?? NODE_TEMPLATE_FILE;
+      let nodeTemplate = DEFAULT_NODE_TEMPLATE;
+      try {
+        let response = await fetch(
+          `/api/config-file?path=${encodeURIComponent(nodeTemplatePath)}`,
+          { cache: "no-store" },
+        );
+        if (!response.ok) {
+          response = await fetch(`/${nodeTemplatePath}`, { cache: "no-store" });
+        }
+        if (response.ok) {
+          const text = await response.text();
+          if (!/^\s*<!doctype html/i.test(text)) nodeTemplate = text;
+        }
+      } catch {
+        // Standalone web may be served without the workspace template.
+      }
       return {
         backend,
         source,
@@ -40,6 +63,9 @@ export function createExtensionApi(): ExtensionApi {
           (typeof __CODE_GRAPH_WORKSPACE_ROOT__ === "string"
             ? __CODE_GRAPH_WORKSPACE_ROOT__
             : ""),
+        configPath: env.VITE_CONFIG_PATH ?? TEAM_CONFIG_FILE,
+        nodeTemplatePath,
+        nodeTemplate,
       } satisfies ExtensionConfig;
     },
     async fetchCbm(request) {

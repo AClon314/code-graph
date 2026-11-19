@@ -20,6 +20,11 @@
     nodeRelationshipClass,
     relatedSelection,
   } from "../graph/selection";
+  import { shortQualifiedName } from "../graph/node-label";
+  import {
+    buildNodeTemplateContext,
+    renderNodeTemplate,
+  } from "../node-template";
   import type { GraphViewData, GraphViewNode } from "../graph/types";
 
   interface Props {
@@ -28,6 +33,8 @@
     layoutAlgorithm?: LayoutAlgorithm;
     searchHits?: Set<string>;
     focusOnly?: boolean;
+    project?: string;
+    nodeTemplate?: string;
     onselect: (node: GraphViewNode) => void;
     onjump?: (node: GraphViewNode) => void;
     onlayoutstatus?: (loading: boolean) => void;
@@ -41,6 +48,8 @@
     layoutAlgorithm = "layered",
     searchHits = new Set<string>(),
     focusOnly = false,
+    project = "",
+    nodeTemplate = "",
     onselect,
     onjump,
     onlayoutstatus,
@@ -72,6 +81,7 @@
   const hasSelection = $derived(
     Boolean(selectedId && displayData.nodes.some((node) => node.id === selectedId)),
   );
+  const projectName = $derived(project || displayData.root.split(".")[0] || "");
 
   $effect(() => {
     const current = displayData;
@@ -323,6 +333,7 @@
             {#if node}
               {@const selected = selectedId === node.id}
               {@const hit = searchHits.has(node.id)}
+              {@const subtitle = shortQualifiedName(node.qualifiedName, projectName)}
               <g
                 class={`orchgraph-node code-graph-node kind-${kindClass(node.label)}${selected ? " is-selected" : ""}${hit ? " is-search-hit" : ""}${related ? ` ${nodeRelationshipClass(node, related)}` : ""}`}
                 data-node-id={node.id}
@@ -372,24 +383,41 @@
                   height={positioned.height}
                   rx="10"
                 />
-                <text
-                  class="orchgraph-node-kind code-graph-node-kind"
-                  x={positioned.x + positioned.width - 10}
-                  y={positioned.y + 17}
-                  text-anchor="end"
-                >{node.label}</text>
-                <g clip-path={`url(#orchgraph-clip-${index})`}>
+                {#if nodeTemplate}
+                  <foreignObject
+                    class="code-graph-node-foreign"
+                    x={positioned.x}
+                    y={positioned.y}
+                    width={positioned.width}
+                    height={positioned.height}
+                  >
+                    <div xmlns="http://www.w3.org/1999/xhtml" class="code-graph-node-html">
+                      {@html renderNodeTemplate(
+                        nodeTemplate,
+                        buildNodeTemplateContext(node, displayData, projectName),
+                      )}
+                    </div>
+                  </foreignObject>
+                {:else}
                   <text
-                    class="orchgraph-node-label code-graph-node-label"
-                    x={positioned.x + 12}
-                    y={positioned.y + 33}
-                  >{node.name}</text>
-                  <text
-                    class="orchgraph-node-detail code-graph-node-detail"
-                    x={positioned.x + 12}
-                    y={positioned.y + 51}
-                  >{node.qualifiedName}</text>
-                </g>
+                    class="orchgraph-node-kind code-graph-node-kind"
+                    x={positioned.x + positioned.width - 10}
+                    y={positioned.y + 17}
+                    text-anchor="end"
+                  >{node.label}</text>
+                  <g clip-path={`url(#orchgraph-clip-${index})`}>
+                    <text
+                      class="orchgraph-node-label code-graph-node-label"
+                      x={positioned.x + 12}
+                      y={positioned.y + 33}
+                    >{node.name}</text>
+                    <text
+                      class="orchgraph-node-detail code-graph-node-detail"
+                      x={positioned.x + 12}
+                      y={positioned.y + 51}
+                    >{subtitle}</text>
+                  </g>
+                {/if}
               </g>
             {/if}
           {/each}

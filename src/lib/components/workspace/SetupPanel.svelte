@@ -10,10 +10,13 @@
     projectsLoading?: boolean;
     runtime: string;
     backend: GraphBackend;
+    configPath: string;
+    nodeTemplatePath: string;
     onsource: (kind: SourceKind) => void;
     onbackend: (backend: GraphBackend) => void;
     onproject: (value: string) => void;
     onprojectcommit: (value: string) => void;
+    onopenconfig: (path: string) => void;
     onclose: () => void;
   }
 
@@ -24,12 +27,19 @@
     projectsLoading = false,
     runtime,
     backend,
+    configPath,
+    nodeTemplatePath,
     onsource,
     onbackend,
     onproject,
     onprojectcommit,
+    onopenconfig,
     onclose,
   }: Props = $props();
+
+  function basename(path: string): string {
+    return path.split(/[/\\]+/).at(-1) || path;
+  }
 
   function projectValue(event: Event): string {
     return (event as CustomEvent<{ value: string }>).detail.value;
@@ -111,6 +121,29 @@
             : `${projects.length} indexed project${projects.length === 1 ? "" : "s"}`}
         </span>
       {/if}
+    </div>
+
+    <div class="field">
+      <span class="field-label">Node presentation</span>
+      <div class="config-links">
+        <button
+          class="link"
+          type="button"
+          disabled={!configPath}
+          title={configPath || "Config file unavailable"}
+          onclick={() => onopenconfig(configPath)}
+        >{basename(configPath) || "config"}</button>
+        <button
+          class="link"
+          type="button"
+          disabled={!nodeTemplatePath}
+          title={nodeTemplatePath || "Node template unavailable"}
+          onclick={() => onopenconfig(nodeTemplatePath)}
+        >{basename(nodeTemplatePath) || "slot-node.html"}</button>
+      </div>
+      <span class="hint">
+        Open in the editor, or edit the slot paths in slot-node.html.
+      </span>
     </div>
 
     <p class="setup-meta">{runtime} · {kind === "computed" ? "computed" : backend}</p>

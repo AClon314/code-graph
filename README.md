@@ -95,8 +95,10 @@ directly. Build output contains only the selected runtime:
   selection also commits after that delay, retargets the symbol prefix, and
   reloads roots; an empty entry still populates the root dropdown.
 - Details: **Details** opens an edge inspector with the symbol bundle;
-  callers/callees are collapsible sections. Selecting a graph node opens it
-  automatically. **Jump** opens the file at the symbol's line/column through
+  callers/callees are collapsible sections. Selecting a graph node does **not**
+  open the panel; click **Details** when you want it. If the panel is already
+  open, selecting another node refreshes it. **Jump** opens the file at the
+  symbol's line/column through
   `ExtensionApi.openLocation`. **Copy rel**, **Copy abs** and **Copy both**
   copy `path:line:column` (absolute paths are resolved from the workspace root).
 - Progressive disclosure: source/project live under **Setup** instead of the
@@ -113,7 +115,8 @@ directly. Build output contains only the selected runtime:
   classes and opacity/geometry variables; see [`docs/theme.md`](docs/theme.md).
   Controls are native
   `<button>`, `<input>`, and `<select>` elements using the same
-  `--vscode-*` tokens. `@vscode-elements/elements` is no longer a dependency;
+  `--vscode-*` tokens. Node templates use the same `--cg-*` variables plus
+  `.node-template-*` classes. `@vscode-elements/elements` is no longer a dependency;
   the archived `@vscode/webview-ui-toolkit` is not used.
 - DPI: `--code-graph-scale` (or `?scale=`) scales the whole shell for
   third-party embeds. `?theme=light|dark` sets the manual theme without
@@ -166,23 +169,27 @@ failing the whole webview.
 
 ### Project config
 
-Team and personal workspace config live next to each other:
+Team and personal workspace config live next to each other, with an optional
+node presentation template:
 
 ```text
 code-graph.config.jsonc        # team defaults, typically committed
 .code-graph.config.jsonc       # personal overrides, typically ignored
+slot-node.html                 # optional node card template
 ```
 
-Both are JSONC and are merged at runtime by `priority` (larger wins). Equal
+Both JSONC files are merged at runtime by `priority` (larger wins). Equal
 priorities keep canonical order: team first, personal last, so personal wins a
-tie. The files are never written back; when neither exists, only the team file
-is created.
+tie. The files are never written back; when neither exists, the team config and
+`slot-node.html` are created. If a config exists but the template is missing,
+the template is created on the next load.
 
 ```jsonc
 // code-graph.config.jsonc
 {
   "priority": 100,
   "backend": "cbm",
+  "node": { "template": "slot-node.html" },
   "backends": {
     "cbm": { "project": "gpen-js" },
     "scip": { "project": "gpen-js-scip" }
@@ -202,6 +209,30 @@ is created.
 or cbm entry-point flag; `/api/symbol` calls it `qn` because cbm identifies any
 node by qualified name. GUI, CLI and TUI also expose a finite project-root
 picker; free-form QNs remain valid.
+
+### Node templates
+
+The D3 renderer reads `slot-node.html` (or `node.template` from JSONC) and
+renders the fragment inside each card. Slots are dot paths into the node
+context, so nested values work without extra glue:
+
+```html
+<slot name="node.name">name</slot>
+<slot name="node.shortName">…</slot>
+<slot name="graph.project">project</slot>
+```
+
+`node.shortName` strips the repeated project prefix; long QNs keep their
+meaningful tail (for example `…src.utils.date`). The file header documents all
+available paths; the standalone `/config?path=slot-node.html` route also lists
+them and completes `<slot name="…` values in CodeMirror. HTML has no imports,
+so VSCode/Fresh rely on the header comment instead of TypeScript types. See
+[`docs/node-template.md`](docs/node-template.md).
+
+Config and template links live under **Setup**. In VSCode/Fresh they open the
+file in the editor. In the standalone web shell they open
+`/config?path=<relative_path>` in a new tab: a full-screen CodeMirror 6 editor
+with HTML/JSON highlighting, copy/download, and slot-path reference.
 
 ### Root symbols and roots.json
 
@@ -570,7 +601,7 @@ example `graph-ui-svelte.src.App`); folder views are still not implemented.
 ```bash
 bun run check           # svelte-check, includes extension host types
 bun run lint            # oxlint (correctness + import cycle checks)
-bun run test            # graph, neighborhood, layout, fonts, host adapter
+bun run test            # graph, neighborhood, layout, node-template, host adapter
 bun run test:web        # Playwright: web journey + performance report
 bun run test:web:perf   # same run + Chrome Performance traces
 bun run test:fresh      # @microsoft/tui-test: real Fresh PTY
