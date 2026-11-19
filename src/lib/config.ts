@@ -24,6 +24,8 @@ export interface BackendConfig {
 export interface NodeConfig {
   /** Workspace-relative path to the slot-node.html template. */
   template?: string;
+  /** Fresh/TUI text template; defaults to slot-node.ts. */
+  freshTemplate?: string;
 }
 
 export interface ProjectConfig {
@@ -58,8 +60,8 @@ export const PERSONAL_DEFAULT_PRIORITY = 200;
 export const TEAM_CONFIG_TEMPLATE = `{
   "priority": ${TEAM_DEFAULT_PRIORITY},
   "backend": "cbm",
-  // Optional: customize node presentation with slot-node.html.
-  "node": { "template": "slot-node.html" },
+  // Optional: customize node presentation with slot-node.html / slot-node.ts.
+  "node": { "template": "slot-node.html", "freshTemplate": "slot-node.ts" },
   "backends": {
     // "cbm": { "project": "my-cbm-project" },
     // "scip": { "project": "my-scip-project" }
@@ -90,6 +92,16 @@ export function projectConfigPaths(root: string): { team: string; personal: stri
 export function nodeTemplatePath(root: string, config: ProjectConfig): string {
   const base = root.replace(/[/\\]+$/, "");
   const relative = config.node?.template?.trim() || NODE_TEMPLATE_FILE;
+  return relative.startsWith("/") ? relative : `${base}/${relative.replace(/^[/\\]+/, "")}`;
+}
+
+/** Absolute path of the Fresh/TUI text template (default slot-node.ts). */
+export function freshNodeTemplatePath(root: string, config: ProjectConfig): string {
+  const base = root.replace(/[/\\]+$/, "");
+  const relative =
+    config.node?.freshTemplate?.trim() ||
+    config.node?.template?.trim()?.replace(/\.html?$/i, ".ts") ||
+    "slot-node.ts";
   return relative.startsWith("/") ? relative : `${base}/${relative.replace(/^[/\\]+/, "")}`;
 }
 

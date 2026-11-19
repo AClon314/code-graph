@@ -1,5 +1,6 @@
 import { layoutGraphView, type GraphLayout, type LayoutDirection } from "./layout";
 import { shortQualifiedName } from "./node-label";
+import { kindClass, pointList } from "./markup";
 import type { GraphViewData } from "./types";
 
 export interface SvgOptions {
@@ -18,18 +19,6 @@ function escapeXml(value: string): string {
   return value.replace(/[&<>"']/g, (character) => ESCAPES[character] ?? character);
 }
 
-function kindClass(label: string): string {
-  return (
-    label
-      .normalize("NFKD")
-      .replace(/[^A-Za-z0-9_-]+/g, "-")
-      .replace(/^-+|-+$/g, "") || "unknown"
-  );
-}
-
-function pointList(points: Array<{ x: number; y: number }>): string {
-  return points.map((point) => `${point.x},${point.y}`).join(" ");
-}
 
 export const GRAPH_SVG_RULES = `
 .graph-svg { background: var(--graph-bg, #ffffff); }

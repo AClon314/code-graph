@@ -24,6 +24,10 @@ import {
   RUNNING_FRAMES,
   toGraphDocument,
 } from "../src/lib/graph/orchgraph.ts";
+import {
+  buildNodeTemplateContext,
+  type NodeTemplateContext,
+} from "../src/lib/node-template.ts";
 import type { GraphViewData } from "../src/lib/graph/types.ts";
 
 /** A styled run of text. ANSI is already stripped; `fg` is `#rrggbb`. */
@@ -60,6 +64,8 @@ export interface Frame {
   meta: Record<string, FrameNodeMeta>;
 }
 
+export type FrameNodeTemplate = (context: NodeTemplateContext) => string;
+
 export interface BuildFrameOptions {
   /** ELK direction; defaults to DOWN. */
   direction?: GraphDirection;
@@ -67,6 +73,8 @@ export interface BuildFrameOptions {
   spacing?: number;
   /** Maximum node width in terminal cells. */
   maxNodeWidth?: number;
+  /** Fresh-specific slot-node.ts function; returns plain text, newlines allowed. */
+  nodeTemplate?: FrameNodeTemplate;
 }
 
 const ANSI_16 = [
@@ -234,6 +242,24 @@ export function parseAnsiLine(line: string): FrameRun[] {
   return runs;
 }
 
+/** Apply the Fresh text template before ELK measures the node. */
+export function applyNodeTemplate(
+  doc: GraphDocument,
+  view: GraphViewData,
+  template: FrameNodeTemplate,
+): void {
+  const project = view.root.split(".")[0] ?? "";
+  for (const node of doc.nodes) {
+    const source = view.nodes.find((candidate) => candidate.id === node.id);
+    if (!source) continue;
+    const text = template(buildNodeTemplateContext(source, view, project)).trimEnd();
+    if (!text.trim()) continue;
+    const [label = "", ...detail] = text.split(/\r?\n/);
+    node.label = label;
+    node.detail = detail.join("\n") || undefined;
+  }
+}
+
 function canvasNodeBoxes(canvas: TerminalCanvas): FrameNodeBox[] {
   return canvas.nodes.map((node) => ({
     id: node.id,
@@ -272,6 +298,7 @@ export async function buildFrame(
 ): Promise<Frame> {
   const doc = toGraphDocument(view);
   if (doc.nodes.length === 0) throw new Error("graph has no nodes");
+  if (options.nodeTemplate) applyNodeTemplate(doc, view, options.nodeTemplate);
 
   const geometry = await layoutGraph(doc, {
     direction: options.direction ?? doc.direction ?? "DOWN",

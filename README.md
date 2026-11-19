@@ -175,7 +175,8 @@ node presentation template:
 ```text
 code-graph.config.jsonc        # team defaults, typically committed
 .code-graph.config.jsonc       # personal overrides, typically ignored
-slot-node.html                 # optional node card template
+slot-node.html                 # optional web card template
+slot-node.ts                   # optional Fresh/TUI text template
 ```
 
 Both JSONC files are merged at runtime by `priority` (larger wins). Equal
@@ -189,7 +190,10 @@ the template is created on the next load.
 {
   "priority": 100,
   "backend": "cbm",
-  "node": { "template": "slot-node.html" },
+  "node": {
+    "template": "slot-node.html",
+    "freshTemplate": "slot-node.ts"
+  },
   "backends": {
     "cbm": { "project": "gpen-js" },
     "scip": { "project": "gpen-js-scip" }
@@ -209,6 +213,11 @@ the template is created on the next load.
 or cbm entry-point flag; `/api/symbol` calls it `qn` because cbm identifies any
 node by qualified name. GUI, CLI and TUI also expose a finite project-root
 picker; free-form QNs remain valid.
+
+Fresh/TUI optionally loads `slot-node.ts`, whose default export returns a
+string: first line = label, remaining lines = detail. The function receives the
+same JSON-safe node/graph context as the HTML slot renderer. See
+[`docs/node-template.md`](docs/node-template.md).
 
 ### Node templates
 
@@ -360,7 +369,8 @@ available as `bun run cli entries` and in shell completion.
 
 `graph` indexes first, then renders; `render` expects an existing project.
 Both accept `--depth`, `--direction`, `--max-nodes`, `--cbm`,
-`--layout-direction`, `--spacing`, and `--max-node-width`. On a TTY the default
+`--layout-direction`, `--spacing`, `--max-node-width`, and `--node-template`
+(Fresh text template; defaults to `./slot-node.ts`). On a TTY the default
 is both formats, written to `code-graph.<project>.svg` and
 `code-graph.<project>.txt`. When stdout is piped, the command streams one
 format to stdout instead (default `orchgraph`) and writes no files; pass

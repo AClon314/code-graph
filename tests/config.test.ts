@@ -4,6 +4,7 @@ import {
   PERSONAL_CONFIG_FILE,
   TEAM_CONFIG_FILE,
   backendConfig,
+  freshNodeTemplatePath,
   loadNodeTemplate,
   loadOrCreateProjectConfig,
   loadProjectConfig,
@@ -43,6 +44,12 @@ describe("project config JSONC", () => {
   test("resolves the configured node template and falls back to the default", async () => {
     expect(nodeTemplatePath(root, { node: { template: "ui/nodes.html" } })).toBe(
       `${root}/ui/nodes.html`,
+    );
+    expect(freshNodeTemplatePath(root, { node: { template: "ui/nodes.html" } })).toBe(
+      `${root}/ui/nodes.ts`,
+    );
+    expect(freshNodeTemplatePath(root, { node: { freshTemplate: "fresh.ts" } })).toBe(
+      `${root}/fresh.ts`,
     );
     const missing = await loadNodeTemplate(root, {}, () => null);
     expect(missing.path).toBe(`${root}/slot-node.html`);

@@ -31,6 +31,42 @@ export const NODE_TEMPLATE_SLOT_PATHS = [
   "project",
 ] as const;
 
+export const DEFAULT_FRESH_NODE_TEMPLATE = `/**
+ * Fresh / TUI node template.
+ *
+ * The first line becomes the node label, following lines become the detail
+ * block. Add a newline to show more fields; keep lines short for the terminal
+ * layout. The web equivalent is slot-node.html.
+ */
+export interface FreshNodeContext {
+  node: {
+    id: string;
+    name: string;
+    label: string;
+    qualifiedName: string;
+    shortName: string;
+    filePath?: string;
+    fileTail: string;
+    startLine?: number;
+    endLine?: number;
+    isEntry?: boolean;
+    isTest?: boolean;
+    isExported?: boolean;
+  };
+  graph: {
+    root: string;
+    project: string;
+    nodeCount: number;
+    edgeCount: number;
+  };
+  project: string;
+}
+
+export default function slotNode({ node }: FreshNodeContext): string {
+  return \`\${node.name}\n\${node.filePath ?? node.shortName}:\${node.startLine ?? 1}\`;
+}
+`;
+
 export const DEFAULT_NODE_TEMPLATE = `<!--
   code-graph node template.
 

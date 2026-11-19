@@ -17,6 +17,7 @@ import { extensionApi } from "../src/extension/host.ts";
 import { frameCachePath, panelName as sharedPanelName } from "../src/lib/graph/cache";
 import {
   backendConfig,
+  freshNodeTemplatePath,
   loadOrCreateProjectConfig,
   nodeTemplatePath,
   projectConfigPaths,
@@ -50,6 +51,7 @@ import {
   type EntryFlowHost,
 } from "./entry-flow.ts";
 import { byteToChar, hexToRgb, utf8Len } from "./text.ts";
+import { DEFAULT_FRESH_NODE_TEMPLATE } from "../src/lib/node-template.ts";
 
 const editor = getEditor();
 
@@ -321,10 +323,20 @@ function setPanelContent(
 }
 
 function openConfigFile(panel: PanelState, kind: "config" | "template"): void {
-  const path =
+  let path =
     kind === "config"
       ? projectConfigPaths(panel.root).team
-      : nodeTemplatePath(panel.root, panel.config);
+      : freshNodeTemplatePath(panel.root, panel.config);
+  if (kind === "template") {
+    try {
+      if (editor.readFile(path) === null) {
+        editor.writeFile(path, DEFAULT_FRESH_NODE_TEMPLATE);
+      }
+    } catch {
+      // Read-only or unsupported write: fall back to the HTML template.
+      path = nodeTemplatePath(panel.root, panel.config);
+    }
+  }
   try {
     editor.openFile(path, 1, 1);
     extensionApi.setStatus("Code Graph: opened " + path);
@@ -672,6 +684,8 @@ async function reloadFrame(panel: PanelState): Promise<void> {
     String(MAX_NODES),
     "--out",
     panel.framePath,
+    "--node-template",
+    freshNodeTemplatePath(panel.root, panel.config),
   ];
 
   let result: { exit_code?: number; stderr?: string } | null = null;

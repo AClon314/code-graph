@@ -21,6 +21,7 @@
     relatedSelection,
   } from "../graph/selection";
   import { shortQualifiedName } from "../graph/node-label";
+  import { kindClass, pointList } from "../graph/markup";
   import {
     buildNodeTemplateContext,
     renderNodeTemplate,
@@ -256,13 +257,7 @@
     onclear?.();
   }
 
-  function kindClass(label: string): string {
-    return label.normalize("NFKD").replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || "unknown";
-  }
 
-  function pointList(points: Array<{ x: number; y: number }>): string {
-    return points.map((point) => `${point.x},${point.y}`).join(" ");
-  }
 </script>
 
 <div class="graph-board">

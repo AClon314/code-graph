@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  DEFAULT_FRESH_NODE_TEMPLATE,
   DEFAULT_NODE_TEMPLATE,
   buildNodeTemplateContext,
   renderNodeTemplate,
@@ -48,5 +49,7 @@ describe("node labels and slots", () => {
     expect(DEFAULT_NODE_TEMPLATE).toContain("node.shortName");
     expect(DEFAULT_NODE_TEMPLATE).toContain("graph.project");
     expect(DEFAULT_NODE_TEMPLATE).toContain("<slot name=\"node.name\">");
+    expect(DEFAULT_FRESH_NODE_TEMPLATE).toContain("export default function");
+    expect(DEFAULT_FRESH_NODE_TEMPLATE).toContain("node.shortName");
   });
 });
