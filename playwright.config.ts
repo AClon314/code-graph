@@ -12,7 +12,12 @@ const e2eProfile = fileURLToPath(new URL("./out/e2e-code-server", import.meta.ur
 // Keep the e2e workspace out of the source tree: write only the files the
 // smoke test needs, with computed source configured.
 mkdirSync(join(e2eWorkspace, ".vscode"), { recursive: true });
+mkdirSync(join(e2eWorkspace, "src", "lib"), { recursive: true });
 writeFileSync(join(e2eWorkspace, "README.md"), "# fixture\n");
+writeFileSync(
+  join(e2eWorkspace, "src", "lib", "user-repo.ts"),
+  "export class UserRepo {}\n",
+);
 writeFileSync(
   join(e2eWorkspace, ".vscode", "settings.json"),
   `${JSON.stringify(

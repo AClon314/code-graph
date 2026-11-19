@@ -14,7 +14,6 @@
 // Each window owns one panel per backend, with its own cache file.
 
 import { extensionApi } from "../src/extension/host.ts";
-import type { JumpTarget } from "../src/lib/jump/types";
 import { frameCachePath, panelName as sharedPanelName } from "../src/lib/graph/cache";
 import {
   backendConfig,
@@ -29,7 +28,7 @@ import {
   toolbarActionAt,
   type ToolbarAction,
 } from "./panel-chrome.ts";
-import type { Frame, NodeBox, NodeMeta } from "./frame-types.ts";
+import type { Frame, NodeBox } from "./frame-types.ts";
 import type { RootCandidate } from "../src/lib/graph/roots.ts";
 import {
   acceptRootPicker,
@@ -53,7 +52,6 @@ import { byteToChar, hexToRgb, utf8Len } from "./text.ts";
 const editor = getEditor();
 
 type Backend = "cbm" | "scip";
-const BACKENDS: Backend[] = ["cbm", "scip"];
 
 // ── configuration (override via globalThis.CODE_NAV_* in your loader) ──────
 const REPO =

@@ -82,7 +82,7 @@ function prune(): void {
 }
 
 function notify(): void {
-  for (const wake of [...waiters]) wake();
+  for (const wake of waiters) wake();
 }
 
 function sameTarget(a: JumpRequest, b: JumpRequest): boolean {

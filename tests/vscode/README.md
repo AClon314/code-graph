@@ -1,7 +1,7 @@
 # VS Code / code-server e2e
 
 code-server has no desktop-style extension test API. Playwright drives the real
-web UI, command palette, and webview instead.
+web UI, command palette, webview, search, and editor jump.
 
 ```bash
 bun run test:vscode
@@ -14,3 +14,7 @@ The `webServer` entry starts the isolated code-server profile from
 checked-in fixture workspace. Its code-server profile lives under
 `out/e2e-code-server`, separate from the manual `.code-server` profile, so
 running the test cannot change the folder that `bun run code` opens next.
+
+The test uses `watchPage()`: browser console errors and `pageerror` fail; known
+code-server telemetry/vsda/iframe warnings are filtered as noise. Warnings and
+slow steps are report annotations only.

@@ -18,7 +18,5 @@ tui/frame.json
 .code-graph.config.jsonc
 
 # test runners
-.termwright/
-termwright-report/
 test-results/
 playwright-report/

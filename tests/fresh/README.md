@@ -1,14 +1,13 @@
 # Fresh e2e
 
-Termwright drives a real `fresh` process in a PTY. It is intentionally separate
-from `bun test`: the Bun unit-test runner would try to execute these files with
-the wrong runtime.
+[`@microsoft/tui-test`](https://github.com/microsoft/tui-test) drives a real
+`fresh` process in a PTY and asserts text with terminal-native locators.
 
 ```bash
 bun run test:fresh
 ```
 
-Termwright requires Node 22 or 24. `tests/fresh/run.ts` picks `NODE_BIN`, then
-`node-22`, `/usr/bin/node`, or `node`; set `NODE_BIN` explicitly when needed.
-The test creates an isolated `FRESH_CONFIG` and workspace, so it does not touch
-your real Fresh profile.
+The tests build `out/fresh-plugin/code-graph.js`, install it into an isolated
+`XDG_CONFIG_HOME`, create a temporary workspace, and generate the deterministic
+frame from `tui/fixture-graph.json`. They never touch your real Fresh profile or
+a cbm daemon.

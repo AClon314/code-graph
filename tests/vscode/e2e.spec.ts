@@ -2,11 +2,16 @@ import { fileURLToPath } from "node:url";
 
 import { expect, test } from "@playwright/test";
 
+import { finishPageIssues, timed, watchPage } from "../e2e/support";
+
 const workspace = fileURLToPath(new URL("../../out/e2e-workspace", import.meta.url));
 
-test("opens the computed Code Graph webview", async ({ page }) => {
-  await page.goto(`/?folder=${encodeURIComponent(workspace)}`);
-  await page.waitForSelector(".monaco-workbench", { timeout: 30_000 });
+test("opens the computed Code Graph webview", async ({ page }, testInfo) => {
+  const issues = watchPage(page, testInfo);
+  await timed(testInfo, "launch code-server", 30_000, async () => {
+    await page.goto(`/?folder=${encodeURIComponent(workspace)}`);
+    await page.waitForSelector(".monaco-workbench", { timeout: 30_000 });
+  });
 
   await page.keyboard.press("Control+Shift+P");
   await page.keyboard.type("Code Graph: Open in New Tab");
@@ -37,9 +42,9 @@ test("opens the computed Code Graph webview", async ({ page }) => {
   const app = page.frames().find((frame) => frame.url().includes("source=computed"));
   if (!app) throw new Error("Code Graph webview frame not found");
 
-  await expect(app.locator("h1")).toHaveText("Code Graph");
+  await expect(app.getByRole("heading", { name: "Code Graph" })).toBeVisible();
 
-  const firstNode = app.locator("[data-node-id]").first();
+  const firstNode = app.getByRole("button", { name: /useAlias/ }).first();
   await expect(firstNode).toBeVisible({ timeout: 30_000 });
   await firstNode.click();
   await expect(app.getByRole("complementary", { name: "Symbol details" })).toBeVisible();
@@ -47,4 +52,19 @@ test("opens the computed Code Graph webview", async ({ page }) => {
 
   await app.getByRole("button", { name: "Setup", exact: true }).click();
   await expect(app.getByRole("button", { name: "Computed", exact: true })).toBeVisible();
+  await app.getByRole("button", { name: "Close setup" }).click();
+
+  await app.getByLabel("Search graph").fill("UserRepo");
+  await app.getByLabel("Search graph").press("Enter");
+  await expect(app.getByRole("complementary", { name: "Symbol details" })).toBeVisible();
+  await expect(
+    app.getByRole("complementary", { name: "Symbol details" }).getByRole("heading", { name: "UserRepo" }),
+  ).toBeVisible();
+  await timed(testInfo, "jump to source", 10_000, async () => {
+    await app.getByRole("button", { name: "Jump", exact: true }).click();
+    await expect(page.getByRole("tab", { name: /user-repo\.ts/ })).toBeVisible({
+      timeout: 30_000,
+    });
+  });
+  finishPageIssues(issues, testInfo);
 });

@@ -554,17 +554,30 @@ example `graph-ui-svelte.src.App`); folder views are still not implemented.
 
 ```bash
 bun run check           # svelte-check, includes extension host types
+bun run lint            # oxlint (correctness + import cycle checks)
 bun test                # graph, neighborhood, layout, fonts, host adapter
-bun run test:fresh      # Termwright e2e against a real Fresh PTY
-bun run test:vscode     # Playwright e2e against code-server + webview
-bun run test:e2e        # both e2e suites
+bun run test:web        # Playwright: standalone web journey
+bun run test:fresh      # @microsoft/tui-test: real Fresh PTY
+bun run test:vscode     # Playwright: code-server + webview
+bun run test:e2e        # all three e2e suites
 bun run build           # all three bundles
 bun run verify:runtime  # assert each bundle contains only its host
+
+# Commit/push gates
+bun run install:hooks   # git core.hooksPath -> .githooks
+bun run check:commit    # check + oxlint + unit tests (pre-commit)
+bun run check:push      # check:commit + web e2e + Fresh/VS Code when installed
 ```
 
-Tests live under `tests/`: unit tests at the root, `tests/fresh/` for
-Termwright, and `tests/vscode/` for Playwright. Termwright needs Node 22 or 24;
-`tests/fresh/run.ts` resolves one automatically or accepts `NODE_BIN`.
+Tests live under `tests/`: unit tests at the root, `tests/web/` for the browser
+journey, `tests/vscode/` for code-server, and `tests/fresh/` for the PTY.
+`bun run test:web` uses the offline computed source and needs no cbm daemon.
+The e2e suites treat browser console errors and `pageerror` as failures, record
+warnings as report annotations, and log a warning (without failing) when a
+journey step exceeds its time budget.
+
+Jujutsu does not execute git hooks. Use `scripts/jj-commit.sh` / `scripts/jj-push.sh`
+(or run `check:commit` / `check:push` yourself) so the same gates apply.
 
 ## Offline mode
 

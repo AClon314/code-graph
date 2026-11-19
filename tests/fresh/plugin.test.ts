@@ -1,67 +1,62 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { test } from "bun:test";
 
-import { expect, test } from "termwright/test";
+import {
+  cleanupFresh,
+  createFreshFixture,
+  launchFresh,
+  timedFresh,
+} from "./harness";
 
-const repo = resolve(fileURLToPath(new URL("../..", import.meta.url)));
-const bundle = join(repo, "out", "fresh-plugin", "code-graph.js");
-const fresh = process.env.FRESH_BIN || "fresh";
+test(
+  "opens a static graph, shows help, and opens a selected node",
+  { timeout: 45_000 },
+  async () => {
+    const fixture = createFreshFixture();
+    const app = await launchFresh(fixture);
+    try {
+      await timedFresh("launch and render graph", 5_000, async () => {
+        await app.getByText("README.md").first().expect({ timeout: 10_000 });
+        await app.getByText("src/main.ts:3").first().expect({ timeout: 20_000 });
+      });
 
-function installTestPlugin(configDir: string, tmpdir: string): void {
-  const plugins = join(configDir, "plugins");
-  mkdirSync(plugins, { recursive: true });
-  const wrapper =
-    `globalThis.CODE_NAV_REPO = ${JSON.stringify(repo)};\n` +
-    `globalThis.CODE_NAV_BUN = ${JSON.stringify(process.env.BUN || "bun")};\n` +
-    `globalThis.CODE_NAV_JUMP_TMP = ${JSON.stringify(join(tmpdir, "jump.json"))};\n` +
-    readFileSync(bundle, "utf8");
-  writeFileSync(join(plugins, "code-graph.ts"), wrapper);
-}
+      await timedFresh("help", 1_000, async () => {
+        await app.press("?");
+        await app.getByText("Code Graph — keys").expect();
+        await app.press("Escape");
+      });
 
-test("opens Code Graph and reports a missing project", { timeout: 30_000 }, async ({ terminal }) => {
-  const tmpdir = terminal.tmpdir;
-  const xdg = join(tmpdir, "xdg");
-  const configDir = join(xdg, "fresh");
-  installTestPlugin(configDir, tmpdir);
-  const workspace = join(tmpdir, "workspace");
-  mkdirSync(workspace, { recursive: true });
-  writeFileSync(join(workspace, "README.md"), "# fixture\n");
-  writeFileSync(
-    join(configDir, "init.ts"),
-    `const editor = getEditor();
-let tries = 0;
-const timer = editor.setInterval(100, "test_open_code_graph");
-registerHandler("test_open_code_graph", async () => {
-  tries += 1;
-  if (tries > 50) {
-    editor.clearInterval(timer);
-    return;
-  }
-  try {
-    await editor.runCommand("Code Graph: Open (cbm)");
-    editor.clearInterval(timer);
-  } catch {
-    // Plugin commands load after init.ts; retry until they exist.
-  }
-});
-`,
-  );
+      await timedFresh("entry picker", 2_000, async () => {
+        await app.getByText("[E] Entry").click();
+        await app.getByText("Select root").expect();
+        await app.press("Escape");
+      });
 
-  const app = await terminal.launch({
-    command: [fresh, "README.md"],
-    cwd: workspace,
-    envMode: "inherit",
-    env: {
-      XDG_CONFIG_HOME: xdg,
-      CODE_NAV_FRAME_MODE: "cbm",
-    },
-    columns: 120,
-    rows: 40,
-  });
+      await timedFresh("select and open node", 3_000, async () => {
+        await app.getByText("src/main.ts:3").click();
+        await app.press("o");
+        await app.getByText("export function main() {}").expect({
+          timeout: 5_000,
+        });
+      });
+    } finally {
+      await app.closeQuiet();
+      cleanupFresh(fixture);
+    }
+  },
+);
 
-  await app.waitForText("README.md");
-  // The init script dispatches the real command once plugins have registered;
-  // keep the test independent of terminal keybinding/protocol quirks.
-  await expect(app).toHaveText("no cbm project configured");
-});
+test(
+  "reports a missing cbm project instead of crashing",
+  { timeout: 30_000 },
+  async () => {
+    const fixture = createFreshFixture({ staticFrame: false, project: null });
+    const app = await launchFresh(fixture, { staticFrame: false });
+    try {
+      await app.getByText("README.md").first().expect({ timeout: 10_000 });
+      await app.getByText("no cbm project configured").first().expect({ timeout: 20_000 });
+    } finally {
+      await app.closeQuiet();
+      cleanupFresh(fixture);
+    }
+  },
+);
