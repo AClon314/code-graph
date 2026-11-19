@@ -14,6 +14,12 @@
     type GraphLayout,
     type LayoutAlgorithm,
   } from "../graph/layout";
+  import {
+    edgeRelationshipClass,
+    focusSubgraph,
+    nodeRelationshipClass,
+    relatedSelection,
+  } from "../graph/selection";
   import type { GraphViewData, GraphViewNode } from "../graph/types";
 
   interface Props {
@@ -21,8 +27,12 @@
     selectedId?: string;
     layoutAlgorithm?: LayoutAlgorithm;
     searchHits?: Set<string>;
+    focusOnly?: boolean;
     onselect: (node: GraphViewNode) => void;
     onjump?: (node: GraphViewNode) => void;
+    onlayoutstatus?: (loading: boolean) => void;
+    /** A background click (not a pan/drag) clears the selection. */
+    onclear?: () => void;
   }
 
   let {
@@ -30,8 +40,11 @@
     selectedId = "",
     layoutAlgorithm = "layered",
     searchHits = new Set<string>(),
+    focusOnly = false,
     onselect,
     onjump,
+    onlayoutstatus,
+    onclear,
   }: Props = $props();
 
   let svgEl = $state<SVGSVGElement | null>(null);
@@ -42,15 +55,30 @@
   let zoomBehavior: ZoomBehavior<SVGSVGElement, unknown> | null = null;
   let userAdjusted = false;
   let resizeFrame = 0;
+  let pointerStart: { x: number; y: number } | null = null;
+  let dragged = false;
 
   const markerId = "orchgraph-arrow";
-  const nodeById = $derived(new Map(data.nodes.map((node) => [node.id, node])));
+  // Focus mode re-layouts only the selected connected component. Keeping this
+  // as a derived snapshot means the full graph is still available for undo.
+  const displayData = $derived.by(() =>
+    focusOnly && selectedId ? focusSubgraph(data, selectedId) : data,
+  );
+  const nodeById = $derived(new Map(displayData.nodes.map((node) => [node.id, node])));
+  const edgeById = $derived(new Map(displayData.edges.map((edge) => [edge.id, edge])));
+  const related = $derived(
+    selectedId ? relatedSelection(displayData, selectedId) : null,
+  );
+  const hasSelection = $derived(
+    Boolean(selectedId && displayData.nodes.some((node) => node.id === selectedId)),
+  );
 
   $effect(() => {
-    const current = data;
+    const current = displayData;
     let cancelled = false;
     layout = null;
     layoutError = "";
+    onlayoutstatus?.(true);
 
     void layoutGraphView(current, "DOWN", layoutAlgorithm)
       .then((next) => {
@@ -60,10 +88,14 @@
         if (cancelled) return;
         layout = null;
         layoutError = cause instanceof Error ? cause.message : String(cause);
+      })
+      .finally(() => {
+        if (!cancelled) onlayoutstatus?.(false);
       });
 
     return () => {
       cancelled = true;
+      onlayoutstatus?.(false);
     };
   });
 
@@ -120,6 +152,9 @@
 
     // Side panels change the canvas size. Keep an untouched graph fitted;
     // never override a viewport the user has already panned or zoomed.
+    // A drag can end outside the SVG; clear the start point anyway.
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerUp);
     const resizeObserver = new ResizeObserver(() => {
       if (!layout || !zoomBehavior || userAdjusted) return;
       cancelAnimationFrame(resizeFrame);
@@ -129,6 +164,8 @@
     zoomReady = true;
 
     return () => {
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
       resizeObserver.disconnect();
       cancelAnimationFrame(resizeFrame);
       selection.on(".zoom", null);
@@ -182,6 +219,33 @@
     return clone;
   }
 
+  function onPointerDown(event: PointerEvent): void {
+    if (event.button !== 0) return;
+    pointerStart = { x: event.clientX, y: event.clientY };
+    dragged = false;
+  }
+
+  function onPointerMove(event: PointerEvent): void {
+    if (!pointerStart) return;
+    if (Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) > 4) {
+      dragged = true;
+    }
+  }
+
+  function onPointerUp(): void {
+    pointerStart = null;
+  }
+
+  function onBackgroundClick(event: MouseEvent): void {
+    const target = event.target;
+    if (target instanceof Element && target.closest(".orchgraph-node")) return;
+    if (dragged) {
+      dragged = false;
+      return;
+    }
+    onclear?.();
+  }
+
   function kindClass(label: string): string {
     return label.normalize("NFKD").replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || "unknown";
   }
@@ -192,15 +256,24 @@
 </script>
 
 <div class="graph-board">
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <svg
     bind:this={svgEl}
     class:has-search-hits={searchHits.size > 0}
-    class="graph-svg"
+    class:has-selection={hasSelection}
+    class="graph-svg code-graph-view"
+    class:is-focus-only={focusOnly}
     role="group"
-    aria-label={`Call graph for ${data.root}: ${data.nodes.length} nodes, ${data.edges.length} edges`}
+    aria-label={`Call graph for ${displayData.root}: ${displayData.nodes.length} nodes, ${displayData.edges.length} edges`}
     preserveAspectRatio="xMidYMid meet"
+    onpointerdown={onPointerDown}
+    onpointermove={onPointerMove}
+    onpointerup={onPointerUp}
+    onpointercancel={onPointerUp}
+    onclick={onBackgroundClick}
   >
-    <title>Call graph for {data.root}</title>
+    <title>Call graph for {displayData.root}</title>
     <defs>
       <marker
         id={markerId}
@@ -229,34 +302,44 @@
 
     {#if layout}
       <g class="graph-viewport" transform={transform.toString()}>
-        <g class="orchgraph-edges">
+        <g class="orchgraph-edges code-graph-edges">
           {#each layout.edges as edge (edge.id)}
+            {@const edgeData = edgeById.get(edge.id)}
             <polyline
-              class="orchgraph-edge"
+              class={`orchgraph-edge code-graph-edge${edgeData && related ? ` ${edgeRelationshipClass(edgeData, related)}` : ""}`}
               data-edge-id={edge.id}
               data-source={edge.source}
               data-target={edge.target}
+              data-related={related ? related.edges.has(edge.id) : undefined}
               points={pointList(edge.points)}
               marker-end={`url(#${markerId})`}
             />
           {/each}
         </g>
 
-        <g class="orchgraph-nodes">
+        <g class="orchgraph-nodes code-graph-nodes">
           {#each layout.nodes as positioned, index (positioned.id)}
             {@const node = nodeById.get(positioned.id)}
             {#if node}
               {@const selected = selectedId === node.id}
               {@const hit = searchHits.has(node.id)}
               <g
-                class={`orchgraph-node kind-${kindClass(node.label)}${selected ? " is-selected" : ""}${hit ? " is-search-hit" : ""}`}
+                class={`orchgraph-node code-graph-node kind-${kindClass(node.label)}${selected ? " is-selected" : ""}${hit ? " is-search-hit" : ""}${related ? ` ${nodeRelationshipClass(node, related)}` : ""}`}
                 data-node-id={node.id}
                 data-kind={node.label}
+                data-related={related ? related.nodes.has(node.id) : undefined}
                 role="button"
                 tabindex="0"
                 aria-pressed={selected}
                 aria-label={`${node.name}, ${node.label}, ${node.qualifiedName}`}
-                onclick={() => onselect(node)}
+                onclick={(event) => {
+                  event.stopPropagation();
+                  if (dragged) {
+                    dragged = false;
+                    return;
+                  }
+                  onselect(node);
+                }}
                 ondblclick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
@@ -270,7 +353,19 @@
                 }}
               >
                 <title>{node.name} — {node.qualifiedName}</title>
+                {#if selected}
+                  <rect
+                    class="orchgraph-node-glow code-graph-node-glow"
+                    x={positioned.x}
+                    y={positioned.y}
+                    width={positioned.width}
+                    height={positioned.height}
+                    rx="10"
+                    aria-hidden="true"
+                  />
+                {/if}
                 <rect
+                  class="code-graph-node-card"
                   x={positioned.x}
                   y={positioned.y}
                   width={positioned.width}
@@ -278,19 +373,19 @@
                   rx="10"
                 />
                 <text
-                  class="orchgraph-node-kind"
+                  class="orchgraph-node-kind code-graph-node-kind"
                   x={positioned.x + positioned.width - 10}
                   y={positioned.y + 17}
                   text-anchor="end"
                 >{node.label}</text>
                 <g clip-path={`url(#orchgraph-clip-${index})`}>
                   <text
-                    class="orchgraph-node-label"
+                    class="orchgraph-node-label code-graph-node-label"
                     x={positioned.x + 12}
                     y={positioned.y + 33}
                   >{node.name}</text>
                   <text
-                    class="orchgraph-node-detail"
+                    class="orchgraph-node-detail code-graph-node-detail"
                     x={positioned.x + 12}
                     y={positioned.y + 51}
                   >{node.qualifiedName}</text>

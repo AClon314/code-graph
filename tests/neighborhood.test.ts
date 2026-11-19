@@ -31,6 +31,21 @@ test("ComputedSource neighborhood renders root, callers and callees", async () =
   expect(data.truncated).toBe(false);
 });
 
+test("reports BFS progress without changing the graph", async () => {
+  const events: Array<{ phase: string; fetched: number; total: number }> = [];
+  const data = await loadNeighborhood(new FakeSource(graph()), "p", "a", {
+    depth: 1,
+    direction: "both",
+    onProgress: (progress) => events.push(progress),
+  });
+
+  expect(events[0]?.phase).toBe("root");
+  expect(events.at(-1)?.phase).toBe("neighbors");
+  expect(events.at(-1)?.fetched).toBeGreaterThanOrEqual(1);
+  expect(events.at(-1)?.total).toBeGreaterThanOrEqual(events.at(-1)!.fetched);
+  expect(data.nodes.map((node) => node.id).sort()).toEqual(["a", "b", "c"]);
+});
+
 test("BFS dedupes edges and follows two hops in both directions", async () => {
   const source = new FakeSource(graph());
   const data = await loadNeighborhood(source, "p", "a", { depth: 2, direction: "both" });

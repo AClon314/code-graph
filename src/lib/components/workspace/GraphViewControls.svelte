@@ -7,10 +7,13 @@
     direction: NeighborhoodDirection;
     layout: LayoutAlgorithm;
     renderer: GraphRenderer;
+    focusOnly: boolean;
+    focusAvailable: boolean;
     ondepth: (event: Event) => void;
     ondirection: (value: string) => void;
     onlayout: (value: string) => void;
     onrenderer: (value: string) => void;
+    onfocusonly: (value: boolean) => void;
   }
 
   let {
@@ -18,10 +21,13 @@
     direction,
     layout,
     renderer,
+    focusOnly,
+    focusAvailable,
     ondepth,
     ondirection,
     onlayout,
     onrenderer,
+    onfocusonly,
   }: Props = $props();
 </script>
 
@@ -74,6 +80,17 @@
       </select>
     </label>
   {/if}
+  <!-- svelte-ignore a11y_label_has_associated_control -->
+  <label class="view-control toggle-control" title="Hide nodes outside the selected node's component">
+    <input
+      type="checkbox"
+      checked={focusOnly}
+      disabled={!focusAvailable}
+      aria-label="Focus on related nodes"
+      onchange={(event: Event) => onfocusonly((event.currentTarget as HTMLInputElement).checked)}
+    />
+    <span>focus</span>
+  </label>
   <!-- svelte-ignore a11y_label_has_associated_control -->
   <label class="view-control" title="Graph renderer">
     <span>view</span>

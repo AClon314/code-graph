@@ -2,22 +2,29 @@
   import type { TerminalCanvas } from "orchgraph";
 
   import { buildTerminalCanvas } from "../graph/terminal";
+  import { focusSubgraph } from "../graph/selection";
   import type { GraphViewData, GraphViewNode } from "../graph/types";
 
   interface Props {
     data: GraphViewData;
     selectedId?: string;
     searchHits?: Set<string>;
+    focusOnly?: boolean;
     onselect: (node: GraphViewNode) => void;
     onjump?: (node: GraphViewNode) => void;
+    onlayoutstatus?: (loading: boolean) => void;
+    onclear?: () => void;
   }
 
   let {
     data,
     selectedId = "",
     searchHits = new Set<string>(),
+    focusOnly = false,
     onselect,
     onjump,
+    onlayoutstatus,
+    onclear,
   }: Props = $props();
 
   let host = $state<HTMLDivElement | null>(null);
@@ -28,14 +35,18 @@
   let offsetX = $state(0);
   let offsetY = $state(0);
 
-  const nodeById = $derived(new Map(data.nodes.map((node) => [node.id, node])));
+  const displayData = $derived.by(() =>
+    focusOnly && selectedId ? focusSubgraph(data, selectedId) : data,
+  );
+  const nodeById = $derived(new Map(displayData.nodes.map((node) => [node.id, node])));
   const lineHeight = 1;
 
   $effect(() => {
-    const current = data;
+    const current = displayData;
     let cancelled = false;
     canvas = null;
     layoutError = "";
+    onlayoutstatus?.(true);
 
     void buildTerminalCanvas(current)
       .then((next) => {
@@ -45,10 +56,14 @@
         if (cancelled) return;
         canvas = null;
         layoutError = cause instanceof Error ? cause.message : String(cause);
+      })
+      .finally(() => {
+        if (!cancelled) onlayoutstatus?.(false);
       });
 
     return () => {
       cancelled = true;
+      onlayoutstatus?.(false);
     };
   });
 
@@ -71,7 +86,8 @@
     return nodeById.get(node.id);
   }
 
-  function onNodeClick(node: TerminalCanvas["nodes"][number]): void {
+  function onNodeClick(event: Event, node: TerminalCanvas["nodes"][number]): void {
+    event.stopPropagation();
     const target = locate(node);
     if (target) onselect(target);
   }
@@ -86,7 +102,7 @@
   function onNodeKeydown(event: KeyboardEvent, node: TerminalCanvas["nodes"][number]): void {
     if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();
-    onNodeClick(node);
+    onNodeClick(event, node);
   }
 
   /** Scale the character canvas to fit the board. */
@@ -143,7 +159,18 @@
   }
 </script>
 
-<div class="graph-board terminal-board" bind:this={host} onwheel={onWheel}>
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+  class="graph-board terminal-board code-graph-view"
+  class:is-focus-only={focusOnly}
+  bind:this={host}
+  onwheel={onWheel}
+  onclick={(event) => {
+    if ((event.target as Element).closest(".terminal-node-hit")) return;
+    onclear?.();
+  }}
+>
   {#if canvas && canvas.lines.length > 0}
     <div class="terminal-art-shell">
       <div
@@ -155,12 +182,12 @@
           {@const target = locate(node)}
           <button
             type="button"
-            class="terminal-node-hit"
+            class="terminal-node-hit code-graph-node"
             class:is-selected={selectedId === node.id}
             class:is-search-hit={searchHits.has(node.id)}
             style={`left:${node.x}ch; top:${node.y * lineHeight}em; width:${node.width}ch; height:${node.height * lineHeight}em`}
             aria-label={`${target?.name ?? node.label}${target?.filePath ? `, ${target.filePath}:${target.startLine ?? 1}` : ""}`}
-            onclick={() => onNodeClick(node)}
+            onclick={(event) => onNodeClick(event, node)}
             ondblclick={(event) => onNodeDoubleClick(event, node)}
             onkeydown={(event) => onNodeKeydown(event, node)}
           ></button>

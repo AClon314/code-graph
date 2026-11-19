@@ -32,17 +32,17 @@ function pointList(points: Array<{ x: number; y: number }>): string {
 
 export const GRAPH_SVG_RULES = `
 .graph-svg { background: var(--graph-bg, #ffffff); }
-.has-search-hits .orchgraph-node:not(.is-search-hit) { opacity: .35; }
-.orchgraph-edge { fill: none; stroke: var(--edge, #888888); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.has-search-hits .code-graph-node:not(.is-search-hit) { opacity: var(--cg-search-dim-opacity, .35); }
+.code-graph-edge { fill: none; stroke: var(--edge, #888888); stroke-width: var(--cg-edge-width, 1.5px); stroke-linecap: round; stroke-linejoin: round; }
 .orchgraph-arrow { fill: var(--edge, #888888); }
-.orchgraph-node rect { fill: var(--node-bg, #ffffff); stroke: var(--node-line, #999999); stroke-width: 1.25; }
-.orchgraph-node-kind { fill: var(--muted, #666666); font: 600 10px var(--font-code, ui-monospace, monospace); letter-spacing: .04em; text-transform: uppercase; }
-.orchgraph-node-label { fill: var(--text, #111111); font: 600 15px var(--font-code, ui-monospace, monospace); }
-.orchgraph-node-detail { fill: var(--muted, #666666); font: 11px var(--font-code, ui-monospace, monospace); }
-.orchgraph-node-state { fill: var(--muted, #666666); font: 700 13px var(--font-code, ui-monospace, monospace); }
-.orchgraph-edge-label { fill: var(--muted, #666666); font: 11px var(--font-code, ui-monospace, monospace); text-anchor: middle; }
-.orchgraph-node.is-search-hit rect { stroke: var(--hit, #c98a00); stroke-width: 2; }
-.orchgraph-node.is-selected rect { stroke: var(--accent, #176b5a); stroke-width: 2.5; }
+.code-graph-node-card { fill: var(--node-bg, #ffffff); stroke: var(--node-line, #999999); stroke-width: 1.25; rx: var(--cg-node-radius, 10px); }
+.code-graph-node-kind { fill: var(--muted, #666666); font: 600 var(--cg-node-kind-size, 10px) var(--font-code, ui-monospace, monospace); letter-spacing: .04em; text-transform: uppercase; }
+.code-graph-node-label { fill: var(--text, #111111); font: 600 var(--cg-node-label-size, 15px) var(--font-code, ui-monospace, monospace); }
+.code-graph-node-detail { fill: var(--muted, #666666); font: var(--cg-node-detail-size, 11px) var(--font-code, ui-monospace, monospace); }
+.orchgraph-node-state { fill: var(--muted, #666666); font: 700 var(--cg-node-state-size, 13px) var(--font-code, ui-monospace, monospace); }
+.orchgraph-edge-label { fill: var(--muted, #666666); font: var(--cg-edge-label-size, 11px) var(--font-code, ui-monospace, monospace); text-anchor: middle; }
+.code-graph-node.is-search-hit .code-graph-node-card { stroke: var(--hit, #c98a00); stroke-width: 2; }
+.code-graph-node.is-selected .code-graph-node-card { stroke: var(--accent, #176b5a); stroke-width: var(--cg-edge-strong-width, 2.5px); }
 `.trim();
 
 export const SVG_THEME_VARIABLE_NAMES = [
@@ -106,7 +106,7 @@ export async function renderGraphSvg(
   const edges = layout.edges
     .map(
       (edge) =>
-        `<polyline class="orchgraph-edge" data-edge-id="${escapeXml(edge.id)}" data-source="${escapeXml(edge.source)}" data-target="${escapeXml(edge.target)}" points="${pointList(edge.points)}" marker-end="url(#${markerId})"/>`,
+        `<polyline class="orchgraph-edge code-graph-edge" data-edge-id="${escapeXml(edge.id)}" data-source="${escapeXml(edge.source)}" data-target="${escapeXml(edge.target)}" points="${pointList(edge.points)}" marker-end="url(#${markerId})"/>`,
     )
     .join("\n");
 
@@ -115,20 +115,20 @@ export async function renderGraphSvg(
       const node = nodeById.get(positioned.id);
       if (!node) return "";
       const kind = kindClass(node.label);
-      return `<g class="orchgraph-node kind-${kind}" data-node-id="${escapeXml(node.id)}" data-kind="${escapeXml(node.label)}" role="button" aria-label="${escapeXml(`${node.name}, ${node.label}, ${node.qualifiedName}`)}">
+      return `<g class="orchgraph-node code-graph-node kind-${kind}" data-node-id="${escapeXml(node.id)}" data-kind="${escapeXml(node.label)}" role="button" aria-label="${escapeXml(`${node.name}, ${node.label}, ${node.qualifiedName}`)}">
 <title>${escapeXml(`${node.name} — ${node.qualifiedName}`)}</title>
-<rect x="${positioned.x}" y="${positioned.y}" width="${positioned.width}" height="${positioned.height}" rx="10"/>
-<text class="orchgraph-node-kind" x="${positioned.x + positioned.width - 10}" y="${positioned.y + 17}" text-anchor="end">${escapeXml(node.label)}</text>
+<rect class="code-graph-node-card" x="${positioned.x}" y="${positioned.y}" width="${positioned.width}" height="${positioned.height}" rx="10"/>
+<text class="orchgraph-node-kind code-graph-node-kind" x="${positioned.x + positioned.width - 10}" y="${positioned.y + 17}" text-anchor="end">${escapeXml(node.label)}</text>
 <g clip-path="url(#code-graph-clip-${index})">
-<text class="orchgraph-node-label" x="${positioned.x + 12}" y="${positioned.y + 33}">${escapeXml(node.name)}</text>
-<text class="orchgraph-node-detail" x="${positioned.x + 12}" y="${positioned.y + 51}">${escapeXml(node.qualifiedName)}</text>
+<text class="orchgraph-node-label code-graph-node-label" x="${positioned.x + 12}" y="${positioned.y + 33}">${escapeXml(node.name)}</text>
+<text class="orchgraph-node-detail code-graph-node-detail" x="${positioned.x + 12}" y="${positioned.y + 51}">${escapeXml(node.qualifiedName)}</text>
 </g>
 </g>`;
     })
     .join("\n");
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" class="graph-svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${escapeXml(`Call graph for ${data.root}: ${data.nodes.length} nodes, ${data.edges.length} edges`)}">
+<svg xmlns="http://www.w3.org/2000/svg" class="graph-svg code-graph-view" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${escapeXml(`Call graph for ${data.root}: ${data.nodes.length} nodes, ${data.edges.length} edges`)}">
 <title>${escapeXml(`Call graph for ${data.root}`)}</title>
 <defs>
 <style>${graphSvgStyle()}</style>
@@ -136,10 +136,10 @@ export async function renderGraphSvg(
 ${clips}
 </defs>
 <g class="graph-viewport">
-<g class="orchgraph-edges">
+<g class="orchgraph-edges code-graph-edges">
 ${edges}
 </g>
-<g class="orchgraph-nodes">
+<g class="orchgraph-nodes code-graph-nodes">
 ${nodes}
 </g>
 </g>

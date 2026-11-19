@@ -476,19 +476,6 @@ h3 {
   font-size: 0.95rem;
 }
 
-.graph-busy {
-  position: absolute;
-  top: 1ch;
-  left: 1ch;
-  z-index: 3;
-  padding: 0.25lh 0.7ch;
-  border: 1px solid var(--line);
-  border-radius: 0.35rem;
-  background: var(--panel);
-  color: var(--muted);
-  font-size: 0.72rem;
-  pointer-events: none;
-}
 
 .canvas-alerts {
   position: absolute;
@@ -527,8 +514,9 @@ h3 {
 .statusbar {
   display: flex;
   flex: 0 0 auto;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 1ch;
+  gap: 0.35lh 1ch;
   min-height: 2.25lh;
   padding: 0.2lh 1ch;
   border-top: 1px solid var(--line);
@@ -545,9 +533,76 @@ h3 {
   min-width: 0;
 }
 
+.status-left {
+  flex: 1 1 auto;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
 .status-right {
   justify-content: flex-end;
   margin-left: auto;
+}
+
+.status-load {
+  display: flex;
+  align-items: center;
+  gap: 0.5ch;
+  min-width: 0;
+  padding-right: 0.7ch;
+  border-right: 1px solid var(--line);
+  color: var(--text);
+}
+
+.load-progress {
+  flex: none;
+  width: 8ch;
+  height: 0.7lh;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+  appearance: none;
+}
+
+.load-progress::-webkit-progress-bar {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+.load-progress::-webkit-progress-value {
+  border-radius: 999px;
+  background: var(--cg-selection, var(--accent));
+}
+
+.load-progress::-moz-progress-bar {
+  border-radius: 999px;
+  background: var(--cg-selection, var(--accent));
+}
+
+.load-progress:not([value]) {
+  width: 12ch;
+  background: linear-gradient(
+      90deg,
+      transparent 0 35%,
+      var(--cg-selection, var(--accent)) 35% 65%,
+      transparent 65%
+    )
+    0 0 / 200% 100%;
+  animation: load-progress-indeterminate 1.2s linear infinite;
+}
+
+@keyframes load-progress-indeterminate {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+.status-load-label {
+  max-width: 28ch;
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .status-selection {
@@ -570,6 +625,7 @@ h3 {
 
 .view-controls {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 0.35ch;
   margin-left: auto;
@@ -587,6 +643,19 @@ h3 {
 .view-control .depth-input {
   width: 7ch;
   min-width: 7ch;
+}
+
+.toggle-control input[type="checkbox"] {
+  width: 1.3ch;
+  height: 1.3lh;
+  margin: 0;
+  accent-color: var(--cg-selection, var(--accent));
+  cursor: pointer;
+}
+
+.toggle-control input[type="checkbox"]:disabled {
+  cursor: default;
+  opacity: 0.45;
 }
 
 .view-control .layout-select {

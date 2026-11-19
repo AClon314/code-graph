@@ -51,6 +51,31 @@ embed params are preserved when the graph updates its own URL state.
 | Shell | `--cg-bg`, `--cg-panel`, `--cg-line` |
 | Content | `--cg-text`, `--cg-muted`, `--cg-accent` |
 | Graph | `--cg-graph-bg`, `--cg-node-bg`, `--cg-node-line`, `--cg-edge`, `--cg-hit` |
+| Selection | `--cg-selection`, `--cg-selection-glow`, `--cg-selection-glow-opacity`, `--cg-selection-glow-blur`, `--cg-unrelated-opacity` |
+| Graph geometry | `--cg-node-radius`, `--cg-node-label-size`, `--cg-node-detail-size`, `--cg-edge-width`, `--cg-edge-strong-width` |
+
+Dark fallbacks are OLED-first: the page/graph canvas is `#000000`, panels and
+node cards are slightly lifted (`#050505` / `#0a0a0a`), and text/accents use
+higher contrast than the old `#1e1e1e` palette. A VS Code host still wins via
+its real `--vscode-*` tokens.
+
+## Third-party graph styling
+
+The SVG renderer emits stable hooks in addition to the legacy
+`orchgraph-*` names:
+
+```text
+.code-graph-view
+.code-graph-node / .code-graph-node-card / .code-graph-node-glow
+.code-graph-node-label / -detail / -kind
+.code-graph-edge
+.is-selected / .is-search-hit / .is-related / .is-unrelated
+```
+
+Prefer overriding the `--cg-*` variables above. `.is-related` keeps full
+opacity; `.is-unrelated` uses `--cg-unrelated-opacity`. The selected glow is a
+separate rect behind `.code-graph-node-card`, so it never covers the node text
+or border.
 
 Components consume the compatibility aliases `--bg`, `--panel`, `--text`,
 `--graph-bg`, etc., which are bound to `--cg-*` in `src/app.css`. Change the

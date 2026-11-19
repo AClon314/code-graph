@@ -70,7 +70,9 @@ directly. Build output contains only the selected runtime:
 - Layout: the graph is the full workbench. A compact command bar carries the
   entry/load/search fields and global actions; **Setup** and **Details** are
   edge panels, closed by default and mutually exclusive. The bottom status bar
-  holds depth/direction/layout/renderer plus graph counts and transient messages.
+  holds loading progress/ETA, depth/direction/layout/renderer, graph counts and
+  transient messages. Loading is never modal: the graph stays interactive while
+  the status bar updates.
 - Graph: D3/SVG or the orchgraph character canvas, with search, fit, and
   separate **Copy SVG** / **Export SVG** actions. Trackpad/mouse wheel pans;
   Ctrl/Meta + wheel (or pinch) zooms.
@@ -78,8 +80,13 @@ directly. Build output contains only the selected runtime:
   canvas; opening an edge panel only resizes the graph, and an untouched graph
   re-fits itself. D3 supports ELK **layered**, **stress**, **mrtree**,
   **force**, and **radial** layouts; depth is any positive integer, and an empty
-  depth field expands the full reachable graph (up to the 2000-node safety
-  budget, which shows the `truncated` badge).
+  depth field (the default) expands the full reachable graph (up to the
+  2000-node safety budget, which shows the `truncated` badge).
+- Selection: selecting a node gives it a soft spotlight glow, keeps connected
+  nodes and edges at full opacity, and fades unrelated items to 33%. A
+  background click (or tap) clears the selection, while a drag beyond 4 px is
+  treated as panning, not a click. The **focus** checkbox hides unrelated
+  nodes and re-runs layout for a compact component view.
 - Root picker: the **Symbol entry** field in the command bar is a `CodeInput`
   with completion candidates from cbm's repository map (entry points, source
   modules, exported classes). The input stays editable, so arbitrary QNs and
@@ -101,13 +108,21 @@ directly. Build output contains only the selected runtime:
   the graph viewer is usable in Restricted Mode. cbm requests are made by the
   Node extension host, not the webview.
 - Styling: a `--cg-*` theme palette layered over VS Code `--vscode-*` theme
-  tokens; see [`docs/theme.md`](docs/theme.md). Controls are native
+  tokens; dark fallbacks use an OLED black canvas with high-contrast text and
+  bright selection accents. Graph nodes/edges expose stable `code-graph-*`
+  classes and opacity/geometry variables; see [`docs/theme.md`](docs/theme.md).
+  Controls are native
   `<button>`, `<input>`, and `<select>` elements using the same
   `--vscode-*` tokens. `@vscode-elements/elements` is no longer a dependency;
   the archived `@vscode/webview-ui-toolkit` is not used.
 - DPI: `--code-graph-scale` (or `?scale=`) scales the whole shell for
   third-party embeds. `?theme=light|dark` sets the manual theme without
   touching the page CSS.
+- State: low-frequency UI state lives in one JSON-safe object
+  (`codeGraph.setup.*`, `codeGraph.current.*`). In the web/dev shell,
+  `copy(JSON.stringify(codeGraph))` from DevTools snapshots it; zoom/pan gesture
+  state deliberately stays in `GraphView`. See
+  [`src/lib/state/README.md`](src/lib/state/README.md).
 
 ### Experimental CodeInput
 
@@ -555,7 +570,7 @@ example `graph-ui-svelte.src.App`); folder views are still not implemented.
 ```bash
 bun run check           # svelte-check, includes extension host types
 bun run lint            # oxlint (correctness + import cycle checks)
-bun test                # graph, neighborhood, layout, fonts, host adapter
+bun run test            # graph, neighborhood, layout, fonts, host adapter
 bun run test:web        # Playwright: web journey + performance report
 bun run test:web:perf   # same run + Chrome Performance traces
 bun run test:fresh      # @microsoft/tui-test: real Fresh PTY

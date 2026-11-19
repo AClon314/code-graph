@@ -2,7 +2,7 @@
 
 | Layer | Location | Command | Purpose |
 | --- | --- | --- | --- |
-| Unit | `tests/*.test.ts` | `bun test` | Pure graph/URL/config/CLI/host logic |
+| Unit | `tests/*.test.ts` | `bun run test` | Pure graph/URL/config/CLI/host logic |
 | Web e2e | `tests/web` | `bun run test:web` | Browser user journey, offline `computed` source |
 | VS Code e2e | `tests/vscode` | `bun run test:vscode` | code-server + webview + editor jump |
 | Fresh e2e | `tests/fresh` | `bun run test:fresh` | Real PTY via `@microsoft/tui-test` |

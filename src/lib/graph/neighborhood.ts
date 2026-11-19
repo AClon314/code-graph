@@ -1,3 +1,4 @@
+import type { NeighborhoodProgress } from "./loading";
 import type {
   GraphSource,
   GraphViewData,
@@ -18,6 +19,8 @@ export interface NeighborhoodOptions {
   maxNodes?: number;
   /** Already-fetched root bundle; avoids a redundant /api/symbol request. */
   rootBundle?: SymbolBundle;
+  /** Called as the BFS discovers/fetches symbols; must not block loading. */
+  onProgress?: (progress: NeighborhoodProgress) => void;
 }
 
 interface LoadedRecord {
@@ -60,11 +63,14 @@ export async function loadNeighborhood(
   const depth = normalizeDepth(options.depth);
   const direction = options.direction ?? "both";
   const maxNodes = normalizeMaxNodes(options.maxNodes);
+  const report = options.onProgress ?? (() => {});
 
   let rootBundle: SymbolBundle;
   if (options.rootBundle) {
     rootBundle = options.rootBundle;
+    report({ phase: "neighbors", fetched: 1, queued: 0, total: rootTotal(rootBundle, direction) });
   } else {
+    report({ phase: "root", fetched: 0, queued: 0, total: 1 });
     try {
       rootBundle = await source.symbol(project, root);
     } catch (cause) {
@@ -73,9 +79,12 @@ export async function loadNeighborhood(
         { cause },
       );
     }
+    report({ phase: "neighbors", fetched: 1, queued: 0, total: rootTotal(rootBundle, direction) });
   }
 
   const rootRecord = makeRootRecord(root, rootBundle);
+  let fetched = 1;
+  let total = rootTotal(rootBundle, direction);
   const nodes = new Map<string, GraphViewNode>();
   const edges = new Map<string, GraphViewEdge>();
   const records = new Map<string, LoadedRecord>();
@@ -117,8 +126,14 @@ export async function loadNeighborhood(
         bundle = await source.symbol(project, ref);
       } catch {
         // A missing caller/callee must not kill the rest of the graph.
+        fetched += 1;
+        total = Math.max(total, fetched + queue.length);
+        report({ phase: "neighbors", fetched, queued: queue.length, total });
         continue;
       }
+      fetched += 1;
+      total = Math.max(total, fetched + queue.length);
+      report({ phase: "neighbors", fetched, queued: queue.length, total });
 
       const id = bundleId(bundle, ref);
       const existing = byId.get(id);
@@ -156,6 +171,8 @@ export async function loadNeighborhood(
       if (truncated) break;
     }
   }
+
+  report({ phase: "neighbors", fetched: Math.max(fetched, total), queued: 0, total: Math.max(fetched, total) });
 
   return {
     root: rootRecord.id,
@@ -198,6 +215,15 @@ export async function loadNeighborhood(
       type,
     });
   }
+}
+
+function rootTotal(bundle: SymbolBundle, direction: NeighborhoodDirection): number {
+  const refs = new Set<string>();
+  for (const entry of connectionsFor(bundle, direction)) {
+    const ref = connectionRef(entry.connection);
+    if (ref) refs.add(ref);
+  }
+  return 1 + refs.size;
 }
 
 function makeRootRecord(root: string, bundle: SymbolBundle): LoadedRecord {

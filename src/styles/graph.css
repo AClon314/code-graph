@@ -33,7 +33,7 @@
   position: relative;
   flex: none;
   font-family: var(--font-code);
-  font-size: 15px;
+  font-size: var(--cg-terminal-font-size, 15px);
   line-height: 1;
   transform-origin: center center;
 }
@@ -42,7 +42,7 @@
   margin: 0;
   color: var(--text);
   font-family: var(--font-code);
-  font-size: 15px;
+  font-size: var(--cg-terminal-font-size, 15px);
   line-height: 1;
   font-variant-ligatures: none;
   font-feature-settings: "liga" 0, "calt" 0;
@@ -93,8 +93,26 @@
   cursor: grabbing;
 }
 
-.graph-svg.has-search-hits .orchgraph-node:not(.is-search-hit) {
-  opacity: 0.35;
+/* Search and selection are separate visual dims. Selection wins for related
+   nodes so a related node never becomes less visible because it is not a
+   search hit. */
+.graph-svg.has-search-hits .code-graph-node:not(.is-search-hit) {
+  opacity: var(--cg-search-dim-opacity, 0.35);
+}
+
+.graph-svg.has-selection .code-graph-node.is-related,
+.graph-svg.has-selection .code-graph-edge.is-related {
+  opacity: 1;
+}
+
+.graph-svg.has-selection .code-graph-node.is-unrelated,
+.graph-svg.has-selection .code-graph-edge.is-unrelated {
+  opacity: var(--cg-unrelated-opacity, 0.33);
+}
+
+.code-graph-node,
+.code-graph-edge {
+  transition: opacity 120ms ease;
 }
 
 .graph-overlay {
@@ -114,7 +132,7 @@
 .orchgraph-edge {
   fill: none;
   stroke: var(--edge);
-  stroke-width: 1.5;
+  stroke-width: var(--cg-edge-width, 1.5px);
   stroke-linecap: round;
   stroke-linejoin: round;
   pointer-events: none;
@@ -129,37 +147,47 @@
   outline: none;
 }
 
-.orchgraph-node rect {
+/* Stable third-party hooks: `code-graph-node-card` and
+   `code-graph-node-glow`; legacy `orchgraph-*` classes remain aliases. */
+.orchgraph-node .code-graph-node-card {
   fill: var(--node-bg);
   stroke: var(--node-line);
   stroke-width: 1.25;
+  rx: var(--cg-node-radius, 10px);
   transition: stroke 80ms ease, stroke-width 80ms ease;
 }
 
-.orchgraph-node:hover rect {
-  stroke: var(--vscode-focusBorder, var(--accent));
+.orchgraph-node:hover .code-graph-node-card {
+  stroke: var(--cg-selection, var(--accent));
 }
 
-.orchgraph-node:focus-visible rect {
-  stroke: var(--vscode-focusBorder, var(--accent));
-  stroke-width: 2.5;
+.orchgraph-node:focus-visible .code-graph-node-card {
+  stroke: var(--cg-selection, var(--accent));
+  stroke-width: var(--cg-edge-strong-width, 2.5px);
+}
+
+.orchgraph-node .code-graph-node-glow {
+  fill: var(--cg-selection-glow, var(--accent));
+  opacity: var(--cg-selection-glow-opacity, 0.55);
+  filter: blur(var(--cg-selection-glow-blur, 7px));
+  pointer-events: none;
 }
 
 .orchgraph-node-label {
   fill: var(--text);
-  font: 600 15px var(--font-code);
+  font: 600 var(--cg-node-label-size, 15px) var(--font-code);
   pointer-events: none;
 }
 
 .orchgraph-node-detail {
   fill: var(--muted);
-  font: 11px var(--font-code);
+  font: var(--cg-node-detail-size, 11px) var(--font-code);
   pointer-events: none;
 }
 
 .orchgraph-node-kind {
   fill: var(--muted);
-  font: 600 10px var(--font-code);
+  font: 600 var(--cg-node-kind-size, 10px) var(--font-code);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   pointer-events: none;
@@ -167,23 +195,23 @@
 
 .orchgraph-node-state {
   fill: var(--muted);
-  font: 700 13px var(--font-code);
+  font: 700 var(--cg-node-state-size, 13px) var(--font-code);
   pointer-events: none;
 }
 
 .orchgraph-edge-label {
   fill: var(--muted);
-  font: 11px var(--font-code);
+  font: var(--cg-edge-label-size, 11px) var(--font-code);
   text-anchor: middle;
   pointer-events: none;
 }
 
-.orchgraph-node.is-search-hit rect {
+.orchgraph-node.is-search-hit .code-graph-node-card {
   stroke: var(--hit);
   stroke-width: 2;
 }
 
-.orchgraph-node.is-selected rect {
-  stroke: var(--vscode-focusBorder, var(--accent));
-  stroke-width: 2.5;
+.orchgraph-node.is-selected .code-graph-node-card {
+  stroke: var(--cg-selection, var(--accent));
+  stroke-width: var(--cg-edge-strong-width, 2.5px);
 }
