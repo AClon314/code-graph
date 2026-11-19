@@ -1,8 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { autocompletion, type CompletionContext } from "@codemirror/autocomplete";
   import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-  import { html } from "@codemirror/lang-html";
+  import { javascript } from "@codemirror/lang-javascript";
   import { json } from "@codemirror/lang-json";
   import { EditorState } from "@codemirror/state";
   import {
@@ -12,8 +11,6 @@
     lineNumbers,
   } from "@codemirror/view";
 
-  import { NODE_TEMPLATE_SLOT_PATHS } from "../../lib/node-template";
-
   let host = $state<HTMLDivElement | null>(null);
   let editor: EditorView | null = null;
   let filePath = $state("");
@@ -21,7 +18,7 @@
   let status = $state("Loading…");
   let error = $state("");
 
-  const isTemplate = $derived(filePath.endsWith(".html"));
+  const isScript = $derived(/\.m?js$/i.test(filePath));
   const fileName = $derived(filePath.split("/").at(-1) || filePath);
 
   onMount(() => {
@@ -64,21 +61,14 @@
     }
   }
 
-  function slotCompletion(context: CompletionContext) {
-    const match = context.matchBefore(/<slot\s+name\s*=\s*["'][^"']*$/);
-    if (!match) return null;
-    const quote = Math.max(match.text.lastIndexOf('"'), match.text.lastIndexOf("'"));
-    return {
-      from: match.from + quote + 1,
-      options: NODE_TEMPLATE_SLOT_PATHS.map((path) => ({ label: path, type: "property" })),
-      validFor: /^[\w.]*$/,
-    };
-  }
-
   function createEditor(): void {
     if (!host) return;
     editor?.destroy();
-    const language = isTemplate ? html() : filePath.endsWith(".json") ? json() : [];
+    const language = isScript
+      ? javascript({ jsx: false, typescript: false })
+      : filePath.endsWith(".json") || filePath.endsWith(".jsonc")
+        ? json()
+        : [];
     editor = new EditorView({
       state: EditorState.create({
         doc: content,
@@ -87,7 +77,6 @@
           history(),
           highlightActiveLine(),
           keymap.of([...defaultKeymap, ...historyKeymap]),
-          ...(isTemplate ? [autocompletion({ override: [slotCompletion] })] : []),
           EditorView.lineWrapping,
           EditorView.theme({
             "&": {
@@ -127,7 +116,7 @@
 
   function downloadContent(): void {
     const blob = new Blob([editor?.state.doc.toString() ?? content], {
-      type: isTemplate ? "text/html" : "text/plain",
+      type: isScript ? "text/javascript" : "text/plain",
     });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -158,17 +147,6 @@
   {:else}
     <div class="config-workbench">
       <div class="config-editor" bind:this={host} aria-label={`Editor for ${fileName}`}></div>
-      {#if isTemplate}
-        <aside class="config-hints" aria-label="Slot names">
-          <h2>Slot paths</h2>
-          <p class="hint">Use these in <code>&lt;slot name="…"&gt;</code>.</p>
-          <ul>
-            {#each NODE_TEMPLATE_SLOT_PATHS as path}
-              <li><code>{path}</code></li>
-            {/each}
-          </ul>
-        </aside>
-      {/if}
     </div>
   {/if}
 

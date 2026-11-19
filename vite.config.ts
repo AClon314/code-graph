@@ -35,10 +35,22 @@ function configFilesPlugin(): Plugin {
     }
     try {
       const text = await readFile(absolute, "utf8");
-      res.setHeader("content-type", "text/plain; charset=utf-8");
+      // The browser host imports renderNode.config.mjs through this endpoint.
+      res.setHeader(
+        "content-type",
+        /\.m?js$/i.test(absolute)
+          ? "text/javascript; charset=utf-8"
+          : "text/plain; charset=utf-8",
+      );
       res.setHeader("cache-control", "no-store");
       res.end(text);
     } catch {
+      if (new URL(req.url, "http://code-graph.local").searchParams.has("optional")) {
+        res.statusCode = 200;
+        res.setHeader("cache-control", "no-store");
+        res.end("");
+        return;
+      }
       res.statusCode = 404;
       res.end("file not found");
     }

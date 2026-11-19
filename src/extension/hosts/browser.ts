@@ -6,11 +6,8 @@ import {
 } from "../api";
 import { requestCbm } from "../../lib/cbm-request";
 import { JumpClient } from "../../lib/jump/client";
-import {
-  DEFAULT_NODE_TEMPLATE,
-  NODE_TEMPLATE_FILE,
-} from "../../lib/node-template";
-import { TEAM_CONFIG_FILE } from "../../lib/config";
+import { NODE_RENDERER_FILE } from "../../lib/node-renderer";
+import { TEAM_CONFIG_FILE, loadProjectConfig } from "../../lib/config";
 
 /**
  * Standalone `vite dev` host. It keeps the previous behaviour: jump through
@@ -32,24 +29,24 @@ export function createExtensionApi(): ExtensionApi {
           ? env.VITE_SCIP_PROJECT ??
             (baseProject.endsWith("-scip") ? baseProject : `${baseProject}-scip`)
           : baseProject;
-      const nodeTemplatePath =
-        env.VITE_NODE_TEMPLATE ?? NODE_TEMPLATE_FILE;
-      let nodeTemplate = DEFAULT_NODE_TEMPLATE;
-      try {
-        let response = await fetch(
-          `/api/config-file?path=${encodeURIComponent(nodeTemplatePath)}`,
-          { cache: "no-store" },
-        );
-        if (!response.ok) {
-          response = await fetch(`/${nodeTemplatePath}`, { cache: "no-store" });
+      let configuredRenderer = env.VITE_NODE_RENDERER;
+      if (!configuredRenderer) {
+        try {
+          const loaded = await loadProjectConfig("/", async (path) => {
+            const response = await fetch(
+              `/api/config-file?path=${encodeURIComponent(path.replace(/^\/+/, ""))}&optional=1`,
+              { cache: "no-store" },
+            );
+            return response.ok ? response.text() : null;
+          });
+          configuredRenderer = loaded.config.node?.renderer?.trim();
+        } catch {
+          // Static hosting may not expose the config endpoint.
         }
-        if (response.ok) {
-          const text = await response.text();
-          if (!/^\s*<!doctype html/i.test(text)) nodeTemplate = text;
-        }
-      } catch {
-        // Standalone web may be served without the workspace template.
       }
+      const nodeRendererPath = configuredRenderer || NODE_RENDERER_FILE;
+      const nodeRendererUrl =
+        `/api/config-file?path=${encodeURIComponent(nodeRendererPath)}`;
       return {
         backend,
         source,
@@ -64,8 +61,8 @@ export function createExtensionApi(): ExtensionApi {
             ? __CODE_GRAPH_WORKSPACE_ROOT__
             : ""),
         configPath: env.VITE_CONFIG_PATH ?? TEAM_CONFIG_FILE,
-        nodeTemplatePath,
-        nodeTemplate,
+        nodeRendererPath,
+        nodeRendererUrl,
       } satisfies ExtensionConfig;
     },
     async fetchCbm(request) {

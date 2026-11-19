@@ -5,14 +5,14 @@
  * Files:
  *   code-graph.config.jsonc       team defaults, normally committed
  *   .code-graph.config.jsonc      personal overrides, normally ignored
- *   slot-node.html                optional node template (path configurable)
+ *   renderNode.config.mjs         optional node renderer (path configurable)
  *
  * JSONC files are optional and merged at runtime by `priority` (larger wins);
  * the result is never written back. When neither exists, hosts create the team
- * file plus the default node template. Missing templates are also backfilled.
+ * file plus the default node renderer. Missing renderers are also backfilled.
  */
 
-import { DEFAULT_NODE_TEMPLATE, NODE_TEMPLATE_FILE } from "./node-template";
+import { DEFAULT_NODE_RENDERER, NODE_RENDERER_FILE } from "./node-renderer";
 
 export type ConfigBackend = "cbm" | "scip";
 
@@ -22,16 +22,14 @@ export interface BackendConfig {
 }
 
 export interface NodeConfig {
-  /** Workspace-relative path to the slot-node.html template. */
-  template?: string;
-  /** Fresh/TUI text template; defaults to slot-node.ts. */
-  freshTemplate?: string;
+  /** Workspace-relative path to renderNode.config.mjs. */
+  renderer?: string;
 }
 
 export interface ProjectConfig {
   /** Higher wins. Defaults: team 100, personal 200. */
   priority?: number;
-  /** Optional node presentation template. */
+  /** Optional node renderer module. */
   node?: NodeConfig;
   backend?: ConfigBackend;
   /** Fallback project for both backends. */
@@ -60,8 +58,8 @@ export const PERSONAL_DEFAULT_PRIORITY = 200;
 export const TEAM_CONFIG_TEMPLATE = `{
   "priority": ${TEAM_DEFAULT_PRIORITY},
   "backend": "cbm",
-  // Optional: customize node presentation with slot-node.html / slot-node.ts.
-  "node": { "template": "slot-node.html", "freshTemplate": "slot-node.ts" },
+  // Optional: customize node rendering with a shared renderer module.
+  "node": { "renderer": "renderNode.config.mjs" },
   "backends": {
     // "cbm": { "project": "my-cbm-project" },
     // "scip": { "project": "my-scip-project" }
@@ -88,37 +86,11 @@ export function projectConfigPaths(root: string): { team: string; personal: stri
   };
 }
 
-/** Absolute path of the configured node template (default slot-node.html). */
-export function nodeTemplatePath(root: string, config: ProjectConfig): string {
+/** Absolute path of the configured node renderer (default renderNode.config.mjs). */
+export function nodeRendererPath(root: string, config: ProjectConfig): string {
   const base = root.replace(/[/\\]+$/, "");
-  const relative = config.node?.template?.trim() || NODE_TEMPLATE_FILE;
+  const relative = config.node?.renderer?.trim() || NODE_RENDERER_FILE;
   return relative.startsWith("/") ? relative : `${base}/${relative.replace(/^[/\\]+/, "")}`;
-}
-
-/** Absolute path of the Fresh/TUI text template (default slot-node.ts). */
-export function freshNodeTemplatePath(root: string, config: ProjectConfig): string {
-  const base = root.replace(/[/\\]+$/, "");
-  const relative =
-    config.node?.freshTemplate?.trim() ||
-    config.node?.template?.trim()?.replace(/\.html?$/i, ".ts") ||
-    "slot-node.ts";
-  return relative.startsWith("/") ? relative : `${base}/${relative.replace(/^[/\\]+/, "")}`;
-}
-
-/** Read the node template, replacing a missing/broken file with the default. */
-export async function loadNodeTemplate(
-  root: string,
-  config: ProjectConfig,
-  readFile: (path: string) => string | null | Promise<string | null>,
-): Promise<{ path: string; text: string }> {
-  const path = nodeTemplatePath(root, config);
-  try {
-    const text = await readFile(path);
-    if (text && text.trim()) return { path, text };
-  } catch {
-    // A missing template is a normal fallback, not a config failure.
-  }
-  return { path, text: DEFAULT_NODE_TEMPLATE };
 }
 
 /** Load and merge both files. Missing files are reported in `sources`. */
@@ -175,7 +147,7 @@ export async function loadProjectConfig(
   return { config: merged, sources };
 }
 
-/** Read/merge both files, creating only the team template when neither exists. */
+/** Read/merge both files, creating only the team config when neither exists. */
 export async function loadOrCreateProjectConfig(
   root: string,
   io: {
@@ -188,7 +160,7 @@ export async function loadOrCreateProjectConfig(
 ): Promise<LoadedProjectConfig> {
   const loaded = await loadProjectConfig(root, io.readFile);
   if (loaded.sources.some((source) => source.found)) {
-    await ensureNodeTemplate(root, loaded.config, io);
+    await ensureNodeRenderer(root, loaded.config, io);
     return loaded;
   }
 
@@ -199,11 +171,11 @@ export async function loadOrCreateProjectConfig(
     // failing the whole graph panel.
     return loaded;
   }
-  await ensureNodeTemplate(root, loaded.config, io);
+  await ensureNodeRenderer(root, loaded.config, io);
   return loadProjectConfig(root, io.readFile);
 }
 
-async function ensureNodeTemplate(
+async function ensureNodeRenderer(
   root: string,
   config: ProjectConfig,
   io: {
@@ -212,11 +184,11 @@ async function ensureNodeTemplate(
   },
 ): Promise<void> {
   try {
-    const path = nodeTemplatePath(root, config);
+    const path = nodeRendererPath(root, config);
     const existing = await io.readFile(path);
-    if (!existing || !existing.trim()) await io.writeFile(path, DEFAULT_NODE_TEMPLATE);
+    if (!existing || !existing.trim()) await io.writeFile(path, DEFAULT_NODE_RENDERER);
   } catch {
-    // The built-in default is still used in memory when the file is read-only.
+    // Read-only workspaces keep the built-in SVG text fallback.
   }
 }
 

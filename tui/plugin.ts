@@ -17,9 +17,8 @@ import { extensionApi } from "../src/extension/host.ts";
 import { frameCachePath, panelName as sharedPanelName } from "../src/lib/graph/cache";
 import {
   backendConfig,
-  freshNodeTemplatePath,
   loadOrCreateProjectConfig,
-  nodeTemplatePath,
+  nodeRendererPath,
   projectConfigPaths,
   type ProjectConfig,
 } from "../src/lib/config";
@@ -51,7 +50,7 @@ import {
   type EntryFlowHost,
 } from "./entry-flow.ts";
 import { byteToChar, hexToRgb, utf8Len } from "./text.ts";
-import { DEFAULT_FRESH_NODE_TEMPLATE } from "../src/lib/node-template.ts";
+import { DEFAULT_NODE_RENDERER } from "../src/lib/node-renderer.ts";
 
 const editor = getEditor();
 
@@ -150,7 +149,7 @@ function runToolbarAction(panel: PanelState, action: ToolbarAction): void {
     })();
     return;
   }
-  if (action === "config" || action === "template") {
+  if (action === "config" || action === "renderer") {
     openConfigFile(panel, action);
     return;
   }
@@ -322,19 +321,18 @@ function setPanelContent(
   editor.setVirtualBufferContent(panel.bufferId!, entries);
 }
 
-function openConfigFile(panel: PanelState, kind: "config" | "template"): void {
-  let path =
+function openConfigFile(panel: PanelState, kind: "config" | "renderer"): void {
+  const path =
     kind === "config"
       ? projectConfigPaths(panel.root).team
-      : freshNodeTemplatePath(panel.root, panel.config);
-  if (kind === "template") {
+      : nodeRendererPath(panel.root, panel.config);
+  if (kind === "renderer") {
     try {
       if (editor.readFile(path) === null) {
-        editor.writeFile(path, DEFAULT_FRESH_NODE_TEMPLATE);
+        editor.writeFile(path, DEFAULT_NODE_RENDERER);
       }
     } catch {
-      // Read-only or unsupported write: fall back to the HTML template.
-      path = nodeTemplatePath(panel.root, panel.config);
+      // Read-only workspaces keep the path; openFile reports the real error.
     }
   }
   try {
@@ -684,8 +682,8 @@ async function reloadFrame(panel: PanelState): Promise<void> {
     String(MAX_NODES),
     "--out",
     panel.framePath,
-    "--node-template",
-    freshNodeTemplatePath(panel.root, panel.config),
+    "--node-renderer",
+    nodeRendererPath(panel.root, panel.config),
   ];
 
   let result: { exit_code?: number; stderr?: string } | null = null;

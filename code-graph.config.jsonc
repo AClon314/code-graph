@@ -1,11 +1,8 @@
 {
   "priority": 100,
   "backend": "cbm",
-  // Optional: customize node presentation with slot-node.html.
-  "node": {
-    "template": "slot-node.html",
-    "freshTemplate": "slot-node.ts"
-  },
+  // Optional: customize node rendering.
+  "node": { "renderer": "renderNode.config.mjs" },
   "backends": {
     "cbm": {
       "project": "graph-ui-svelte",

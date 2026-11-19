@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { applyNodeTemplate } from "../tui/frame";
+import { applyNodeRenderer } from "../tui/frame";
 import { toGraphDocument } from "../src/lib/graph/orchgraph";
 import type { GraphViewData } from "../src/lib/graph/types";
 
@@ -14,18 +14,18 @@ const view: GraphViewData = {
   truncated: false,
 };
 
-describe("Fresh node template", () => {
-  test("turns a text template into label/detail lines before layout", () => {
+describe("Fresh node renderer", () => {
+  test("turns text into label/detail lines before layout", () => {
     const doc = toGraphDocument(view);
-    applyNodeTemplate(doc, view, ({ node, graph }) => `${node.name}\n${graph.project}\n${node.shortName}`);
+    applyNodeRenderer(doc, view, ({ node, graph }) => `${node.name}\n${graph.project}\n${node.shortName}`);
     const main = doc.nodes.find((node) => node.id === "demo.src.main")!;
     expect(main.label).toBe("main");
     expect(main.detail).toBe("demo\nsrc.main");
   });
 
-  test("keeps the original label when a template returns a blank string", () => {
+  test("keeps the original label when a renderer returns a blank string", () => {
     const doc = toGraphDocument(view);
-    applyNodeTemplate(doc, view, () => "\n");
+    applyNodeRenderer(doc, view, () => "\n");
     expect(doc.nodes[0]!.label).toBe("main");
   });
 });

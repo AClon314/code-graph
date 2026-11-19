@@ -8,8 +8,7 @@ codeGraph.setup.source;       // computed | cbm
 codeGraph.setup.project;
 codeGraph.setup.entry;
 codeGraph.setup.configPath;
-codeGraph.setup.nodeTemplatePath;
-codeGraph.setup.nodeTemplate;
+codeGraph.setup.nodeRendererPath;
 codeGraph.current.graph;      // GraphViewData | null
 codeGraph.current.selection;  // { id, node }
 codeGraph.current.view;       // depth, direction, layout, renderer, focusOnly
@@ -27,10 +26,9 @@ codeGraph.current.load;       // progress + symbol/graph/layout flags
 - `src/lib/state/progress.ts` owns the 250 ms ETA timer and writes only
   `current.load.progress`; the state object itself has no timers.
 - `src/lib/state/url-sync.ts` translates between query params and the state
-  object. URL state remains the shareable subset; `focusOnly` and node template
-  content are local UI state.
-- `src/lib/node-template.ts` defines the JSON-safe node context and slot parser;
-  the template path/content live in `setup` so they can be snapshotted too.
+  object. URL state remains the shareable subset; `focusOnly` is local UI state.
+- `src/lib/node-renderer.ts` defines the JSON-safe node context; the renderer
+  path lives in `setup` so it can be snapshotted.
 
 ## Debugging
 

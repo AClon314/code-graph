@@ -115,8 +115,8 @@ directly. Build output contains only the selected runtime:
   classes and opacity/geometry variables; see [`docs/theme.md`](docs/theme.md).
   Controls are native
   `<button>`, `<input>`, and `<select>` elements using the same
-  `--vscode-*` tokens. Node templates use the same `--cg-*` variables plus
-  `.node-template-*` classes. `@vscode-elements/elements` is no longer a dependency;
+  `--vscode-*` tokens. Node renderer HTML can use the same `--cg-*` variables
+  and the built-in `.node-card-*` classes. `@vscode-elements/elements` is no longer a dependency;
   the archived `@vscode/webview-ui-toolkit` is not used.
 - DPI: `--code-graph-scale` (or `?scale=`) scales the whole shell for
   third-party embeds. `?theme=light|dark` sets the manual theme without
@@ -170,30 +170,26 @@ failing the whole webview.
 ### Project config
 
 Team and personal workspace config live next to each other, with an optional
-node presentation template:
+node renderer:
 
 ```text
 code-graph.config.jsonc        # team defaults, typically committed
 .code-graph.config.jsonc       # personal overrides, typically ignored
-slot-node.html                 # optional web card template
-slot-node.ts                   # optional Fresh/TUI text template
+renderNode.config.mjs          # optional shared HTML + TUI renderer
 ```
 
 Both JSONC files are merged at runtime by `priority` (larger wins). Equal
 priorities keep canonical order: team first, personal last, so personal wins a
 tie. The files are never written back; when neither exists, the team config and
-`slot-node.html` are created. If a config exists but the template is missing,
-the template is created on the next load.
+`renderNode.config.mjs` are created. If a config exists but the renderer is
+missing, the renderer is created on the next load.
 
 ```jsonc
 // code-graph.config.jsonc
 {
   "priority": 100,
   "backend": "cbm",
-  "node": {
-    "template": "slot-node.html",
-    "freshTemplate": "slot-node.ts"
-  },
+  "node": { "renderer": "renderNode.config.mjs" },
   "backends": {
     "cbm": { "project": "gpen-js" },
     "scip": { "project": "gpen-js-scip" }
@@ -214,34 +210,34 @@ or cbm entry-point flag; `/api/symbol` calls it `qn` because cbm identifies any
 node by qualified name. GUI, CLI and TUI also expose a finite project-root
 picker; free-form QNs remain valid.
 
-Fresh/TUI optionally loads `slot-node.ts`, whose default export returns a
-string: first line = label, remaining lines = detail. The function receives the
-same JSON-safe node/graph context as the HTML slot renderer. See
-[`docs/node-template.md`](docs/node-template.md).
+The shared module exports two named functions, one for each output model:
 
-### Node templates
-
-The D3 renderer reads `slot-node.html` (or `node.template` from JSONC) and
-renders the fragment inside each card. Slots are dot paths into the node
-context, so nested values work without extra glue:
-
-```html
-<slot name="node.name">name</slot>
-<slot name="node.shortName">…</slot>
-<slot name="graph.project">project</slot>
+```js
+export function renderNodeHtml(context) { /* HTML for web + VS Code */ }
+export function renderNodeText(context) { /* plain text for Fresh */ }
 ```
 
-`node.shortName` strips the repeated project prefix; long QNs keep their
-meaningful tail (for example `…src.utils.date`). The file header documents all
-available paths; the standalone `/input?path=slot-node.html` route also lists
-them and completes `<slot name="…` values in CodeMirror. HTML has no imports,
-so VSCode/Fresh rely on the header comment instead of TypeScript types. See
-[`docs/node-template.md`](docs/node-template.md).
+The first line returned by `renderNodeText` becomes the TUI node label; the
+remaining lines become detail. Both functions receive the same JSON-safe
+node/graph context, and the file carries its own JSDoc typedefs. See
+[`docs/node-renderer.md`](docs/node-renderer.md).
 
-Config and template links live under **Setup**. In VSCode/Fresh they open the
+### Node renderer
+
+The D3 renderer imports `renderNode.config.mjs` (or `node.renderer` from JSONC)
+and calls `renderNodeHtml` for each card. The returned HTML is placed inside an
+SVG `foreignObject`; the card border, selection glow and pointer handling stay
+in the graph shell.
+
+`node.shortName` strips the repeated project prefix; long QNs keep their
+meaningful tail (for example `…src.utils.date`). `.mjs` is intentional: it is
+ESM regardless of the workspace package type and does not need a TypeScript
+compiler in the browser or VS Code webview.
+
+Config and renderer links live under **Setup**. In VSCode/Fresh they open the
 file in the editor. In the standalone web shell they open
 `/input?path=<relative_path>` in a new tab: a full-screen CodeMirror 6 editor
-with HTML/JSON highlighting, copy/download, and slot-path reference.
+with JavaScript/JSON highlighting and copy/download.
 
 ### Root symbols and roots.json
 
@@ -369,8 +365,8 @@ available as `bun run cli entries` and in shell completion.
 
 `graph` indexes first, then renders; `render` expects an existing project.
 Both accept `--depth`, `--direction`, `--max-nodes`, `--cbm`,
-`--layout-direction`, `--spacing`, `--max-node-width`, and `--node-template`
-(Fresh text template; defaults to `./slot-node.ts`). On a TTY the default
+`--layout-direction`, `--spacing`, `--max-node-width`, and `--node-renderer`
+(shared module; defaults to `./renderNode.config.mjs`). On a TTY the default
 is both formats, written to `code-graph.<project>.svg` and
 `code-graph.<project>.txt`. When stdout is piped, the command streams one
 format to stdout instead (default `orchgraph`) and writes no files; pass
@@ -611,7 +607,7 @@ example `graph-ui-svelte.src.App`); folder views are still not implemented.
 ```bash
 bun run check           # svelte-check, includes extension host types
 bun run lint            # oxlint (correctness + import cycle checks)
-bun run test            # graph, neighborhood, layout, node-template, host adapter
+bun run test            # graph, neighborhood, layout, node-renderer, host adapter
 bun run test:web        # Playwright: web journey + performance report
 bun run test:web:perf   # same run + Chrome Performance traces
 bun run test:fresh      # @microsoft/tui-test: real Fresh PTY

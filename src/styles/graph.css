@@ -216,7 +216,7 @@
   stroke-width: var(--cg-edge-strong-width, 2.5px);
 }
 
-/* ---- slot-node.html (foreignObject) ---------------------------------- */
+/* ---- renderNode.config.mjs (foreignObject) -------------------------- */
 
 .code-graph-node-html {
   box-sizing: border-box;
@@ -229,7 +229,7 @@
   pointer-events: none;
 }
 
-.code-graph-node-html .node-template {
+.code-graph-node-html .node-card {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -238,7 +238,7 @@
   gap: 0.1lh;
 }
 
-.code-graph-node-html .node-template-kind {
+.code-graph-node-html .node-card-kind {
   position: absolute;
   top: 0;
   right: 0;
@@ -249,7 +249,7 @@
   text-transform: uppercase;
 }
 
-.code-graph-node-html .node-template-name {
+.code-graph-node-html .node-card-name {
   overflow: hidden;
   color: var(--text);
   font-size: var(--cg-node-label-size, 15px);
@@ -259,7 +259,7 @@
   white-space: nowrap;
 }
 
-.code-graph-node-html .node-template-path {
+.code-graph-node-html .node-card-path {
   overflow: hidden;
   color: var(--muted);
   font-size: var(--cg-node-detail-size, 9.5px);

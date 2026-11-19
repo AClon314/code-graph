@@ -11,12 +11,12 @@ import {
 } from "../api";
 import {
   backendConfig,
-  loadNodeTemplate,
   loadOrCreateProjectConfig,
+  nodeRendererPath,
   projectConfigPaths,
   type ProjectConfig,
 } from "../../lib/config";
-import { DEFAULT_NODE_TEMPLATE, NODE_TEMPLATE_FILE } from "../../lib/node-template";
+import { NODE_RENDERER_FILE } from "../../lib/node-renderer";
 import { fetchLocalCbm, resolveLocalCbm } from "./cbm-node";
 
 /**
@@ -29,6 +29,12 @@ interface EndpointEntry {
 }
 
 let endpoint: EndpointEntry | null = null;
+let activeWebview: vscode.WebviewPanel | null = null;
+
+/** The panel currently hosting the graph; used to turn workspace files into webview URLs. */
+export function setActiveGraphWebview(panel: vscode.WebviewPanel | null): void {
+  activeWebview = panel;
+}
 
 function localEndpoint(configured: string): Promise<string> {
   if (endpoint?.configured === configured) return endpoint.promise;
@@ -76,8 +82,8 @@ export function createExtensionApi(backend: GraphBackend = "cbm"): ExtensionApi 
           configuration.get<string>("symbolEntry", DEFAULT_CONFIG.symbolEntry),
         workspaceRoot: activeWorkspaceFolder()?.uri.fsPath ?? "",
         configPath: projectConfig.configPath,
-        nodeTemplatePath: projectConfig.nodeTemplatePath,
-        nodeTemplate: projectConfig.nodeTemplate,
+        nodeRendererPath: projectConfig.nodeRendererPath,
+        nodeRendererUrl: projectConfig.nodeRendererUrl,
       };
     },
     async fetchCbm(request: CbmHttpRequest): Promise<CbmHttpResponse> {
@@ -128,8 +134,8 @@ export function createExtensionApi(backend: GraphBackend = "cbm"): ExtensionApi 
 interface HostProjectConfig {
   config: ProjectConfig;
   configPath: string;
-  nodeTemplatePath: string;
-  nodeTemplate: string;
+  nodeRendererPath: string;
+  nodeRendererUrl: string;
 }
 
 async function readProjectConfig(): Promise<HostProjectConfig> {
@@ -138,8 +144,8 @@ async function readProjectConfig(): Promise<HostProjectConfig> {
     return {
       config: {},
       configPath: projectConfigPaths("").team.replace(/^\//, ""),
-      nodeTemplatePath: NODE_TEMPLATE_FILE,
-      nodeTemplate: DEFAULT_NODE_TEMPLATE,
+      nodeRendererPath: NODE_RENDERER_FILE,
+      nodeRendererUrl: "",
     };
   }
   const root = folder.uri.fsPath;
@@ -170,12 +176,15 @@ async function readProjectConfig(): Promise<HostProjectConfig> {
       );
     },
   });
-  const template = await loadNodeTemplate(root, loaded.config, readFile);
+  const renderer = nodeRendererPath(root, loaded.config);
+  const rendererUri = activeWebview
+    ? activeWebview.webview.asWebviewUri(vscode.Uri.file(renderer)).toString()
+    : "";
   return {
     config: loaded.config,
     configPath: relative(projectConfigPaths(root).team),
-    nodeTemplatePath: relative(template.path),
-    nodeTemplate: template.text,
+    nodeRendererPath: relative(renderer),
+    nodeRendererUrl: rendererUri,
   };
 }
 

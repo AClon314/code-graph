@@ -44,6 +44,9 @@ test("opens the computed Code Graph webview", async ({ page }, testInfo) => {
 
   await expect(app.getByRole("heading", { name: "Code Graph" })).toBeVisible();
 
+  await expect(app.locator(".code-graph-node-html .node-card").first()).toBeVisible({
+    timeout: 30_000,
+  });
   const firstNode = app.getByRole("button", { name: /useAlias/ }).first();
   await expect(firstNode).toBeVisible({ timeout: 30_000 });
   await firstNode.click();

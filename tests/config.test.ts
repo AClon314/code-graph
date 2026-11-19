@@ -4,11 +4,9 @@ import {
   PERSONAL_CONFIG_FILE,
   TEAM_CONFIG_FILE,
   backendConfig,
-  freshNodeTemplatePath,
-  loadNodeTemplate,
   loadOrCreateProjectConfig,
   loadProjectConfig,
-  nodeTemplatePath,
+  nodeRendererPath,
   parseJsonc,
   projectConfigPaths,
 } from "../src/lib/config";
@@ -41,19 +39,11 @@ describe("project config JSONC", () => {
     });
   });
 
-  test("resolves the configured node template and falls back to the default", async () => {
-    expect(nodeTemplatePath(root, { node: { template: "ui/nodes.html" } })).toBe(
-      `${root}/ui/nodes.html`,
+  test("resolves the configured node renderer and falls back to the default", () => {
+    expect(nodeRendererPath(root, { node: { renderer: "ui/render.mjs" } })).toBe(
+      `${root}/ui/render.mjs`,
     );
-    expect(freshNodeTemplatePath(root, { node: { template: "ui/nodes.html" } })).toBe(
-      `${root}/ui/nodes.ts`,
-    );
-    expect(freshNodeTemplatePath(root, { node: { freshTemplate: "fresh.ts" } })).toBe(
-      `${root}/fresh.ts`,
-    );
-    const missing = await loadNodeTemplate(root, {}, () => null);
-    expect(missing.path).toBe(`${root}/slot-node.html`);
-    expect(missing.text).toContain("node.shortName");
+    expect(nodeRendererPath(root, {})).toBe(`${root}/renderNode.config.mjs`);
   });
 });
 
@@ -153,7 +143,7 @@ describe("project config merge", () => {
 });
 
 describe("project config creation", () => {
-  test("creates the team config and node template when neither exists", async () => {
+  test("creates the team config and node renderer when neither exists", async () => {
     const written: Record<string, string> = {};
     const io = {
       readFile: (path: string) => written[path] ?? null,
@@ -165,17 +155,17 @@ describe("project config creation", () => {
     const loaded = await loadOrCreateProjectConfig(root, io);
     expect(Object.keys(written)).toEqual([
       `${root}/${TEAM_CONFIG_FILE}`,
-      `${root}/slot-node.html`,
+      `${root}/renderNode.config.mjs`,
     ]);
     expect(loaded.config.priority).toBe(100);
-    expect(written[`${root}/slot-node.html`]).toContain("node.shortName");
+    expect(written[`${root}/renderNode.config.mjs`]).toContain("renderNodeHtml");
     expect(loaded.sources).toEqual([
       { path: `${root}/${TEAM_CONFIG_FILE}`, priority: 100, found: true },
       { path: `${root}/${PERSONAL_CONFIG_FILE}`, priority: 200, found: false },
     ]);
   });
 
-  test("adds a missing node template without rewriting existing config", async () => {
+  test("adds a missing node renderer without rewriting existing config", async () => {
     const written: string[] = [];
     const loaded = await loadOrCreateProjectConfig(root, {
       readFile: (path) =>
@@ -185,7 +175,7 @@ describe("project config creation", () => {
       },
     });
 
-    expect(written).toEqual([`${root}/slot-node.html`]);
+    expect(written).toEqual([`${root}/renderNode.config.mjs`]);
     expect(loaded.config.project).toBe("personal");
   });
 

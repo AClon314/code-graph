@@ -25,9 +25,9 @@ import {
   toGraphDocument,
 } from "../src/lib/graph/orchgraph.ts";
 import {
-  buildNodeTemplateContext,
-  type NodeTemplateContext,
-} from "../src/lib/node-template.ts";
+  buildNodeRenderContext,
+  type NodeTextRenderer,
+} from "../src/lib/node-renderer.ts";
 import type { GraphViewData } from "../src/lib/graph/types.ts";
 
 /** A styled run of text. ANSI is already stripped; `fg` is `#rrggbb`. */
@@ -64,7 +64,7 @@ export interface Frame {
   meta: Record<string, FrameNodeMeta>;
 }
 
-export type FrameNodeTemplate = (context: NodeTemplateContext) => string;
+export type FrameNodeRenderer = NodeTextRenderer;
 
 export interface BuildFrameOptions {
   /** ELK direction; defaults to DOWN. */
@@ -73,8 +73,8 @@ export interface BuildFrameOptions {
   spacing?: number;
   /** Maximum node width in terminal cells. */
   maxNodeWidth?: number;
-  /** Fresh-specific slot-node.ts function; returns plain text, newlines allowed. */
-  nodeTemplate?: FrameNodeTemplate;
+  /** Shared renderNodeText function; returns plain text, newlines allowed. */
+  nodeRenderer?: FrameNodeRenderer;
 }
 
 const ANSI_16 = [
@@ -242,17 +242,17 @@ export function parseAnsiLine(line: string): FrameRun[] {
   return runs;
 }
 
-/** Apply the Fresh text template before ELK measures the node. */
-export function applyNodeTemplate(
+/** Apply the Fresh text renderer before ELK measures the node. */
+export function applyNodeRenderer(
   doc: GraphDocument,
   view: GraphViewData,
-  template: FrameNodeTemplate,
+  renderer: FrameNodeRenderer,
 ): void {
   const project = view.root.split(".")[0] ?? "";
   for (const node of doc.nodes) {
     const source = view.nodes.find((candidate) => candidate.id === node.id);
     if (!source) continue;
-    const text = template(buildNodeTemplateContext(source, view, project)).trimEnd();
+    const text = renderer(buildNodeRenderContext(source, view, project)).trimEnd();
     if (!text.trim()) continue;
     const [label = "", ...detail] = text.split(/\r?\n/);
     node.label = label;
@@ -298,7 +298,7 @@ export async function buildFrame(
 ): Promise<Frame> {
   const doc = toGraphDocument(view);
   if (doc.nodes.length === 0) throw new Error("graph has no nodes");
-  if (options.nodeTemplate) applyNodeTemplate(doc, view, options.nodeTemplate);
+  if (options.nodeRenderer) applyNodeRenderer(doc, view, options.nodeRenderer);
 
   const geometry = await layoutGraph(doc, {
     direction: options.direction ?? doc.direction ?? "DOWN",

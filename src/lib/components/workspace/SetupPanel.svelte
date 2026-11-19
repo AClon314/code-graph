@@ -11,7 +11,7 @@
     runtime: string;
     backend: GraphBackend;
     configPath: string;
-    nodeTemplatePath: string;
+    nodeRendererPath: string;
     onsource: (kind: SourceKind) => void;
     onbackend: (backend: GraphBackend) => void;
     onproject: (value: string) => void;
@@ -28,7 +28,7 @@
     runtime,
     backend,
     configPath,
-    nodeTemplatePath,
+    nodeRendererPath,
     onsource,
     onbackend,
     onproject,
@@ -136,13 +136,13 @@
         <button
           class="link"
           type="button"
-          disabled={!nodeTemplatePath}
-          title={nodeTemplatePath || "Node template unavailable"}
-          onclick={() => onopenconfig(nodeTemplatePath)}
-        >{basename(nodeTemplatePath) || "slot-node.html"}</button>
+          disabled={!nodeRendererPath}
+          title={nodeRendererPath || "Node renderer unavailable"}
+          onclick={() => onopenconfig(nodeRendererPath)}
+        >{basename(nodeRendererPath) || "renderNode.config.mjs"}</button>
       </div>
       <span class="hint">
-        Open in the editor, or edit the slot paths in slot-node.html.
+        Edit renderNodeHtml / renderNodeText in renderNode.config.mjs.
       </span>
     </div>
 

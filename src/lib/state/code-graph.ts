@@ -13,10 +13,7 @@ import type { NeighborhoodDirection } from "../graph/neighborhood";
 import type { Depth, GraphRenderer, LayoutAlgorithm, SourceKind } from "../graph/url-state";
 import type { SettingsFix } from "../settings-fix";
 import type { LoadProgress } from "../graph/loading";
-import {
-  DEFAULT_NODE_TEMPLATE,
-  NODE_TEMPLATE_FILE,
-} from "../node-template";
+import { NODE_RENDERER_FILE } from "../node-renderer";
 
 export interface SetupState {
   source: SourceKind;
@@ -30,9 +27,7 @@ export interface SetupState {
   runtime: Runtime;
   /** Workspace-relative file paths used by the Setup links. */
   configPath: string;
-  nodeTemplatePath: string;
-  /** Inline content read by the host; also JSON-serialisable. */
-  nodeTemplate: string;
+  nodeRendererPath: string;
   roots: RootCandidate[];
   projects: string[];
   loading: {
@@ -116,8 +111,7 @@ export interface GraphUiStateInit {
   cbmBaseUrl?: string;
   workspaceRoot?: string;
   configPath?: string;
-  nodeTemplatePath?: string;
-  nodeTemplate?: string;
+  nodeRendererPath?: string;
 }
 
 export function createGraphUiState(init: GraphUiStateInit = {}): GraphUiState {
@@ -135,8 +129,7 @@ export function createGraphUiState(init: GraphUiStateInit = {}): GraphUiState {
       workspaceRoot: init.workspaceRoot ?? "",
       runtime: init.runtime ?? "browser",
       configPath: init.configPath ?? "code-graph.config.jsonc",
-      nodeTemplatePath: init.nodeTemplatePath ?? NODE_TEMPLATE_FILE,
-      nodeTemplate: init.nodeTemplate ?? DEFAULT_NODE_TEMPLATE,
+      nodeRendererPath: init.nodeRendererPath ?? NODE_RENDERER_FILE,
       roots: [],
       projects: [],
       loading: { roots: false, projects: false },

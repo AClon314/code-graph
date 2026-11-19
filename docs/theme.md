@@ -69,7 +69,7 @@ The SVG renderer emits stable hooks in addition to the legacy
 .code-graph-node / .code-graph-node-card / .code-graph-node-glow
 .code-graph-node-label / -detail / -kind
 .code-graph-edge
-.code-graph-node-html / .node-template / .node-template-name / .node-template-path
+.code-graph-node-html / .node-card / .node-card-name / .node-card-path
 .is-selected / .is-search-hit / .is-related / .is-unrelated
 ```
 

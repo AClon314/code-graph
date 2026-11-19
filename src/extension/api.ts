@@ -28,15 +28,15 @@ export interface ExtensionConfig {
   symbolEntry: string;
   /** Absolute workspace root used to format copied absolute paths. */
   workspaceRoot: string;
-  /** Workspace-relative config/template paths for Setup links. */
+  /** Workspace-relative config/renderer paths for Setup links. */
   configPath: string;
-  nodeTemplatePath: string;
-  /** Inline slot-node.html content; hosts fall back to the default template. */
-  nodeTemplate: string;
+  nodeRendererPath: string;
+  /** URL the webview/browser can import; empty when no renderer is available. */
+  nodeRendererUrl: string;
 }
 
 import type { CbmHttpRequest, CbmHttpResponse } from "../lib/cbm-request";
-import { DEFAULT_NODE_TEMPLATE } from "../lib/node-template";
+import { NODE_RENDERER_FILE } from "../lib/node-renderer";
 export type { CbmHttpRequest, CbmHttpResponse } from "../lib/cbm-request";
 
 export interface ExtensionApi {
@@ -56,6 +56,6 @@ export const DEFAULT_CONFIG: ExtensionConfig = {
   symbolEntry: "demo.src.features.useAlias",
   workspaceRoot: "",
   configPath: "code-graph.config.jsonc",
-  nodeTemplatePath: "slot-node.html",
-  nodeTemplate: DEFAULT_NODE_TEMPLATE,
+  nodeRendererPath: NODE_RENDERER_FILE,
+  nodeRendererUrl: "",
 };

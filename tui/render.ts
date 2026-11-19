@@ -21,7 +21,8 @@ import { pathToFileURL } from "node:url";
 
 import { buildFrame } from "./frame.ts";
 import { resolveCbmBaseUrl } from "../src/lib/cbm-discovery.ts";
-import type { BuildFrameOptions, FrameNodeTemplate } from "./frame.ts";
+import type { BuildFrameOptions, FrameNodeRenderer } from "./frame.ts";
+import { NODE_RENDERER_FILE } from "../src/lib/node-renderer.ts";
 import { CbmHttpSource } from "../src/lib/graph/cbm-http.ts";
 import type { GraphDirection } from "orchgraph";
 import { loadGraphView } from "../src/lib/graph/load.ts";
@@ -42,7 +43,7 @@ interface CliArgs {
   layoutDirection?: GraphDirection;
   spacing?: number;
   maxNodeWidth?: number;
-  nodeTemplate?: string;
+  nodeRenderer?: string;
 }
 
 const USAGE = `usage:
@@ -57,7 +58,7 @@ options:
   --layout-direction <d>  DOWN | UP | LEFT | RIGHT (default DOWN)
   --spacing <n>           ELK spacing (default 3)
   --max-node-width <n>    node width cap in cells (default 32)
-  --node-template <path>  Fresh text template (default ./slot-node.ts)
+  --node-renderer <path>  Shared renderer module (default ./renderNode.config.mjs)
   --help                  show this help`;
 
 function takeValue(argv: string[], index: number, flag: string): string {
@@ -133,8 +134,8 @@ function parseArgs(argv: string[]): CliArgs | null {
       if (!Number.isFinite(value)) throw new Error("--spacing must be a number");
       args.spacing = value;
       i++;
-    } else if (flag === "--node-template") {
-      args.nodeTemplate = resolve(takeValue(argv, i, flag));
+    } else if (flag === "--node-renderer") {
+      args.nodeRenderer = resolve(takeValue(argv, i, flag));
       i++;
     } else if (flag === "--max-node-width") {
       const value = Number(takeValue(argv, i, flag));
@@ -171,17 +172,17 @@ async function loadView(args: CliArgs): Promise<GraphViewData> {
   });
 }
 
-async function loadNodeTemplate(path: string): Promise<FrameNodeTemplate | undefined> {
+async function loadNodeRenderer(path: string): Promise<FrameNodeRenderer | undefined> {
   if (!existsSync(path)) return undefined;
   try {
     const module = (await import(`${pathToFileURL(path).href}?v=${Date.now()}`)) as {
-      default?: unknown;
+      renderNodeText?: unknown;
     };
-    return typeof module.default === "function"
-      ? (module.default as FrameNodeTemplate)
+    return typeof module.renderNodeText === "function"
+      ? (module.renderNodeText as FrameNodeRenderer)
       : undefined;
   } catch (error) {
-    console.error(`render: slot-node.ts ignored: ${error instanceof Error ? error.message : String(error)}`);
+    console.error(`render: ${NODE_RENDERER_FILE} ignored: ${error instanceof Error ? error.message : String(error)}`);
     return undefined;
   }
 }
@@ -203,8 +204,8 @@ async function main(): Promise<void> {
 
   const view = await loadView(args);
   const frameOptions: BuildFrameOptions = {};
-  frameOptions.nodeTemplate = await loadNodeTemplate(
-    args.nodeTemplate ?? resolve(process.cwd(), "slot-node.ts"),
+  frameOptions.nodeRenderer = await loadNodeRenderer(
+    args.nodeRenderer ?? resolve(process.cwd(), NODE_RENDERER_FILE),
   );
   if (args.layoutDirection) frameOptions.direction = args.layoutDirection;
   if (args.spacing !== undefined) frameOptions.spacing = args.spacing;

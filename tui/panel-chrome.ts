@@ -1,5 +1,5 @@
 /** Pure toolbar/help presentation shared by the Fresh graph panel. */
-export type ToolbarAction = "help" | "entry" | "reload" | "config" | "template" | "close";
+export type ToolbarAction = "help" | "entry" | "reload" | "config" | "renderer" | "close";
 
 export const HEADER_ROWS = 2;
 
@@ -8,7 +8,7 @@ const TOOLBAR_KEYS: Record<ToolbarAction, string> = {
   entry: "E",
   reload: "R",
   config: "F",
-  template: "T",
+  renderer: "T",
   close: "C",
 };
 
@@ -17,7 +17,7 @@ const TOOLBAR_ACTIONS: Array<{ label: string; action: ToolbarAction }> = [
   { label: "Entry", action: "entry" },
   { label: "Reload", action: "reload" },
   { label: "Config", action: "config" },
-  { label: "Template", action: "template" },
+  { label: "Render", action: "renderer" },
   { label: "Close", action: "close" },
 ];
 
@@ -32,7 +32,7 @@ export const HELP_LINES = [
   "  Esc           cancel the root picker",
   "  r / [Reload]  reload config and graph",
   "  [Config]      open code-graph.config.jsonc",
-  "  [Template]    open slot-node.html",
+  "  [Render]      open renderNode.config.mjs",
   "  o / Enter     open the selected node",
   "  q / [Close]   close this panel",
   "",

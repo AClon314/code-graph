@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 
 import type { ExtensionApi } from "./api";
 import type { HostRequest, HostResponse } from "./protocol";
+import { setActiveGraphWebview } from "./hosts/vscode";
 
 const FONT_CDN = "https://fontsapi.zeoseven.com";
 
@@ -20,6 +21,7 @@ export function createGraphPanel(
       retainContextWhenHidden: true,
       localResourceRoots: [
         vscode.Uri.joinPath(context.extensionUri, "out", "dist", "webview"),
+        ...(vscode.workspace.workspaceFolders ?? []).map((folder) => folder.uri),
       ],
     },
   );
@@ -59,10 +61,14 @@ export function createGraphPanel(
   </body>
 </html>`;
 
+  setActiveGraphWebview(panel);
   const listener = panel.webview.onDidReceiveMessage((message: unknown) => {
     void handleMessage(panel, api, message);
   });
-  panel.onDidDispose(() => listener.dispose());
+  panel.onDidDispose(() => {
+    listener.dispose();
+    setActiveGraphWebview(null);
+  });
 
   return panel;
 }

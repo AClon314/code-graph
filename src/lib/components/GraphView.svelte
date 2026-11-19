@@ -23,9 +23,9 @@
   import { shortQualifiedName } from "../graph/node-label";
   import { kindClass, pointList } from "../graph/markup";
   import {
-    buildNodeTemplateContext,
-    renderNodeTemplate,
-  } from "../node-template";
+    buildNodeRenderContext,
+    type NodeHtmlRenderer,
+  } from "../node-renderer";
   import type { GraphViewData, GraphViewNode } from "../graph/types";
 
   interface Props {
@@ -35,7 +35,7 @@
     searchHits?: Set<string>;
     focusOnly?: boolean;
     project?: string;
-    nodeTemplate?: string;
+    nodeRender?: NodeHtmlRenderer;
     onselect: (node: GraphViewNode) => void;
     onjump?: (node: GraphViewNode) => void;
     onlayoutstatus?: (loading: boolean) => void;
@@ -50,7 +50,7 @@
     searchHits = new Set<string>(),
     focusOnly = false,
     project = "",
-    nodeTemplate = "",
+    nodeRender,
     onselect,
     onjump,
     onlayoutstatus,
@@ -378,7 +378,7 @@
                   height={positioned.height}
                   rx="10"
                 />
-                {#if nodeTemplate}
+                {#if nodeRender}
                   <foreignObject
                     class="code-graph-node-foreign"
                     x={positioned.x}
@@ -387,10 +387,7 @@
                     height={positioned.height}
                   >
                     <div xmlns="http://www.w3.org/1999/xhtml" class="code-graph-node-html">
-                      {@html renderNodeTemplate(
-                        nodeTemplate,
-                        buildNodeTemplateContext(node, displayData, projectName),
-                      )}
+                      {@html nodeRender(buildNodeRenderContext(node, displayData, projectName))}
                     </div>
                   </foreignObject>
                 {:else}

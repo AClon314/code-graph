@@ -3,6 +3,8 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { DEFAULT_NODE_RENDERER } from "./src/lib/node-renderer";
+
 const port = Number(process.env.CODE_SERVER_TEST_PORT || "8099");
 const e2eWorkspace = fileURLToPath(new URL("./out/e2e-workspace", import.meta.url));
 // Keep the e2e code-server profile disjoint from the manual one under
@@ -14,6 +16,9 @@ const e2eProfile = fileURLToPath(new URL("./out/e2e-code-server", import.meta.ur
 mkdirSync(join(e2eWorkspace, ".vscode"), { recursive: true });
 mkdirSync(join(e2eWorkspace, "src", "lib"), { recursive: true });
 writeFileSync(join(e2eWorkspace, "README.md"), "# fixture\n");
+// Generated workspaces persist between runs; refresh the shared renderer so
+// the smoke test always exercises the current classes.
+writeFileSync(join(e2eWorkspace, "renderNode.config.mjs"), DEFAULT_NODE_RENDERER);
 writeFileSync(
   join(e2eWorkspace, "src", "lib", "user-repo.ts"),
   "export class UserRepo {}\n",

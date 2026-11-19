@@ -57,6 +57,7 @@
   import { fetchProjectsFor, fetchRootsFor } from "./lib/graph/loaders";
   import { progressLabel } from "./lib/graph/loading";
   import { ProgressController } from "./lib/state/progress";
+  import type { NodeHtmlRenderer } from "./lib/node-renderer";
   import { applyGraphUrlToState, graphUrlParams } from "./lib/state/url-sync";
   interface GraphViewHandle {
     fit(): void;
@@ -85,6 +86,7 @@
   let graphRequestId = 0;
   let detailRequestId = 0;
   let graphView = $state<GraphViewHandle>();
+  let nodeRender = $state<NodeHtmlRenderer | null>(null);
   let searchField: HTMLInputElement | undefined;
   const progress = new ProgressController(codeGraph.current.load);
 
@@ -102,6 +104,21 @@
     codeGraph.current.load.layout ? "Laying out graph…" : "",
   );
   const hostFetch = createHostFetch(extensionApi.fetchCbm);
+
+  async function loadNodeRenderer(url: string): Promise<NodeHtmlRenderer | null> {
+    if (!url) return null;
+    try {
+      const module = (await import(/* @vite-ignore */ url)) as {
+        renderNodeHtml?: unknown;
+      };
+      return typeof module.renderNodeHtml === "function"
+        ? (module.renderNodeHtml as NodeHtmlRenderer)
+        : null;
+    } catch (cause) {
+      console.warn(`[code-graph] renderNode.config.mjs: ${message(cause)}`);
+      return null;
+    }
+  }
 
   function currentSource(): GraphSource {
     return codeGraph.setup.source === "computed"
@@ -345,8 +362,9 @@
         codeGraph.setup.cbmBaseUrl = config.cbmBaseUrl;
         codeGraph.setup.workspaceRoot = config.workspaceRoot;
         codeGraph.setup.configPath = config.configPath;
-        codeGraph.setup.nodeTemplatePath = config.nodeTemplatePath;
-        if (config.nodeTemplate) codeGraph.setup.nodeTemplate = config.nodeTemplate;
+        codeGraph.setup.nodeRendererPath = config.nodeRendererPath;
+        nodeRender = await loadNodeRenderer(config.nodeRendererUrl);
+        if (disposed) return;
         if (config.project) codeGraph.setup.project = config.project;
         if (config.symbolEntry) codeGraph.setup.entry = config.symbolEntry;
       } catch (cause) {
@@ -840,7 +858,7 @@
         runtime={codeGraph.setup.runtime}
         backend={codeGraph.setup.backend}
         configPath={codeGraph.setup.configPath}
-        nodeTemplatePath={codeGraph.setup.nodeTemplatePath}
+        nodeRendererPath={codeGraph.setup.nodeRendererPath}
         onsource={setKind}
         onbackend={setBackend}
         onproject={(value) => setProject(value)}
@@ -878,7 +896,7 @@
               layoutAlgorithm={codeGraph.current.view.layout}
               focusOnly={codeGraph.current.view.focusOnly}
               project={codeGraph.setup.project}
-              nodeTemplate={codeGraph.setup.nodeTemplate}
+              nodeRender={nodeRender ?? undefined}
               onselect={(node) => void selectGraphNode(node)}
               onjump={jumpFromNode}
               onlayoutstatus={(value) => (codeGraph.current.load.layout = value)}
