@@ -60,6 +60,7 @@ test("opens the computed Code Graph webview", async ({ page }, testInfo) => {
   await expect(app.getByRole("button", { name: "Computed", exact: true })).toBeVisible();
   await app.getByRole("button", { name: "Close setup" }).click();
 
+  await app.getByRole("button", { name: "Toggle search" }).click();
   await app.getByLabel("Search graph").fill("UserRepo");
   await app.getByLabel("Search graph").press("Enter");
   await expect(details).toBeHidden();

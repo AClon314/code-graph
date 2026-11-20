@@ -50,6 +50,7 @@ import {
   type EntryFlowHost,
 } from "./entry-flow.ts";
 import { byteToChar, hexToRgb, utf8Len } from "./text.ts";
+import { fetchCbmIndexJobs, startCbmIndex } from "../src/lib/cbm-index.ts";
 import { DEFAULT_NODE_RENDERER } from "../src/lib/node-renderer.ts";
 
 const editor = getEditor();
@@ -121,6 +122,7 @@ interface PanelState {
   helpVisible: boolean;
   headerRows: number;
   picker: RootPickerState | null;
+  pendingIndex: { project: string; slot: number; path: string } | null;
   lastClickKey: string;
   lastClickAt: number;
 }
@@ -141,6 +143,10 @@ function runToolbarAction(panel: PanelState, action: ToolbarAction): void {
   }
   if (action === "entry") {
     void setEntry();
+    return;
+  }
+  if (action === "index") {
+    void promptIndex(panel);
     return;
   }
   if (action === "reload") {
@@ -245,6 +251,7 @@ function stateFor(
       existing.helpVisible = false;
       existing.headerRows = 0;
       existing.picker = null;
+      existing.pendingIndex = null;
     }
     existing.root = root;
     existing.framePath = framePath(root, backend);
@@ -267,6 +274,7 @@ function stateFor(
     helpVisible: false,
     headerRows: 0,
     picker: null,
+    pendingIndex: null,
     lastClickKey: "",
     lastClickAt: 0,
   };
@@ -416,6 +424,65 @@ function readFrame(path: string): Frame | null {
 function errorText(error: unknown): string {
   if (error instanceof Error) return error.stack || error.message;
   return String(error);
+}
+
+async function promptIndex(panel: PanelState): Promise<void> {
+  if (panel.backend !== "cbm") {
+    extensionApi.setStatus("Code Graph: index folders from the cbm panel");
+    return;
+  }
+  const root = (await editor.prompt("Code Graph cbm folder", panel.root))?.trim();
+  if (!root) {
+    extensionApi.setStatus("Code Graph: index cancelled");
+    return;
+  }
+  const suggested = root.replace(/[/\\]+$/, "").split(/[/\\]+/).at(-1) ?? "";
+  const project = (await editor.prompt("Code Graph cbm project", suggested))?.trim();
+  if (!project) {
+    extensionApi.setStatus("Code Graph: index cancelled");
+    return;
+  }
+  try {
+    const job = await startCbmIndex(extensionApi.fetchCbm, root, project);
+    panel.pendingIndex = { project, slot: job.slot, path: job.path };
+    extensionApi.setStatus("Code Graph: indexing " + project + "…");
+  } catch (cause) {
+    extensionApi.setStatus("Code Graph: index failed — " + String(cause));
+  }
+}
+
+async function pollPendingIndex(panel: PanelState): Promise<void> {
+  const pending = panel.pendingIndex;
+  if (!pending) return;
+  try {
+    const jobs = await fetchCbmIndexJobs(extensionApi.fetchCbm);
+    const job = jobs.find((candidate) =>
+      pending.slot >= 0 ? candidate.slot === pending.slot : candidate.path === pending.path,
+    );
+    if (!job || job.status === "indexing" || job.status === "unknown") return;
+    panel.pendingIndex = null;
+    if (job.status === "error") {
+      extensionApi.setStatus("Code Graph: index failed — " + (job.error || "unknown error"));
+      return;
+    }
+    panel.config = {
+      ...panel.config,
+      backends: {
+        ...panel.config.backends,
+        cbm: { ...panel.config.backends?.cbm, project: pending.project },
+      },
+    };
+    panel.entry = "";
+    extensionApi.setStatus("Code Graph: indexed " + pending.project);
+    await reloadFrame(panel);
+  } catch (cause) {
+    panel.pendingIndex = null;
+    extensionApi.setStatus("Code Graph: index status failed — " + String(cause));
+  }
+}
+
+async function pollPendingIndexes(): Promise<void> {
+  for (const panel of panels.values()) await pollPendingIndex(panel);
 }
 
 /** Paint an error into the panel so a failed render never blocks the buffer. */
@@ -930,6 +997,7 @@ editor.defineMode(
     ["?", "code_nav_help"],
     ["r", "code_nav_reload"],
     ["e", "code_nav_set_entry"],
+    ["i", "code_nav_index"],
     ["o", "code_nav_open_node"],
     ["Return", "code_nav_pick_accept"],
     ["c", "code_nav_pick_custom"],
@@ -954,6 +1022,10 @@ registerHandler("code_nav_reload", () => {
 registerHandler("code_nav_set_entry", () => {
   void setEntry();
 });
+registerHandler("code_nav_index", () => {
+  const panel = activePanel();
+  if (panel) void promptIndex(panel);
+});
 registerHandler("code_nav_help", () => {
   const panel = activePanel();
   if (panel) toggleHelp(panel);
@@ -974,7 +1046,10 @@ registerHandler("code_nav_pick_cancel", () => {
 registerHandler("code_nav_click", onClick);
 registerHandler("code_nav_closed", onBufferClosed);
 registerHandler("code_nav_active_window", onActiveWindowChanged);
-registerHandler("code_nav_poll", () => jumpBridge.poll());
+registerHandler("code_nav_poll", () => {
+  void pollPendingIndexes();
+  return jumpBridge.poll();
+});
 registerHandler("code_nav_toggle_sync", toggleSync);
 
 editor.registerCommand(
@@ -999,6 +1074,12 @@ editor.registerCommand(
   "Code Graph: Set Entry",
   "Change the root symbol of the active Code Graph panel",
   "code_nav_set_entry",
+  null,
+);
+editor.registerCommand(
+  "Code Graph: Index Folder",
+  "Index a cbm repository folder from the active Code Graph panel",
+  "code_nav_index",
   null,
 );
 editor.registerCommand(

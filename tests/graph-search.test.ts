@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { graphSearchHits } from "../src/lib/graph/search";
+import { graphSearchHits, graphSearchResultNodes, stepSearchIndex } from "../src/lib/graph/search";
 import { svgFilename } from "../src/lib/graph/svg-export";
 import type { GraphViewData } from "../src/lib/graph/types";
 
@@ -36,6 +36,19 @@ describe("graph search", () => {
   test("returns an empty set for blank queries or no graph", () => {
     expect(graphSearchHits(data, "  ").size).toBe(0);
     expect(graphSearchHits(null, "main").size).toBe(0);
+  });
+
+  test("keeps graph order and wraps search navigation", () => {
+    const hits = graphSearchHits(data, "app.");
+    expect(graphSearchResultNodes(data, hits).map((node) => node.id)).toEqual([
+      "app.main",
+      "app.UserRepo",
+    ]);
+    expect(stepSearchIndex(-1, 2, 1)).toBe(0);
+    expect(stepSearchIndex(-1, 2, -1)).toBe(1);
+    expect(stepSearchIndex(1, 2, 1)).toBe(0);
+    expect(stepSearchIndex(0, 2, -1)).toBe(1);
+    expect(stepSearchIndex(0, 0, 1)).toBe(-1);
   });
 });
 

@@ -1,12 +1,14 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import { createGraphUiState } from "./lib/state/code-graph";
 
   import GraphView from "./lib/components/GraphView.svelte";
   import OrchgraphView from "./lib/components/OrchgraphView.svelte";
   import InspectorPanel from "./lib/components/workspace/InspectorPanel.svelte";
   import GraphFooter from "./lib/components/workspace/GraphFooter.svelte";
-  import BottomBar from "./lib/components/workspace/BottomBar.svelte";
+  import OperationBar from "./lib/components/workspace/OperationBar.svelte";
+  import SearchBar from "./lib/components/workspace/SearchBar.svelte";
+  import IndexDialog from "./lib/components/workspace/IndexDialog.svelte";
   import SetupPanel from "./lib/components/workspace/SetupPanel.svelte";
   import { CbmHttpSource } from "./lib/graph/cbm-http";
   import {
@@ -16,12 +18,11 @@
   } from "./lib/cbm-endpoint";
   import { ComputedSource } from "./lib/graph/computed";
   import { createHostFetch } from "./lib/cbm-host-fetch";
-  import { graphSearchHits } from "./lib/graph/search";
   import {
-    downloadSvg,
-    svgFilename,
-    svgMarkup,
-  } from "./lib/graph/svg-export";
+    graphSearchHits,
+    graphSearchResultNodes,
+    stepSearchIndex,
+  } from "./lib/graph/search";
   import {
     bundleFromGraph,
     loadNeighborhood,
@@ -38,14 +39,11 @@
   import {
     LAYOUT_ALGORITHMS,
     SOURCE_DEFAULTS,
-    formatGraphUrl,
-    parseGraphUrl,
     type LayoutAlgorithm,
     type SourceKind,
   } from "./lib/graph/url-state";
   import { resolveShortcut } from "./lib/shortcuts";
   import type { PathCopyKind } from "./lib/path-location";
-  import { writeClipboard } from "./lib/clipboard";
   import { copySymbolPath, jumpToLocation, type JumpRow } from "./lib/actions/symbol";
   import { openConfigPath } from "./lib/actions/config";
   import {
@@ -64,15 +62,10 @@
     type NodeHtmlRenderer,
   } from "./lib/node-renderer";
   import { errorMessage } from "./lib/errors";
-  import { applyGraphUrlToState, graphUrlParams } from "./lib/state/url-sync";
-  interface GraphViewHandle {
-    fit(): void;
-    panScreen?(dx: number, dy: number): void;
-    zoomBy?(factor: number): void;
-    focusNode?(id: string): void;
-    snapshotSvg?(): SVGSVGElement | null;
-    copy?(): Promise<void>;
-  }
+  import { applySettingsFix } from "./lib/actions/fix";
+  import { copyGraphSvg, copyTerminalArt, exportGraphSvg } from "./lib/actions/graph-export";
+  import type { GraphViewHandle } from "./lib/graph/view-handle";
+  import { applyGraphUrlToState, syncGraphUrl } from "./lib/state/url-sync";
   const computedSource = new ComputedSource();
 
   // All low-frequency UI state is one JSON-safe object. Zoom/pan gesture state
@@ -96,6 +89,8 @@
   let detailRequestId = 0;
   let graphView = $state<GraphViewHandle>();
   let nodeRender = $state<NodeHtmlRenderer | null>(null);
+  let searchCursor = $state(-1);
+  let indexOpen = $state(false);
   const progress = new ProgressController(codeGraph.current.load);
 
   const selectedNode = $derived(
@@ -103,6 +98,13 @@
   );
 
   const searchHits = $derived(graphSearchHits(codeGraph.current.graph, codeGraph.current.ui.search));
+  const searchResults = $derived(graphSearchResultNodes(codeGraph.current.graph, searchHits));
+  const searchCurrent = $derived(
+    searchCursor >= 0 && searchCursor < searchResults.length ? searchCursor + 1 : 0,
+  );
+  $effect(() => {
+    if (searchCursor >= searchResults.length) searchCursor = -1;
+  });
   const loadStatus = $derived(
     codeGraph.current.load.progress
       ? progressLabel(codeGraph.current.load.progress)
@@ -124,26 +126,8 @@
   }
 
   async function openFix(fix: SettingsFix | null): Promise<void> {
-    if (!fix) return;
-    if (fix.action === "restart-cbm") {
-      try {
-        await extensionApi.restartCbm();
-        codeGraph.current.status.error = "";
-        codeGraph.current.status.errorFix = null;
-        codeGraph.current.status.graphError = "";
-        codeGraph.current.status.graphFix = null;
-        await reloadGraph();
-      } catch (cause) {
-        const detail = errorMessage(cause);
-        console.error("[code-graph] restart cbm-http failed", cause);
-        codeGraph.current.status.error = `Restart cbm-http failed: ${detail}`;
-      }
-      return;
-    }
-    try {
-      await extensionApi.openSettings(fix.query);
-    } catch (cause) {
-      codeGraph.current.status.error = `Open settings failed: ${errorMessage(cause)}`;
+    if (await applySettingsFix(fix, extensionApi, codeGraph.current.status)) {
+      await reloadGraph();
     }
   }
 
@@ -448,20 +432,7 @@
   }
 
   function syncUrl(): void {
-    if (typeof window === "undefined") return;
-    const file = codeGraph.current.selection.node?.filePath ?? codeGraph.current.detail.symbol?.node.filePath;
-    const line = codeGraph.current.selection.node?.startLine ?? codeGraph.current.detail.symbol?.node.startLine;
-    const params = graphUrlParams(codeGraph, file && line ? { file, line } : null);
-    // Keep embed-only knobs that are not part of the graph state.
-    const currentParams = new URLSearchParams(window.location.search);
-    for (const key of ["scale", "theme"]) {
-      const value = currentParams.get(key);
-      if (value) params.set(key, value);
-    }
-    const nextSearch = `?${params.toString()}`;
-    if (window.location.search !== nextSearch) {
-      window.history.replaceState(null, "", `${window.location.pathname}${nextSearch}${window.location.hash}`);
-    }
+    syncGraphUrl(codeGraph);
   }
 
   function applyPendingLocation(next: GraphViewData): void {
@@ -692,7 +663,7 @@
     const step = 80;
     switch (action) {
       case "search":
-        focusSearch();
+        void openSearch();
         break;
       case "reload":
         void reloadGraph();
@@ -765,19 +736,56 @@
     graphView?.focusNode?.(next.id);
   }
 
-  function firstSearchHit(): GraphViewNode | undefined {
-    if (!codeGraph.current.graph) return undefined;
-    return codeGraph.current.graph.nodes.find((node) => searchHits.has(node.id));
+  async function openSearch(): Promise<void> {
+    codeGraph.current.ui.searchOpen = true;
+    await tick();
+    focusSearch();
+  }
+
+  function closeSearch(): void {
+    codeGraph.current.ui.searchOpen = false;
+    codeGraph.current.ui.search = "";
+    searchCursor = -1;
+  }
+
+  function toggleSearch(): void {
+    if (codeGraph.current.ui.searchOpen) closeSearch();
+    else void openSearch();
+  }
+
+  function onSearchInput(value: string): void {
+    codeGraph.current.ui.search = value;
+    searchCursor = -1;
+  }
+
+  function stepSearch(delta: number): void {
+    if (searchResults.length === 0) return;
+    searchCursor = stepSearchIndex(searchCursor, searchResults.length, delta);
+    const node = searchResults[searchCursor];
+    if (!node) return;
+    void selectGraphNode(node);
+    graphView?.focusNode?.(node.id);
   }
 
   function onSearchKeydown(event: KeyboardEvent): void {
     if (event.key === "Enter") {
       event.preventDefault();
-      const hit = firstSearchHit();
-      if (hit) void selectGraphNode(hit);
+      stepSearch(event.shiftKey ? -1 : 1);
     } else if (event.key === "Escape") {
-      codeGraph.current.ui.search = "";
+      event.preventDefault();
+      closeSearch();
     }
+  }
+
+  async function handleIndexed(project: string): Promise<void> {
+    indexOpen = false;
+    codeGraph.setup.source = "cbm";
+    codeGraph.setup.backend = "cbm";
+    codeGraph.setup.project = project;
+    codeGraph.setup.refProject = project;
+    codeGraph.setup.entry = "";
+    codeGraph.current.ui.setupOpen = false;
+    await load();
   }
 
   function jumpRow(): JumpRow | null {
@@ -803,45 +811,16 @@
     );
   }
 
-  async function copyTerminalArt(): Promise<void> {
-    try {
-      await graphView?.copy?.();
-      codeGraph.current.status.export = "Copied character art";
-    } catch (cause) {
-      codeGraph.current.status.export = `Copy failed: ${errorMessage(cause)}`;
-    }
-  }
-
-  function snapshotSvg(): SVGSVGElement | null {
-    return graphView?.snapshotSvg?.() ?? null;
-  }
-
-  async function copySvg(): Promise<void> {
-    const svg = snapshotSvg();
-    if (!svg) {
-      codeGraph.current.status.export = "Nothing to copy as SVG";
-      return;
-    }
-    try {
-      await writeClipboard(svgMarkup(svg));
-      codeGraph.current.status.export = "Copied SVG";
-    } catch (cause) {
-      codeGraph.current.status.export = `Copy SVG failed: ${errorMessage(cause)}`;
-    }
+  function copySvg(): void {
+    void copyGraphSvg(graphView, codeGraph.current.status);
   }
 
   function exportSvg(): void {
-    const svg = snapshotSvg();
-    if (!svg) {
-      codeGraph.current.status.export = "Nothing to export as SVG";
-      return;
-    }
-    try {
-      const filename = downloadSvg(svg, svgFilename(codeGraph.setup.entry));
-      codeGraph.current.status.export = `Exported ${filename}`;
-    } catch (cause) {
-      codeGraph.current.status.export = `Export failed: ${errorMessage(cause)}`;
-    }
+    exportGraphSvg(graphView, codeGraph.setup.entry, codeGraph.current.status);
+  }
+
+  function copyTerminal(): void {
+    void copyTerminalArt(graphView, codeGraph.current.status);
   }
 </script>
 
@@ -862,7 +841,17 @@
         onproject={(value) => setProject(value)}
         onprojectcommit={(value) => setProject(value, true)}
         onopenconfig={openConfigFile}
+        onopenindex={() => (indexOpen = true)}
         onclose={() => (codeGraph.current.ui.setupOpen = false)}
+      />
+    {/if}
+
+    {#if indexOpen}
+      <IndexDialog
+        fetchCbm={(request) => extensionApi.fetchCbm(request)}
+        initialRoot={codeGraph.setup.workspaceRoot}
+        onclose={() => (indexOpen = false)}
+        onindexed={(project) => void handleIndexed(project)}
       />
     {/if}
 
@@ -911,8 +900,19 @@
         {/if}
       </div>
 
+      {#if codeGraph.current.ui.searchOpen}
+        <SearchBar
+          value={codeGraph.current.ui.search}
+          current={searchCurrent}
+          total={searchResults.length}
+          oninput={onSearchInput}
+          onkeydown={onSearchKeydown}
+          onprevious={() => stepSearch(-1)}
+          onnext={() => stepSearch(1)}
+        />
+      {/if}
+
       <GraphFooter
-        bind:entry={codeGraph.setup.entry}
         error={codeGraph.current.status.error}
         errorFix={codeGraph.current.status.errorFix}
         graphError={codeGraph.current.status.graphError}
@@ -922,7 +922,6 @@
         {layoutStatus}
         graph={codeGraph.current.graph}
         {selectedNode}
-        searchHitCount={searchHits.size}
         exportStatus={codeGraph.current.status.export}
         runtime={codeGraph.setup.runtime}
         sourceLabel={codeGraph.setup.source === "computed" ? "computed" : codeGraph.setup.backend}
@@ -932,14 +931,11 @@
         renderer={codeGraph.current.view.renderer}
         focusOnly={codeGraph.current.view.focusOnly}
         focusAvailable={Boolean(selectedNode)}
-        roots={codeGraph.setup.roots}
-        rootsLoading={codeGraph.setup.loading.roots}
         ondepth={onDepthChange}
         ondirection={changeDirection}
         onlayout={changeLayout}
         onrenderer={changeRenderer}
         onfocusonly={(value) => (codeGraph.current.view.focusOnly = value)}
-        onentrycommit={onEntryCommit}
         onopenfix={(fix) => void openFix(fix)}
         ondismisserror={() => {
           codeGraph.current.status.error = "";
@@ -951,22 +947,24 @@
         }}
       />
 
-      <BottomBar
+      <OperationBar
+        bind:entry={codeGraph.setup.entry}
         project={codeGraph.setup.project}
-        sourceLabel={codeGraph.setup.source === "computed" ? "computed" : codeGraph.setup.backend}
         setupOpen={codeGraph.current.ui.setupOpen}
         inspectorOpen={codeGraph.current.ui.inspectorOpen}
-        search={codeGraph.current.ui.search}
+        searchOpen={codeGraph.current.ui.searchOpen}
         renderer={codeGraph.current.view.renderer}
         graphLoaded={Boolean(codeGraph.current.graph)}
-        onsearch={(value) => (codeGraph.current.ui.search = value)}
-        onsearchkeydown={onSearchKeydown}
+        roots={codeGraph.setup.roots}
+        rootsLoading={codeGraph.setup.loading.roots}
+        ontogglesearch={toggleSearch}
         ontogglesetup={toggleSetup}
         ontoggledetails={toggleInspector}
         onfit={() => graphView?.fit()}
         oncopysvg={() => void copySvg()}
         onexportsvg={exportSvg}
-        oncopyterminal={() => void copyTerminalArt()}
+        oncopyterminal={copyTerminal}
+        onentrycommit={onEntryCommit}
       />
     </section>
 

@@ -103,15 +103,15 @@ h3 {
   zoom: var(--code-graph-zoom, 1);
 }
 
-.bottombar {
+.operationbar {
   z-index: 2;
   display: grid;
   flex: 0 0 auto;
-  grid-template-areas: "brand search actions";
-  grid-template-columns: minmax(14ch, auto) minmax(16ch, 1fr) auto;
+  grid-template-areas: "brand path actions";
+  grid-template-columns: minmax(0, auto) minmax(12ch, 1fr) auto;
   align-items: center;
   gap: 0.8ch;
-  padding: 0.45lh 1ch;
+  padding: 0.35lh 1ch;
   border-top: 1px solid var(--line);
   background: var(--panel);
 }
@@ -124,66 +124,46 @@ h3 {
   min-width: 0;
 }
 
-.brand-mark {
-  color: var(--vscode-focusBorder, var(--accent));
-  font-size: 0.9rem;
-  line-height: 1;
-}
-
-.brand-copy {
-  display: grid;
-  min-width: 0;
-  gap: 0.05lh;
-  line-height: 1.1;
+.brand-pill {
+  flex: none;
+  padding: 0.08lh 0.8ch;
+  border-radius: 999px;
+  background: var(--cg-brand-pill-bg, var(--text));
+  color: var(--cg-brand-pill-fg, var(--bg));
+  font-size: 0.74rem;
+  line-height: 1.45;
+  white-space: nowrap;
 }
 
 .context-chip {
   display: flex;
   max-width: 22ch;
-  align-items: center;
-  gap: 0.45ch;
   min-width: 0;
   overflow: hidden;
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--muted);
-  font-size: 0.7rem;
+  color: var(--text);
+  font-size: 0.72rem;
   text-align: left;
   white-space: nowrap;
+  text-overflow: ellipsis;
   cursor: pointer;
 }
 
 .context-chip:hover,
 .context-chip:focus-visible {
-  color: var(--text);
+  color: var(--vscode-focusBorder, var(--accent));
   outline: none;
-}
-
-.context-chip:focus-visible {
   text-decoration: underline;
-}
-
-.context-kind {
-  flex: none;
-  padding: 0 0.45ch;
-  border-radius: 999px;
-  background: var(--vscode-badge-background, #4d4d4d);
-  color: var(--vscode-badge-foreground, #ffffff);
-  font-size: 0.62rem;
-  line-height: 1.5;
 }
 
 .path-bar {
   display: flex;
-  flex: 0 0 auto;
+  grid-area: path;
   align-items: center;
-  gap: 0.8ch;
+  gap: 0.6ch;
   min-width: 0;
-  min-height: 2.3lh;
-  padding: 0.25lh 1ch;
-  border-top: 1px solid var(--line);
-  background: var(--panel);
 }
 
 .path-bar .root-field {
@@ -201,7 +181,7 @@ h3 {
 
 .searchbox {
   display: block;
-  grid-area: search;
+  flex: 1;
   min-width: 0;
 }
 
@@ -211,6 +191,35 @@ h3 {
   align-items: center;
   justify-content: flex-end;
   gap: 0.35ch;
+}
+
+.search-row {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.45ch;
+  padding: 0.3lh 1ch;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.search-counter {
+  flex: none;
+  min-width: 6ch;
+  color: var(--muted);
+  font-family: var(--font-code);
+  font-size: 0.72rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.search-step {
+  flex: none;
+  min-width: 2.8ch;
+  min-height: 2.1lh;
+  padding-inline: 0;
+  font-size: 1rem;
+  line-height: 1.1;
 }
 
 .search-input {
@@ -554,6 +563,122 @@ h3 {
   outline: none;
 }
 
+/* ---- index dialog ------------------------------------------------------ */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 2ch;
+  background: color-mix(in srgb, #000 45%, transparent);
+}
+
+.index-dialog {
+  position: relative;
+  inset: auto;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  width: min(68ch, 100%);
+  max-height: min(80vh, 64lh);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
+  background: var(--panel);
+  box-shadow: 0 1.2lh 3lh color-mix(in srgb, #000 35%, transparent);
+}
+
+.index-dialog .panel-head {
+  border-top: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.index-body {
+  display: grid;
+  gap: 0.8lh;
+  padding: 0.9lh 1ch;
+}
+
+.index-path-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5ch;
+}
+
+.index-path-row .search-input {
+  flex: 1;
+}
+
+.folder-browser {
+  display: grid;
+  gap: 0.4lh;
+  padding: 0.5lh;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  background: var(--bg);
+}
+
+.folder-browser-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1ch;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.folder-browser-head code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folder-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16ch, 1fr));
+  gap: 0.25lh 0.5ch;
+  max-height: 20lh;
+  overflow: auto;
+}
+
+.folder-button {
+  overflow: hidden;
+  padding: 0.25lh 0.5ch;
+  border: 0;
+  border-radius: 0.3rem;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-code);
+  font-size: 0.72rem;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.folder-button:hover,
+.folder-button:focus-visible {
+  background: var(--vscode-list-hoverBackground, color-mix(in srgb, var(--text) 10%, transparent));
+  outline: none;
+}
+
+.index-status {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.74rem;
+}
+
+.index-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5ch;
+  padding-top: 0.3lh;
+  border-top: 1px solid var(--line);
+}
+
 /* ---- status bar -------------------------------------------------------- */
 
 .statusbar {
@@ -886,12 +1011,12 @@ h3 {
 }
 
 @media (max-aspect-ratio: 1/1) {
-  .bottombar {
+  .operationbar {
     grid-template-areas:
-      "brand actions"
-      "search search";
-    grid-template-columns: minmax(0, 1fr) auto;
-    row-gap: 0.35lh;
+      "brand path"
+      "actions actions";
+    grid-template-columns: auto minmax(10ch, 1fr);
+    row-gap: 0.15lh;
   }
 
   .bar-actions {
@@ -933,12 +1058,24 @@ h3 {
 }
 
 @media (max-width: 620px) {
-  .brand-mark {
+  .operationbar {
+    padding: 0.4lh 0.8ch;
+  }
+
+  .brand-pill {
+    font-size: 0.7rem;
+  }
+
+  .path-label {
     display: none;
   }
 
-  .bottombar {
-    padding: 0.4lh 0.8ch;
+  .search-row {
+    padding-inline: 0.8ch;
+  }
+
+  .bar-actions .tool-button {
+    min-height: 2.2lh;
   }
 
   .view-control > span {

@@ -3,10 +3,8 @@
   import type { LoadProgress } from "../../graph/loading";
   import type { NeighborhoodDirection } from "../../graph/neighborhood";
   import type { Depth, GraphRenderer, LayoutAlgorithm } from "../../graph/url-state";
-  import type { RootCandidate } from "../../graph/roots";
   import type { SettingsFix } from "../../settings-fix";
   import GraphViewControls from "./GraphViewControls.svelte";
-  import RootEntryField from "./RootEntryField.svelte";
 
   interface Props {
     error: string;
@@ -18,7 +16,6 @@
     layoutStatus: string;
     graph: GraphViewData | null;
     selectedNode: GraphViewNode | null;
-    searchHitCount: number;
     exportStatus: string;
     runtime: string;
     sourceLabel: string;
@@ -28,15 +25,11 @@
     renderer: GraphRenderer;
     focusOnly: boolean;
     focusAvailable: boolean;
-    entry?: string;
-    roots: RootCandidate[];
-    rootsLoading: boolean;
     ondepth: (event: Event) => void;
     ondirection: (value: string) => void;
     onlayout: (value: string) => void;
     onrenderer: (value: string) => void;
     onfocusonly: (value: boolean) => void;
-    onentrycommit: (value: string) => void;
     onopenfix: (fix: SettingsFix | null) => void;
     ondismisserror: () => void;
     ondismissgraph: () => void;
@@ -52,7 +45,6 @@
     layoutStatus,
     graph,
     selectedNode,
-    searchHitCount,
     exportStatus,
     runtime,
     sourceLabel,
@@ -62,15 +54,11 @@
     renderer,
     focusOnly,
     focusAvailable,
-    entry = $bindable(""),
-    roots,
-    rootsLoading,
     ondepth,
     ondirection,
     onlayout,
     onrenderer,
     onfocusonly,
-    onentrycommit,
     onopenfix,
     ondismisserror,
     ondismissgraph,
@@ -164,22 +152,7 @@
   />
 
   <div class="status-right">
-    {#if searchHitCount > 0}
-      <span>{searchHitCount} {searchHitCount === 1 ? "hit" : "hits"}</span>
-    {/if}
     {#if exportStatus}<span class="status-message" title={exportStatus}>{exportStatus}</span>{/if}
     <span class="runtime">{runtime} · {sourceLabel}</span>
   </div>
 </footer>
-
-<div class="path-bar">
-  <span class="path-label" aria-hidden="true">path</span>
-  <RootEntryField
-    bind:value={entry}
-    {roots}
-    loading={rootsLoading}
-    label="Path bar"
-    placeholder="All entries — type a symbol path"
-    oncommit={onentrycommit}
-  />
-</div>

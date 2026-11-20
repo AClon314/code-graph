@@ -163,7 +163,7 @@ either the node budget or the depth boundary is hit.
 The graph panel starts with a clickable toolbar:
 
 ```text
-[H] Help  [E] Entry  [R] Reload  [C] Close
+[H] Help  [E] Entry  [I] Index  [R] Reload  [F] Config  [T] Render  [C] Close
 ```
 
 Keys:
@@ -171,6 +171,8 @@ Keys:
 - `?` — toggle the help screen
 - `e` — open the project-root picker; when it is open, accept the root under
   the current cursor
+- `i` — index a cbm folder: prompt for the absolute folder and project name,
+  then poll `/api/index-status` until the frame reloads
 - `↑` / `↓`, `PageUp` / `PageDown`, `Home` / `End` — native cursor movement
   in the picker
 - `Enter` — accept the root under the current cursor
@@ -188,8 +190,8 @@ CLI shell completion. The picker is a normal cursor-enabled virtual buffer:
 PageUp/PageDown and Home/End use Fresh's native cursor movement; accepting
 reads the cursor row, not a separate selection state.
 
-`Code Graph: Show Keys` and `Code Graph: Set Entry` expose the same actions from
-the command palette.
+`Code Graph: Show Keys`, `Code Graph: Set Entry` and `Code Graph: Index Folder`
+expose the same actions from the command palette.
 
 ## Known limitations
 

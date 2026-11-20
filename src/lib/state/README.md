@@ -13,6 +13,7 @@ codeGraph.current.graph;      // GraphViewData | null
 codeGraph.current.selection;  // { id, node }
 codeGraph.current.view;       // depth, direction, layout, renderer, focusOnly
 codeGraph.current.load;       // progress + symbol/graph/layout flags
+codeGraph.current.ui;         // setupOpen, inspectorOpen, searchOpen, search
 ```
 
 ## Contract

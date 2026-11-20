@@ -88,10 +88,16 @@ if (!existsSync(bundle)) {
 
 // Fresh loads .ts plugins. Prefix the bundle with the machine-specific paths so
 // the same checked-in source works on Unix and Windows.
+const cbmBase =
+  process.env.CBM_HTTP?.trim() ||
+  (process.env.CBM_PORT?.trim()
+    ? `http://127.0.0.1:${process.env.CBM_PORT.trim()}`
+    : "");
 const wrapper =
   `globalThis.CODE_NAV_REPO = ${JSON.stringify(repo)};\n` +
   `globalThis.CODE_NAV_BUN = ${JSON.stringify(process.execPath)};\n` +
   `globalThis.CODE_NAV_JUMP_TMP = ${JSON.stringify(join(tmpdir(), "code-nav-jump.json"))};\n` +
+  (cbmBase ? `globalThis.CODE_NAV_CBM_BASE = ${JSON.stringify(cbmBase)};\n` : "") +
   readFileSync(bundle, "utf8");
 mkdirSync(join(repo, "out", "fresh-plugin"), { recursive: true });
 writeFileSync(staged, wrapper);

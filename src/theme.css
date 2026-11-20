@@ -34,6 +34,9 @@
   --cg-muted: var(--vscode-descriptionForeground, light-dark(#6f6f6f, #a8b0b8));
   --cg-accent: var(--vscode-button-background, light-dark(#0e639c, #4d9fff));
   --cg-accent-fg: var(--vscode-button-foreground, #ffffff);
+  /* Inverse of the host palette: dark text on light themes, light pill on dark. */
+  --cg-brand-pill-bg: var(--cg-text);
+  --cg-brand-pill-fg: var(--cg-bg);
   --cg-graph-bg: var(--vscode-editor-background, light-dark(#ffffff, #000000));
   --cg-node-bg: var(--vscode-editorWidget-background, light-dark(#ffffff, #0a0a0a));
   --cg-node-line: var(--vscode-input-border, light-dark(#c8c8c8, #3a3f45));

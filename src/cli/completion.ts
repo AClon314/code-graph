@@ -26,7 +26,7 @@ export function attachCompletion(program: Command): void {
     addManagement(command);
   }
 
-  for (const name of ["graph", "index", "render", "entries", "delete-project", "delete-projects"]) {
+  for (const name of ["graph", "index", "render", "entries", "rm-projects"]) {
     const current = completion.commands.get(name);
     if (!current) continue;
     const project = current.options.get("project");

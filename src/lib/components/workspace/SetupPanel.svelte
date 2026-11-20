@@ -17,6 +17,7 @@
     onproject: (value: string) => void;
     onprojectcommit: (value: string) => void;
     onopenconfig: (path: string) => void;
+    onopenindex: () => void;
     onclose: () => void;
   }
 
@@ -34,6 +35,7 @@
     onproject,
     onprojectcommit,
     onopenconfig,
+    onopenindex,
     onclose,
   }: Props = $props();
 
@@ -122,6 +124,16 @@
         </span>
       {/if}
     </div>
+
+    {#if kind === "cbm"}
+      <div class="field">
+        <span class="field-label">Index</span>
+        <button class="link" type="button" onclick={onopenindex}>Index a folder…</button>
+        <span class="hint">
+          Rebuild a missing cbm project from a repository folder on the server.
+        </span>
+      </div>
+    {/if}
 
     <div class="field">
       <span class="field-label">Node presentation</span>

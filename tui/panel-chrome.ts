@@ -1,11 +1,12 @@
 /** Pure toolbar/help presentation shared by the Fresh graph panel. */
-export type ToolbarAction = "help" | "entry" | "reload" | "config" | "renderer" | "close";
+export type ToolbarAction = "help" | "entry" | "index" | "reload" | "config" | "renderer" | "close";
 
 export const HEADER_ROWS = 2;
 
 const TOOLBAR_KEYS: Record<ToolbarAction, string> = {
   help: "H",
   entry: "E",
+  index: "I",
   reload: "R",
   config: "F",
   renderer: "T",
@@ -15,6 +16,7 @@ const TOOLBAR_KEYS: Record<ToolbarAction, string> = {
 const TOOLBAR_ACTIONS: Array<{ label: string; action: ToolbarAction }> = [
   { label: "Help", action: "help" },
   { label: "Entry", action: "entry" },
+  { label: "Index", action: "index" },
   { label: "Reload", action: "reload" },
   { label: "Config", action: "config" },
   { label: "Render", action: "renderer" },
@@ -26,6 +28,7 @@ export const HELP_LINES = [
   "",
   "  ? / [Help]    toggle this help",
   "  e / [Entry]   pick a project root",
+  "  i / [Index]   index a cbm folder (path + project prompt)",
   "  ↑↓/PgUp/PgDn  native cursor movement in the root picker",
   "  Enter         accept the root under the cursor",
   "  c             custom root (free-form qn)",

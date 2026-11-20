@@ -15,7 +15,7 @@ test("project → path bar → search → jump", async ({ page }, testInfo) => {
   });
 
   await timed(testInfo, "open project setup", 1_500, async () => {
-    await page.getByRole("button", { name: /demo.*computed/ }).click();
+    await page.locator(".context-chip").click();
     const setup = page.getByRole("complementary", { name: "Setup" });
     await expect(setup).toBeVisible();
     await expect(page.getByLabel("Project", { exact: true })).toHaveValue("demo");
@@ -34,8 +34,13 @@ test("project → path bar → search → jump", async ({ page }, testInfo) => {
   });
 
   await timed(testInfo, "search and inspect", 3_000, async () => {
+    await page.getByRole("button", { name: "Toggle search" }).click();
+    const search = page.getByRole("search", { name: "Graph search" });
+    await expect(search.getByText("0/0")).toBeVisible();
     await page.getByLabel("Search graph").fill("UserRepo");
+    await expect(search.getByText("0/1")).toBeVisible();
     await page.getByLabel("Search graph").press("Enter");
+    await expect(search.getByText("1/1")).toBeVisible();
     const details = page.getByRole("complementary", { name: "Symbol details" });
     await expect(details).toBeHidden();
     await page.getByRole("button", { name: "Details" }).click();

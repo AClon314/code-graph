@@ -67,6 +67,8 @@ export interface LoadState {
 export interface UiState {
   setupOpen: boolean;
   inspectorOpen: boolean;
+  /** The extra search row is opt-in; the bottom bar stays two rows by default. */
+  searchOpen: boolean;
   search: string;
 }
 
@@ -148,7 +150,7 @@ export function createGraphUiState(init: GraphUiStateInit = {}): GraphUiState {
         focusOnly: false,
       },
       load: { symbol: false, graph: false, layout: false, progress: null },
-      ui: { setupOpen: false, inspectorOpen: false, search: "" },
+      ui: { setupOpen: false, inspectorOpen: false, searchOpen: false, search: "" },
       status: {
         error: "",
         errorFix: null,

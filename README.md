@@ -67,14 +67,20 @@ directly. Build output contains only the selected runtime:
   **Setup**. Use Open in New Tab to compare two projects or backends side by
   side.
 - File tree: **VS Code Explorer**, not a webview. The old tree panel is removed.
-- Layout: the graph is the full workbench. The bottom command bar carries the
-  project chip, search and global actions for thumb-friendly mobile use;
-  **Setup** and **Details** are edge panels, closed by default and mutually
-  exclusive. The status bar sits under the canvas, then the path bar, then the
-  command bar. Loading is never modal: the graph stays interactive while the
-  status bar updates.
+- Layout: the graph is the full workbench. The bottom dock has two fixed rows:
+  the status bar on top, then the operation bar with the pill-shaped **Code
+  Graph** mark, project name, path bar and action buttons. Search is collapsed
+  by default; the **🔍** toggle adds a third row above the status bar with the
+  query, match counter and previous/next buttons. On portrait screens the
+  operation bar wraps its actions below the brand/path row. **Setup** and
+  **Details** are edge panels, closed by default and mutually exclusive.
+  Loading is never modal: the graph stays interactive while the status bar
+  updates.
 - Graph: D3/SVG or the orchgraph character canvas, with search, fit, and
-  separate **Copy SVG** / **Export SVG** actions. The mouse wheel zooms around
+  separate **Copy SVG** / **Export SVG** actions. Search only highlights on
+  input; **Enter** / **›** advances and **Shift+Enter** / **‹** goes back, with
+  wrap-around and camera centering on the chosen node. The counter shows the
+  current result over the total (0/N until you navigate). The mouse wheel zooms around
   the pointer; drag pans. Edge clicks reveal the missing endpoint without
   changing zoom (both endpoints visible is a no-op).
   Touch pinch/pan uses D3's touch gestures. Graph controls stay out of the
@@ -89,7 +95,7 @@ directly. Build output contains only the selected runtime:
   background click (or tap) clears the selection, while a drag beyond 4 px is
   treated as panning, not a click. The **focus** checkbox hides unrelated
   nodes and re-runs layout for the selected call paths.
-- Path bar: the **Path bar** field below the status bar is a `CodeInput`
+- Path bar: the **Path bar** field in the operation bar is a `CodeInput`
   with completion candidates from cbm's repository map (entry points, source
   modules, exported classes). The input stays editable, so arbitrary QNs and
   `#id` values still work; selecting a root fills the field. Valid input is
@@ -107,6 +113,12 @@ directly. Build output contains only the selected runtime:
 - Progressive disclosure: source/project live under **Setup** instead of the
   main toolbar. The Project field is a `CodeInput` with all indexed names
   fetched from cbm's read-only `list_projects` RPC; free-form names still work.
+  For cbm, **Index a folder…** opens a shared folder dialog in web and VS
+  Code. It browses the server filesystem through `GET /api/browse`, starts
+  `POST /api/index`, polls `/api/index-status`, then reloads the new project.
+  In Fresh, `i` / `[I] Index` prompts for the folder and project name and polls
+  the same route. All hosts share `src/lib/cbm-index.ts`; only `fetchCbm`
+  differs per host.
   Keyboard shortcuts: `/` search, `f` or `.` fit, `r` reload, `←/↑/→/↓` pan,
   `+`/`-` zoom, and `Ctrl+C` copy relative path; `Ctrl+Shift+C` copies the SVG
   when no node is active. With a node active, `w`/`s` jump to the first
@@ -346,20 +358,25 @@ Defaults:
 
 The SCIP path is intentionally an orchestrator over the two external tools; the
 writer remains outside the cbm core. Re-run the command after source changes,
-then press `r` in the graph panel. Existing project names can be listed and pruned through the CLI:
+then press `r` in the graph panel. The GUI's **Setup → Index a folder…** uses
+cbm's own `POST /api/index` route, so it can rebuild a deleted project without
+a shell; `codebase-memory-mcp cli index_repository --repo-path <dir> --name <project>`
+is the direct cbm equivalent.
+
+Existing project names can be listed and pruned through the CLI:
 
 ```bash
 code-graph projects                 # one name per line
 code-graph projects --json          # JSON array
-code-graph delete-project old-index --yes
-code-graph delete-projects old-a old-b --yes
-code-graph delete-projects --all --dry-run
-code-graph delete-projects --all --yes
+code-graph rm-projects old-index --yes
+code-graph rm-projects old-a old-b --yes
+code-graph rm-projects --all --dry-run
+code-graph rm-projects --all --yes
 ```
 
-`delete-project` removes one cbm graph database; `delete-projects` handles
-several names or `--all` for rebuilding stale indexes. Both remove the
-workspace roots-cache entry. With the default local daemon deletion uses the
+`rm-projects` removes one or more cbm graph databases, or every project with
+`--all`, for rebuilding stale indexes. It removes the workspace roots-cache
+entry for each project. With the default local daemon deletion uses the
 MCP path, which also removes the ADR sidecar; an explicit `--cbm` URL uses the
 HTTP endpoint. It requires `--yes`; `--dry-run` prints the target without
 deleting. Deletion is limited to loopback cbm endpoints.

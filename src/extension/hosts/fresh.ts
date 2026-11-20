@@ -24,6 +24,7 @@ type FreshGlobals = {
   CODE_NAV_SOURCE?: ExtensionConfig["source"];
   CODE_NAV_CONFIG?: string;
   CODE_NAV_NODE_RENDERER?: string;
+  CODE_NAV_CBM_BASE?: string;
 };
 
 /**
@@ -40,7 +41,7 @@ export function createExtensionApi(): ExtensionApi {
       return {
         backend: requestedBackend ?? globals.CODE_NAV_BACKEND ?? DEFAULT_CONFIG.backend,
         source: globals.CODE_NAV_SOURCE ?? DEFAULT_CONFIG.source,
-        cbmBaseUrl: DEFAULT_CONFIG.cbmBaseUrl,
+        cbmBaseUrl: cbmBase(),
         project: globals.CODE_NAV_PROJECT ?? DEFAULT_CONFIG.project,
         symbolEntry: globals.CODE_NAV_SYMBOL_ENTRY ?? DEFAULT_CONFIG.symbolEntry,
         workspaceRoot: globals.CODE_NAV_ROOT ?? "",
@@ -50,7 +51,7 @@ export function createExtensionApi(): ExtensionApi {
       };
     },
     async fetchCbm(request) {
-      return requestCbm(DEFAULT_CONFIG.cbmBaseUrl, request);
+      return requestCbm(cbmBase(), request);
     },
     async openSettings(query) {
       getEditor().setStatus("Code Graph: configure " + query + " in your settings");
@@ -70,6 +71,11 @@ export function createExtensionApi(): ExtensionApi {
       getEditor().setStatus(message);
     },
   };
+}
+
+function cbmBase(): string {
+  const globals = globalThis as unknown as FreshGlobals;
+  return globals.CODE_NAV_CBM_BASE || DEFAULT_CONFIG.cbmBaseUrl;
 }
 
 function resolvePath(location: SourceLocation): string {

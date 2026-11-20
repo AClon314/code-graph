@@ -1,77 +1,84 @@
 <script lang="ts">
+  import RootEntryField from "./RootEntryField.svelte";
+  import type { RootCandidate } from "../../graph/roots";
+
   interface Props {
     project: string;
-    sourceLabel: string;
     setupOpen: boolean;
     inspectorOpen: boolean;
-    search: string;
+    searchOpen: boolean;
     renderer: string;
     graphLoaded: boolean;
-    onsearch: (value: string) => void;
-    onsearchkeydown: (event: KeyboardEvent) => void;
+    entry?: string;
+    roots: RootCandidate[];
+    rootsLoading: boolean;
+    ontogglesearch: () => void;
     ontogglesetup: () => void;
     ontoggledetails: () => void;
     onfit: () => void;
     oncopysvg: () => void;
     onexportsvg: () => void;
     oncopyterminal: () => void;
+    onentrycommit: (value: string) => void;
   }
 
   let {
     project,
-    sourceLabel,
     setupOpen,
     inspectorOpen,
-    search,
+    searchOpen,
     renderer,
     graphLoaded,
-    onsearch,
-    onsearchkeydown,
+    entry = $bindable(""),
+    roots,
+    rootsLoading,
+    ontogglesearch,
     ontogglesetup,
     ontoggledetails,
     onfit,
     oncopysvg,
     onexportsvg,
     oncopyterminal,
+    onentrycommit,
   }: Props = $props();
 </script>
 
-<div class="bottombar" aria-label="Graph toolbar">
+<div class="operationbar" aria-label="Graph toolbar">
   <div class="brand">
-    <span class="brand-mark" aria-hidden="true">◈</span>
-    <div class="brand-copy">
-      <h1>Code Graph</h1>
-      <button
-        class="context-chip"
-        type="button"
-        aria-expanded={setupOpen}
-        title="Project and source setup"
-        onclick={ontogglesetup}
-      >
-        {project}<span class="context-kind">{sourceLabel}</span>
-      </button>
-    </div>
+    <h1 class="brand-pill">Code Graph</h1>
+    <button
+      class="context-chip"
+      type="button"
+      aria-expanded={setupOpen}
+      title="Project and source setup"
+      onclick={ontogglesetup}
+    >{project}</button>
   </div>
 
-  <label class="searchbox">
-    <span class="sr-only">Search graph</span>
-    <input
-      type="search"
-      class="search-input"
-      value={search}
-      oninput={(event: Event) => onsearch((event.currentTarget as HTMLInputElement).value)}
-      onkeydown={onsearchkeydown}
-      aria-label="Search graph"
-      aria-keyshortcuts="/"
-      tabindex="0"
-      placeholder="Search graph"
-      title="Search graph; Enter selects the first hit"
-      spellcheck="false"
-      autocomplete="off"
+  <div class="path-bar">
+    <span class="path-label" aria-hidden="true">path</span>
+    <RootEntryField
+      bind:value={entry}
+      {roots}
+      loading={rootsLoading}
+      label="Path bar"
+      placeholder="All entries — type a symbol path"
+      oncommit={onentrycommit}
     />
-  </label>
+  </div>
 
   <div class="bar-actions" aria-label="Graph actions">
+    <button
+      class="vscode-button secondary tool-button search-toggle"
+      class:active={searchOpen}
+      type="button"
+      aria-pressed={searchOpen}
+      aria-expanded={searchOpen}
+      aria-label="Toggle search"
+      aria-keyshortcuts="/"
+      title="Toggle search (/)"
+      onclick={ontogglesearch}
+    >🔍</button>
     {#if renderer === "d3"}
       {#if graphLoaded}
         <button

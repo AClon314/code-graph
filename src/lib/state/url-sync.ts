@@ -47,3 +47,29 @@ export function graphUrlParams(
     ),
   );
 }
+
+/** Write the canonical current state to the address bar without navigating. */
+export function syncGraphUrl(state: GraphUiState): void {
+  if (typeof window === "undefined") return;
+  const file =
+    state.current.selection.node?.filePath ??
+    state.current.detail.symbol?.node.filePath;
+  const line =
+    state.current.selection.node?.startLine ??
+    state.current.detail.symbol?.node.startLine;
+  const params = graphUrlParams(state, file && line ? { file, line } : null);
+  // Keep embed-only knobs that are not part of the graph state.
+  const currentParams = new URLSearchParams(window.location.search);
+  for (const key of ["scale", "theme"]) {
+    const value = currentParams.get(key);
+    if (value) params.set(key, value);
+  }
+  const nextSearch = `?${params.toString()}`;
+  if (window.location.search !== nextSearch) {
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}${nextSearch}${window.location.hash}`,
+    );
+  }
+}

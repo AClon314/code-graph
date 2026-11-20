@@ -6,7 +6,7 @@ The same user journey is checked through the three shells that share `App.svelte
 | --- | --- | --- | --- |
 | Open a project/graph | context chip + graph root | command palette + webview | `Code Graph: Open (cbm)` |
 | Open setup | Setup panel | Setup panel | `[E] Entry` picker |
-| Search | search field + Enter | search field + Enter | terminal node click (no search field) |
+| Search | 🔍 toggle + field + Enter | 🔍 toggle + field + Enter | terminal node click (no search field) |
 | Inspect | node → details | node → details | node click → status line |
 | Jump | Jump → bridge receipt | Jump → editor tab | node + `o` → file tab |
 
