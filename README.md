@@ -67,11 +67,12 @@ directly. Build output contains only the selected runtime:
   **Setup**. Use Open in New Tab to compare two projects or backends side by
   side.
 - File tree: **VS Code Explorer**, not a webview. The old tree panel is removed.
-- Layout: the graph is the full workbench. The top bar carries search and
-  global actions; **Setup** and **Details** are edge panels, closed by default
-  and mutually exclusive. The status bar sits under the canvas, and the path
-  bar sits under the status bar. Loading is never modal: the graph stays
-  interactive while the status bar updates.
+- Layout: the graph is the full workbench. The bottom command bar carries the
+  project chip, search and global actions for thumb-friendly mobile use;
+  **Setup** and **Details** are edge panels, closed by default and mutually
+  exclusive. The status bar sits under the canvas, then the path bar, then the
+  command bar. Loading is never modal: the graph stays interactive while the
+  status bar updates.
 - Graph: D3/SVG or the orchgraph character canvas, with search, fit, and
   separate **Copy SVG** / **Export SVG** actions. The mouse wheel zooms around
   the pointer; drag pans. Edge clicks reveal the missing endpoint without

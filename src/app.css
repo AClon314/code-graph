@@ -103,7 +103,7 @@ h3 {
   zoom: var(--code-graph-zoom, 1);
 }
 
-.topbar {
+.bottombar {
   z-index: 2;
   display: grid;
   flex: 0 0 auto;
@@ -112,7 +112,7 @@ h3 {
   align-items: center;
   gap: 0.8ch;
   padding: 0.45lh 1ch;
-  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
   background: var(--panel);
 }
 
@@ -205,7 +205,7 @@ h3 {
   min-width: 0;
 }
 
-.top-actions {
+.bar-actions {
   display: flex;
   grid-area: actions;
   align-items: center;
@@ -362,7 +362,7 @@ h3 {
   justify-content: space-between;
   gap: 1ch;
   padding: 0.6lh 1ch;
-  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
 }
 
 .panel-head h2 {
@@ -886,7 +886,7 @@ h3 {
 }
 
 @media (max-aspect-ratio: 1/1) {
-  .topbar {
+  .bottombar {
     grid-template-areas:
       "brand actions"
       "search search";
@@ -894,7 +894,7 @@ h3 {
     row-gap: 0.35lh;
   }
 
-  .top-actions {
+  .bar-actions {
     justify-content: flex-end;
   }
 }
@@ -937,7 +937,7 @@ h3 {
     display: none;
   }
 
-  .topbar {
+  .bottombar {
     padding: 0.4lh 0.8ch;
   }
 
@@ -980,7 +980,7 @@ h3 {
   justify-content: space-between;
   gap: 1ch;
   padding: 0.8lh 1ch;
-  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
   background: var(--panel);
 }
 

@@ -6,7 +6,7 @@
   import OrchgraphView from "./lib/components/OrchgraphView.svelte";
   import InspectorPanel from "./lib/components/workspace/InspectorPanel.svelte";
   import GraphFooter from "./lib/components/workspace/GraphFooter.svelte";
-  import TopBar from "./lib/components/workspace/TopBar.svelte";
+  import BottomBar from "./lib/components/workspace/BottomBar.svelte";
   import SetupPanel from "./lib/components/workspace/SetupPanel.svelte";
   import { CbmHttpSource } from "./lib/graph/cbm-http";
   import {
@@ -846,24 +846,6 @@
 </script>
 
 <main class="app">
-  <TopBar
-    project={codeGraph.setup.project}
-    sourceLabel={codeGraph.setup.source === "computed" ? "computed" : codeGraph.setup.backend}
-    setupOpen={codeGraph.current.ui.setupOpen}
-    inspectorOpen={codeGraph.current.ui.inspectorOpen}
-    search={codeGraph.current.ui.search}
-    renderer={codeGraph.current.view.renderer}
-    graphLoaded={Boolean(codeGraph.current.graph)}
-    onsearch={(value) => (codeGraph.current.ui.search = value)}
-    onsearchkeydown={onSearchKeydown}
-    ontogglesetup={toggleSetup}
-    ontoggledetails={toggleInspector}
-    onfit={() => graphView?.fit()}
-    oncopysvg={() => void copySvg()}
-    onexportsvg={exportSvg}
-    oncopyterminal={() => void copyTerminalArt()}
-  />
-
   <div class="workbench">
     {#if codeGraph.current.ui.setupOpen}
       <SetupPanel
@@ -924,7 +906,7 @@
             <p class="graph-empty-title">
               {codeGraph.current.load.graph || codeGraph.current.load.symbol ? "Loading neighborhood…" : "No graph loaded"}
             </p>
-            <p class="sub">Choose a symbol entry above, or open Setup to pick a source.</p>
+            <p class="sub">Choose a path in the path bar below, or open Setup to pick a source.</p>
           </div>
         {/if}
       </div>
@@ -967,6 +949,24 @@
           codeGraph.current.status.graphError = "";
           codeGraph.current.status.graphFix = null;
         }}
+      />
+
+      <BottomBar
+        project={codeGraph.setup.project}
+        sourceLabel={codeGraph.setup.source === "computed" ? "computed" : codeGraph.setup.backend}
+        setupOpen={codeGraph.current.ui.setupOpen}
+        inspectorOpen={codeGraph.current.ui.inspectorOpen}
+        search={codeGraph.current.ui.search}
+        renderer={codeGraph.current.view.renderer}
+        graphLoaded={Boolean(codeGraph.current.graph)}
+        onsearch={(value) => (codeGraph.current.ui.search = value)}
+        onsearchkeydown={onSearchKeydown}
+        ontogglesetup={toggleSetup}
+        ontoggledetails={toggleInspector}
+        onfit={() => graphView?.fit()}
+        oncopysvg={() => void copySvg()}
+        onexportsvg={exportSvg}
+        oncopyterminal={() => void copyTerminalArt()}
       />
     </section>
 

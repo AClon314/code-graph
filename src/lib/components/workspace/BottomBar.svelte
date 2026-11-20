@@ -36,7 +36,7 @@
   }: Props = $props();
 </script>
 
-<header class="topbar">
+<div class="bottombar" aria-label="Graph toolbar">
   <div class="brand">
     <span class="brand-mark" aria-hidden="true">◈</span>
     <div class="brand-copy">
@@ -71,7 +71,7 @@
     />
   </label>
 
-  <div class="top-actions" aria-label="Graph actions">
+  <div class="bar-actions" aria-label="Graph actions">
     {#if renderer === "d3"}
       {#if graphLoaded}
         <button
@@ -124,4 +124,4 @@
       onclick={ontogglesetup}
     >Setup</button>
   </div>
-</header>
+</div>
