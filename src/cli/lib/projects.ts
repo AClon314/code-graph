@@ -1,6 +1,17 @@
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 
-import { fetchCbmProjects } from "../../lib/cbm-projects.ts";
+import {
+  deleteCbmProjectViaRpc,
+  fetchCbmProjectHealth,
+  fetchCbmProjectRows,
+  fetchCbmProjects,
+  staleCbmProjects,
+  type CbmFetch,
+  type CbmProject,
+} from "../../lib/cbm-projects.ts";
 import { requestCbm } from "../../lib/cbm-request.ts";
 import { resolveCbmBaseUrl } from "../../lib/cbm-discovery.ts";
 
@@ -8,27 +19,23 @@ export interface CbmProjectOptions {
   cbm?: string;
 }
 
-/** List cbm projects through the read-only JSON-RPC tool. */
-export async function listCbmProjects(options: CbmProjectOptions = {}): Promise<string[]> {
+/** Build a cbm transport for the CLI's resolved loopback endpoint. */
+async function cbmFetch(options: CbmProjectOptions = {}): Promise<CbmFetch> {
   const endpoint = await resolveCbmBaseUrl(options.cbm);
   assertLoopback(endpoint.baseUrl);
-  const response = await requestCbm(endpoint.baseUrl, {
-    path: "/rpc",
-    method: "POST",
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "tools/call",
-      params: { name: "list_projects", arguments: {} },
-    }),
-  }, { timeoutMs: 10_000 });
-  if (response.status !== 200) {
-    throw new Error(`list projects: HTTP ${response.status} ${response.body.slice(0, 300)}`);
-  }
-  if (!response.body.includes("projects:")) {
-    throw new Error("list projects: the listener returned no project table");
-  }
-  return fetchCbmProjects(async () => response);
+  return (request) => requestCbm(endpoint.baseUrl, request, { timeoutMs: 10_000 });
+}
+
+/** List cbm project metadata through the read-only JSON-RPC tool. */
+export async function listCbmProjectRows(
+  options: CbmProjectOptions = {},
+): Promise<CbmProject[]> {
+  return fetchCbmProjectRows(await cbmFetch(options));
+}
+
+/** List cbm projects through the read-only JSON-RPC tool. */
+export async function listCbmProjects(options: CbmProjectOptions = {}): Promise<string[]> {
+  return fetchCbmProjects(await cbmFetch(options));
 }
 
 function assertLoopback(baseUrl: string): URL {
@@ -59,7 +66,8 @@ export async function deleteCbmProject(
   if (!name.trim()) throw new Error("project name is required");
 
   // The cbm MCP delete path also removes the ADR sidecar; use it for the
-  // default local daemon. An explicit --cbm URL uses the HTTP endpoint.
+  // default local daemon. An explicit --cbm URL uses /rpc so it still runs
+  // through the HTTP listener and still removes the sidecar.
   if (!options.cbm) {
     const bin = process.env.CBM_BIN || "codebase-memory-mcp";
     try {
@@ -78,28 +86,47 @@ export async function deleteCbmProject(
     }
   }
 
-  const endpoint = await resolveCbmBaseUrl(options.cbm);
-  const base = assertLoopback(endpoint.baseUrl);
-  const url = new URL("/api/project", base);
-  url.searchParams.set("name", name);
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 10_000);
-  try {
-    const response = await fetch(url, {
-      method: "DELETE",
-      headers: { accept: "application/json" },
-      signal: controller.signal,
-    });
-    const body = await response.text();
-    if (!response.ok) {
-      throw new Error(`delete project ${name}: HTTP ${response.status} ${body.slice(0, 300)}`);
-    }
-  } catch (cause) {
-    if (controller.signal.aborted) {
-      throw new Error(`delete project ${name}: request timed out`);
-    }
-    throw cause;
-  } finally {
-    clearTimeout(timer);
+  await deleteCbmProjectViaRpc(await cbmFetch(options), name);
+}
+
+/** Return names whose last index is older than the cutoff. */
+export async function staleCbmProjectNames(
+  days: number,
+  options: CbmProjectOptions = {},
+): Promise<string[]> {
+  return (await staleCbmProjects(await cbmFetch(options), days)).map((project) => project.name);
+}
+
+/** Verify both the live project table and the on-disk DB/sidecars are gone. */
+export async function verifyCbmProjectDeleted(
+  name: string,
+  options: CbmProjectOptions = {},
+): Promise<void> {
+  const rows = await listCbmProjectRows(options);
+  if (rows.some((row) => row.name === name)) {
+    throw new Error(`project ${name} still appears in list_projects after delete`);
+  }
+  const health = await fetchCbmProjectHealth(await cbmFetch(options), name);
+  if (health && health.status !== "missing") {
+    throw new Error(`project ${name} health is ${health.status} after delete`);
+  }
+
+  const cacheDir =
+    process.env.CBM_CACHE_DIR ||
+    (process.platform === "darwin"
+      ? join(homedir(), "Library", "Caches", "codebase-memory-mcp")
+      : join(process.env.XDG_CACHE_HOME || join(homedir(), ".cache"), "codebase-memory-mcp"));
+  for (const suffix of [
+    ".db",
+    ".db-wal",
+    ".db-shm",
+    ".db-journal",
+    ".db.adr.db",
+    ".db.adr.db-wal",
+    ".db.adr.db-shm",
+    ".db.adr.db-journal",
+  ]) {
+    const path = join(cacheDir, `${name}${suffix}`);
+    if (existsSync(path)) throw new Error(`project ${name} left ${path}`);
   }
 }

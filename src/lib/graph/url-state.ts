@@ -19,7 +19,7 @@ export const SOURCE_DEFAULTS: Record<SourceKind, SourceDefaults> = {
     symbol: "",
   },
   cbm: {
-    project: "fixture-hard-scip",
+    project: "",
     symbol: "",
   },
 };
@@ -89,7 +89,8 @@ export function parseGraphUrl(search: string, fallback: GraphUrlState): ParsedGr
   const hasSource = parsedSource !== null;
   const source = parsedSource ?? fallback.source;
   const defaults = SOURCE_DEFAULTS[source];
-  const project = params.get("project") || (hasSource ? defaults.project : fallback.project);
+  const project =
+    params.get("project") || (hasSource && defaults.project ? defaults.project : fallback.project);
   const symbol = params.has("symbol")
     ? params.get("symbol") ?? ""
     : hasSource

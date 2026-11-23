@@ -1,7 +1,7 @@
 <script lang="ts">
   import SymbolPathField from "./SymbolPathField.svelte";
-  import type { RootCandidate } from "../../graph/roots";
   import type { CopyMode, SaveMode } from "../../ai-context";
+  import type { CbmFetch, CbmProject } from "../../cbm-projects";
 
   interface Props {
     setupOpen: boolean;
@@ -12,8 +12,8 @@
     /** Canonical full global symbol path. */
     entry?: string;
     cwd: string;
-    roots: RootCandidate[];
-    rootsLoading: boolean;
+    projects: readonly CbmProject[];
+    fetchCbm?: CbmFetch;
     copyMode?: CopyMode;
     saveMode?: SaveMode;
     ontogglesearch: () => void;
@@ -23,6 +23,7 @@
     oncopy: () => void;
     onsave: () => void;
     onentrycommit: (value: string) => void;
+    onindex: (folder: string) => void;
   }
 
   let {
@@ -33,8 +34,8 @@
     graphLoaded,
     entry = $bindable(""),
     cwd,
-    roots,
-    rootsLoading,
+    projects,
+    fetchCbm,
     copyMode = $bindable("svg"),
     saveMode = $bindable("svg"),
     ontogglesearch,
@@ -44,6 +45,7 @@
     oncopy,
     onsave,
     onentrycommit,
+    onindex,
   }: Props = $props();
 </script>
 
@@ -65,8 +67,9 @@
     <SymbolPathField
       bind:value={entry}
       {cwd}
-      {roots}
-      loading={rootsLoading}
+      {projects}
+      {fetchCbm}
+      {onindex}
       label="Path bar"
       placeholder="cwd//path/to/file#symbol"
       oncommit={onentrycommit}

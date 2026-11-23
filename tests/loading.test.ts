@@ -10,6 +10,9 @@ describe("loading progress", () => {
   test("estimates from the completed-fetch rate", () => {
     expect(estimateEta({ completed: 2, total: 10, startedAt: 0 }, 1000)).toBe(4000);
     expect(estimateEta({ completed: 10, total: 10, startedAt: 0 }, 1000)).toBe(0);
+    expect(
+      estimateEta({ completed: 2, total: 100, queued: 4, startedAt: 0 }, 1000),
+    ).toBe(2000);
   });
 
   test("formats compact durations", () => {

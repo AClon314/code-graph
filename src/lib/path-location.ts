@@ -1,3 +1,5 @@
+import { toUnixPath } from "./symbol-path";
+
 export type PathCopyKind = "relative" | "absolute" | "both";
 
 export interface PathFormats {
@@ -6,7 +8,7 @@ export interface PathFormats {
 }
 
 function toSlash(value: string): string {
-  return value.replace(/\\/g, "/");
+  return toUnixPath(value);
 }
 
 function trimRoot(value: string): string {

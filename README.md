@@ -98,20 +98,18 @@ directly. Build output contains only the selected runtime:
   background click (or tap) clears the selection, while a drag beyond 4 px is
   treated as panning, not a click. The **focus** checkbox hides unrelated
   nodes and re-runs layout for the selected call paths.
-- Path bar: the **Path bar** field is a `CodeInput` whose completion
-  candidates are filesystem symbols. The canonical value is a global symbol
-  path:
-  `<cwd>//<file-relative-to-cwd>#<symbol-unique-in-file>`. The idle field
-  shows the privacy-preserving compact form (`gpen-js//src/main.ts#main`);
-  focusing it expands the absolute folder. The default value is the workspace
-  root, so the field is never empty. Legacy cbm qualified names and `#id`
-  values remain accepted for compatibility, and free-form values are resolved
-  against the current graph/root candidates. See
-  [`docs/global-symbol-path.md`](docs/global-symbol-path.md) for the scheme
-  and resolution rules. Valid input is committed after 350 ms of inactivity
-  (no separate **Load** button). When the path bar points
-  at the workspace root, the canvas shows every project root entry in a compact
-  grid.
+- Path bar: the **Path bar** field is a `CodeInput` over a global symbol
+  path: `<projectName-or-cwd>//<file>#<symbol>`. Idle, it shows the compact
+  project/cwd form; focusing expands the absolute folder. The default value is
+  the workspace root, so the field is never empty. Before `//`, project names
+  are fuzzy-completed first; once a `/` is present, filesystem directories are
+  added below them. Accepting a project replaces the prefix up to `//`;
+  accepting a directory replaces the token between slashes. Typing a folder
+  path with `//` indexes it through cbm and switches to the new project; the
+  old index-folder dialog is gone. Legacy cbm qualified names and `#id` values
+  remain accepted. See [`docs/global-symbol-path.md`](docs/global-symbol-path.md)
+  for the scheme and resolution rules. Input is committed after 350 ms of
+  inactivity.
 - forAI: the `{MD}` button opens the **forAI** panel. Its body is generated
   from the selected symbol plus callers/callees: raw Markdown (default),
   rendered Markdown preview, or JSON keyed by compact global symbol paths.
@@ -120,15 +118,17 @@ directly. Build output contains only the selected runtime:
   Preview links navigate to the linked symbol. Double-clicking a graph node
   opens its source location through `ExtensionApi.openLocation`; copy actions
   live in the operation bar.
-- Progressive disclosure: source/project live under **Setup** instead of the
-  main toolbar. The Project field is a `CodeInput` with all indexed names
-  fetched from cbm's read-only `list_projects` RPC; free-form names still work.
-  For cbm, **Index a folder…** opens a shared folder dialog in web and VS
-  Code. It browses the server filesystem through `GET /api/browse`, starts
-  `POST /api/index`, polls `/api/index-status`, then reloads the new project.
-  In Fresh, `i` / `[I] Index` prompts for the folder and project name and polls
-  the same route. All hosts share `src/lib/cbm-index.ts`; only `fetchCbm`
-  differs per host.
+- Progressive disclosure: source and backend live under **Setup**. There is
+  no editable Project field: the only indexed project whose `root_path`
+  matches the workspace is auto-selected, and other projects are selected by
+  typing `project//` in the path bar. A separate **Config** section opens
+  `code-graph.config.jsonc` / `renderNode.config.mjs` (new tab on web, existing
+  editor tab in VS Code/Fresh). **Actions** holds cbm maintenance: delete
+  projects whose last index is older than N days (default 30), with an explicit
+  confirm. VS Code also exposes “Open extension settings…”. The indexing
+  dialogs are removed; a folder path in the path bar starts `POST /api/index`,
+  polls `/api/index-status`, and switches to the derived project. TUI keeps its
+  `i` / `[I] Index` prompt.
   Keyboard shortcuts: `/` search, `f` or `.` fit, `r` reload, `←/↑/→/↓` pan,
   `+`/`-` zoom, and `Ctrl+C` copy relative path; `Ctrl+Shift+C` copies the SVG
   when no node is active. With a node active, `w`/`s` jump to the first
@@ -174,8 +174,10 @@ exposes `value` as a bindable prop, and accepts `completionSources` /
 or a sync/async provider evaluated when completion opens; native
 `HTMLInputAttributes` are accepted alongside these CodeMirror-specific props. The tooltip width follows the
 visual viewport; there is no separate pinned chevron. Idle fields use native
-inputs and mount CodeMirror only while focused. It is experimental and not
-wired into the main workbench.
+inputs and mount CodeMirror only while focused. The path bar uses it; `/debug`
+remains the isolated playground. It also accepts `start`, `afterInput` and
+`end` snippets for composing controls around the editor (the path bar uses
+`afterInput` for the index button).
 
 ### Settings
 
@@ -368,10 +370,11 @@ Defaults:
 
 The SCIP path is intentionally an orchestrator over the two external tools; the
 writer remains outside the cbm core. Re-run the command after source changes,
-then press `r` in the graph panel. The GUI's **Setup → Index a folder…** uses
-cbm's own `POST /api/index` route, so it can rebuild a deleted project without
-a shell; `codebase-memory-mcp cli index_repository --repo-path <dir> --name <project>`
-is the direct cbm equivalent.
+then press `r` in the graph panel. The GUI path bar accepts a folder path
+with `//` and uses cbm's own `POST /api/index` route, so it can rebuild a
+deleted project without a shell;
+`codebase-memory-mcp cli index_repository --repo-path <dir> --name <project>` is
+the direct cbm equivalent.
 
 Existing project names can be listed and pruned through the CLI:
 
@@ -382,14 +385,18 @@ code-graph rm-projects old-index --yes
 code-graph rm-projects old-a old-b --yes
 code-graph rm-projects --all --dry-run
 code-graph rm-projects --all --yes
+code-graph rm-projects --older-than 30 --dry-run
+code-graph rm-projects --older-than 30 --yes
 ```
 
-`rm-projects` removes one or more cbm graph databases, or every project with
-`--all`, for rebuilding stale indexes. It removes the workspace roots-cache
-entry for each project. With the default local daemon deletion uses the
-MCP path, which also removes the ADR sidecar; an explicit `--cbm` URL uses the
-HTTP endpoint. It requires `--yes`; `--dry-run` prints the target without
-deleting. Deletion is limited to loopback cbm endpoints.
+`rm-projects` removes one or more cbm graph databases, every project with
+`--all`, or projects whose last index is older than `--older-than N` days. It
+removes the workspace roots-cache entry and verifies both `list_projects` and
+the project-health/on-disk DB after deletion (graph DB, WAL/SHM and ADR
+sidecar). With the default local daemon deletion uses the MCP path; an explicit
+`--cbm` URL uses the `/rpc` `<delete_project>` tool, which also removes the ADR
+sidecar. It requires `--yes`; `--dry-run` prints targets without deleting.
+Deletion is limited to loopback cbm endpoints.
 
 The Commander entry point exposes the GUI/TUI inputs without a source
 checkout around a script:

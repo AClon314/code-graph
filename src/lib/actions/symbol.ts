@@ -1,5 +1,6 @@
 import type { ExtensionApi } from "../../extension/api";
 import { copyPathText, pathFormats, type PathCopyKind } from "../path-location";
+import { toNativePath } from "../symbol-path";
 import { writeClipboard } from "../clipboard";
 import type { StatusState } from "../state/code-graph";
 import type { SymbolBundle } from "../graph/types";
@@ -32,7 +33,7 @@ export async function jumpToLocation(
   try {
     await api.openLocation({
       project,
-      path: row.filePath,
+      path: toNativePath(row.filePath),
       line,
       column,
       symbol: row.qualifiedName ?? row.name,

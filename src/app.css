@@ -509,6 +509,40 @@ h3 {
   line-height: 1.4;
 }
 
+.setup-section {
+  display: grid;
+  gap: 0.35lh;
+  padding-top: 0.7lh;
+  border-top: 1px solid var(--line);
+}
+
+.setup-section-title {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.stale-form {
+  display: grid;
+  gap: 0.3lh;
+  padding: 0.5lh;
+  border: 1px solid var(--cg-control-border);
+  border-radius: 0.4rem;
+}
+
+.stale-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4ch;
+}
+
+.stale-days {
+  width: 8ch;
+  min-width: 8ch;
+}
+
 /* ---- graph stage ------------------------------------------------------- */
 
 .graph-stage {
@@ -604,122 +638,6 @@ h3 {
   background: color-mix(in srgb, var(--text) 10%, transparent);
   color: var(--text);
   outline: none;
-}
-
-/* ---- index dialog ------------------------------------------------------ */
-
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  display: grid;
-  place-items: center;
-  padding: 2ch;
-  background: color-mix(in srgb, #000 45%, transparent);
-}
-
-.index-dialog {
-  position: relative;
-  inset: auto;
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  width: min(68ch, 100%);
-  max-height: min(80vh, 64lh);
-  overflow: auto;
-  border: 1px solid var(--line);
-  border-radius: 0.7rem;
-  background: var(--panel);
-  box-shadow: 0 1.2lh 3lh color-mix(in srgb, #000 35%, transparent);
-}
-
-.index-dialog .panel-head {
-  border-top: 0;
-  border-bottom: 1px solid var(--line);
-}
-
-.index-body {
-  display: grid;
-  gap: 0.8lh;
-  padding: 0.9lh 1ch;
-}
-
-.index-path-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5ch;
-}
-
-.index-path-row .search-input {
-  flex: 1;
-}
-
-.folder-browser {
-  display: grid;
-  gap: 0.4lh;
-  padding: 0.5lh;
-  border: 1px solid var(--line);
-  border-radius: 0.45rem;
-  background: var(--bg);
-}
-
-.folder-browser-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1ch;
-  min-width: 0;
-  color: var(--muted);
-  font-size: 0.7rem;
-}
-
-.folder-browser-head code {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.folder-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(16ch, 1fr));
-  gap: 0.25lh 0.5ch;
-  max-height: 20lh;
-  overflow: auto;
-}
-
-.folder-button {
-  overflow: hidden;
-  padding: 0.25lh 0.5ch;
-  border: 0;
-  border-radius: 0.3rem;
-  background: transparent;
-  color: var(--text);
-  font-family: var(--font-code);
-  font-size: 0.72rem;
-  text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.folder-button:hover,
-.folder-button:focus-visible {
-  background: var(--vscode-list-hoverBackground, color-mix(in srgb, var(--text) 10%, transparent));
-  outline: none;
-}
-
-.index-status {
-  margin: 0;
-  color: var(--text);
-  font-size: 0.74rem;
-}
-
-.index-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5ch;
-  padding-top: 0.3lh;
-  border-top: 1px solid var(--line);
 }
 
 /* ---- status bar -------------------------------------------------------- */

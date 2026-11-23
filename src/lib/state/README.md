@@ -5,7 +5,8 @@ VS Code webview shells.
 
 ```ts
 codeGraph.setup.source;       // computed | cbm
-codeGraph.setup.project;
+codeGraph.setup.project;     // internal index handle; auto-selected from cwd
+codeGraph.setup.projectRows; // name + root_path + branch for path-bar completion
 codeGraph.setup.entry;       // backend qualified name
 codeGraph.setup.path;        // canonical global symbol path
 codeGraph.setup.configPath;

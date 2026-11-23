@@ -1,5 +1,6 @@
 import type { ExtensionApi, Runtime } from "../../extension/api";
 import type { StatusState } from "../state/code-graph";
+import { toNativePath } from "../symbol-path";
 
 /** Open a workspace config file in the host editor, or the web input route. */
 export function openConfigPath(
@@ -19,7 +20,7 @@ export function openConfigPath(
     window.open(url.toString(), "_blank", "noopener,noreferrer");
     return;
   }
-  void api.openLocation({ path, line: 1, column: 1 }).catch((cause) => {
+  void api.openLocation({ path: toNativePath(path), line: 1, column: 1 }).catch((cause) => {
     status.error = `Could not open ${path}: ${cause instanceof Error ? cause.message : String(cause)}`;
   });
 }

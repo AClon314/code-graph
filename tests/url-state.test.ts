@@ -27,7 +27,7 @@ test("source defaults supply project and symbol", () => {
   expect(parseGraphUrl("?source=cbm", fallback)).toEqual({
     ...fallback,
     source: "cbm",
-    project: "fixture-hard-scip",
+    project: "current-project",
     symbol: "",
     location: null,
   });

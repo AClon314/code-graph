@@ -6,6 +6,7 @@
  * the hosts needs its own index implementation: they all expose `fetchCbm`.
  */
 import type { CbmFetch } from "./cbm-projects.ts";
+import { toNativePath, toUnixPath } from "./symbol-path.ts";
 
 export interface CbmIndexStarted {
   slot: number;
@@ -34,7 +35,7 @@ export async function startCbmIndex(
   rootPath: string,
   projectName: string,
 ): Promise<CbmIndexStarted> {
-  const root = rootPath.trim();
+  const root = toNativePath(rootPath.trim());
   const project = projectName.trim();
   if (!root) throw new Error("repository folder is required");
   if (!project) throw new Error("project name is required");
@@ -49,7 +50,7 @@ export async function startCbmIndex(
   const payload = parseObject(response.body, "index");
   return {
     slot: typeof payload.slot === "number" ? payload.slot : -1,
-    path: typeof payload.path === "string" ? payload.path : root,
+    path: toUnixPath(typeof payload.path === "string" ? payload.path : root),
   };
 }
 
@@ -82,16 +83,16 @@ export async function browseCbmFolders(
 ): Promise<CbmBrowseLevel> {
   const response = await fetchCbm({
     path: "/api/browse",
-    query: path.trim() ? { path: path.trim() } : undefined,
+    query: path.trim() ? { path: toNativePath(path.trim()) } : undefined,
   });
   if (response.status !== 200) {
     throw new Error(`browse ${path || "roots"}: HTTP ${response.status} ${response.body.slice(0, 300)}`);
   }
   const payload = parseObject(response.body, "browse");
   return {
-    path: typeof payload.path === "string" ? payload.path : path,
+    path: typeof payload.path === "string" ? toUnixPath(payload.path) : toUnixPath(path),
     dirs: strings(payload.dirs),
-    parent: typeof payload.parent === "string" ? payload.parent : "",
+    parent: typeof payload.parent === "string" ? toUnixPath(payload.parent) : "",
     roots: strings(payload.roots),
   };
 }

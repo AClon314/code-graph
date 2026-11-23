@@ -46,6 +46,19 @@ test("reports BFS progress without changing the graph", async () => {
   expect(data.nodes.map((node) => node.id).sort()).toEqual(["a", "b", "c"]);
 });
 
+test("keeps a completed total as a stable lower bound on reload", async () => {
+  const events: Array<{ total: number }> = [];
+  await loadNeighborhood(new FakeSource(graph()), "p", "a", {
+    depth: 1,
+    direction: "both",
+    knownTotal: 40,
+    onProgress: (progress) => events.push(progress),
+  });
+
+  expect(events[0]?.total).toBe(40);
+  expect(events.at(-1)?.total).toBe(40);
+});
+
 test("BFS dedupes edges and follows two hops in both directions", async () => {
   const source = new FakeSource(graph());
   const data = await loadNeighborhood(source, "p", "a", { depth: 2, direction: "both" });

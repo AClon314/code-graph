@@ -8,7 +8,6 @@
   import GraphFooter from "./lib/components/workspace/GraphFooter.svelte";
   import OperationBar from "./lib/components/workspace/OperationBar.svelte";
   import SearchBar from "./lib/components/workspace/SearchBar.svelte";
-  import IndexDialog from "./lib/components/workspace/IndexDialog.svelte";
   import SetupPanel from "./lib/components/workspace/SetupPanel.svelte";
   import { CbmHttpSource } from "./lib/graph/cbm-http";
   import {
@@ -65,6 +64,10 @@
   import { buildAiContext, type CopyMode } from "./lib/ai-context";
   import { copyToolbar, saveToolbar } from "./lib/actions/toolbar";
   import {
+    commitSetupPath,
+    deleteStaleProjects as deleteStaleSetup,
+  } from "./lib/actions/setup";
+  import {
     applyEntryPath,
     pathForCandidate,
     resolveEntryPath,
@@ -96,7 +99,6 @@
   let graphView = $state<GraphViewHandle>();
   let nodeRender = $state<NodeHtmlRenderer | null>(null);
   let searchCursor = $state(-1);
-  let indexOpen = $state(false);
   const progress = new ProgressController(codeGraph.current.load);
 
   const selectedNode = $derived(
@@ -107,7 +109,7 @@
     codeGraph.current.graph && selectedNode ? bundleFromGraph(codeGraph.current.graph, selectedNode.id) ?? null : null,
   );
   const aiContext = $derived(
-    buildAiContext(codeGraph.current.detail.symbol ?? selectionBundle, selectedNode ?? codeGraph.current.selection.node, codeGraph.setup.workspaceRoot),
+    buildAiContext(codeGraph.current.detail.symbol ?? selectionBundle, selectedNode ?? codeGraph.current.selection.node, codeGraph.setup.workspaceRoot, codeGraph.setup.project),
   );
 
   const searchHits = $derived(graphSearchHits(codeGraph.current.graph, codeGraph.current.ui.search));
@@ -273,8 +275,8 @@
     }
   }
 
-  async function loadProjects(): Promise<void> {
-    await loadProjectNames(codeGraph, (request) => extensionApi.fetchCbm(request));
+  async function loadProjects(autoSelect = false): Promise<void> {
+    await loadProjectNames(codeGraph, (request) => extensionApi.fetchCbm(request), autoSelect);
   }
 
   async function ensureCbmEndpoint(): Promise<boolean> {
@@ -309,12 +311,14 @@
     progress.begin("Loading graph", null);
 
     try {
+      const key = progress.key(codeGraph.setup.project, root, codeGraph.current.view.depth, codeGraph.current.view.direction);
       const next = await loadNeighborhood(source, codeGraph.setup.project, root, {
         depth: codeGraph.current.view.depth,
         direction: codeGraph.current.view.direction,
         maxNodes: codeGraph.current.view.depth === null ? MAX_UNBOUNDED_NODES : undefined,
         rootBundle,
-        onProgress: (update) => progress.update(update),
+        knownTotal: progress.knownTotal(key),
+        onProgress: (update) => progress.update(update, key),
       });
       if (id !== graphRequestId || request !== requestId) return;
       codeGraph.current.graph = next;
@@ -324,7 +328,7 @@
         codeGraph.current.selection.node = null;
       }
       const chosen = next.nodes.find((node) => node.id === codeGraph.current.selection.id) ?? next.nodes[0];
-      if (chosen) codeGraph.setup.path = pathForCandidate(chosen, codeGraph.setup.workspaceRoot);
+      if (chosen) codeGraph.setup.path = pathForCandidate(chosen, codeGraph.setup.workspaceRoot, codeGraph.setup.project);
       applyPendingLocation(next);
     } catch (cause) {
       if (id !== graphRequestId || request !== requestId) return;
@@ -359,12 +363,14 @@
         (reuseRootBundle && currentGraph?.root
           ? bundleFromGraph(currentGraph, codeGraph.current.selection.id)
           : undefined);
+      const key = progress.key(codeGraph.setup.project, codeGraph.setup.entry, codeGraph.current.view.depth, codeGraph.current.view.direction);
       const next = await loadNeighborhood(source, codeGraph.setup.project, codeGraph.setup.entry, {
         depth: codeGraph.current.view.depth,
         direction: codeGraph.current.view.direction,
         maxNodes: codeGraph.current.view.depth === null ? MAX_UNBOUNDED_NODES : undefined,
         rootBundle,
-        onProgress: (update) => progress.update(update),
+        knownTotal: progress.knownTotal(key),
+        onProgress: (update) => progress.update(update, key),
       });
       if (id !== graphRequestId) return;
       codeGraph.current.graph = next;
@@ -374,7 +380,7 @@
         codeGraph.current.selection.node = null;
       }
       const chosen = next.nodes.find((node) => node.id === codeGraph.current.selection.id) ?? next.nodes[0];
-      if (chosen) codeGraph.setup.path = pathForCandidate(chosen, codeGraph.setup.workspaceRoot);
+      if (chosen) codeGraph.setup.path = pathForCandidate(chosen, codeGraph.setup.workspaceRoot, codeGraph.setup.project);
     } catch (cause) {
       if (id !== graphRequestId) return;
       codeGraph.current.graph = null;
@@ -416,6 +422,8 @@
       }
 
       if (disposed) return;
+      if (codeGraph.setup.source === "cbm") await loadProjects(true);
+      if (disposed) return;
       applyUrl();
       void load();
     })();
@@ -451,7 +459,7 @@
     codeGraph.current.selection.id = match.id;
     codeGraph.current.selection.node = match;
     codeGraph.setup.entry = match.qualifiedName || match.id;
-    codeGraph.setup.path = pathForCandidate(match, codeGraph.setup.workspaceRoot);
+    codeGraph.setup.path = pathForCandidate(match, codeGraph.setup.workspaceRoot, codeGraph.setup.project);
     void selectGraphNode(match);
   }
 
@@ -470,17 +478,10 @@
         codeGraph.current.status.error = `Backend setup failed: ${errorMessage(cause)}`;
         return;
       }
+      codeGraph.setup.path = codeGraph.setup.workspaceRoot;
+      await loadProjects(true);
     }
     await load();
-  }
-
-  function setProject(value: string, commit = false): void {
-    if (value !== codeGraph.setup.project) {
-      codeGraph.setup.entry = refForProject(codeGraph.setup.entry, codeGraph.setup.refProject, value);
-      codeGraph.setup.project = value;
-    }
-    codeGraph.setup.refProject = value;
-    if (commit) void load();
   }
 
   async function setBackend(next: GraphBackend): Promise<void> {
@@ -504,6 +505,7 @@
       }
       codeGraph.setup.cbmBaseUrl = config.cbmBaseUrl;
       codeGraph.setup.workspaceRoot = config.workspaceRoot;
+      codeGraph.setup.path = config.workspaceRoot;
       await load();
     } catch (cause) {
       codeGraph.current.status.error = `Backend switch failed: ${errorMessage(cause)}`;
@@ -517,7 +519,7 @@
       return;
     }
     codeGraph.setup.entry = resolved.qualifiedName;
-    codeGraph.setup.path = pathForCandidate(resolved, codeGraph.setup.workspaceRoot);
+    codeGraph.setup.path = pathForCandidate(resolved, codeGraph.setup.workspaceRoot, codeGraph.setup.project);
     codeGraph.current.ui.inspectorOpen = true;
     codeGraph.current.ui.setupOpen = false;
     syncUrl();
@@ -591,7 +593,7 @@
     codeGraph.current.selection.id = node.id;
     codeGraph.current.selection.node = node;
     codeGraph.setup.entry = node.qualifiedName || node.id;
-    codeGraph.setup.path = pathForCandidate(node, codeGraph.setup.workspaceRoot);
+    codeGraph.setup.path = pathForCandidate(node, codeGraph.setup.workspaceRoot, codeGraph.setup.project);
     codeGraph.current.ui.setupOpen = false;
     syncUrl();
     if (codeGraph.current.ui.inspectorOpen) {
@@ -628,13 +630,17 @@
     }
   }
 
-  function onEntryCommit(value: string): void {
-    const error = applyEntryPath(codeGraph, value);
-    if (error) {
-      codeGraph.current.status.error = error;
-      return;
-    }
-    void load();
+  async function onEntryCommit(value: string): Promise<void> {
+    const error = await commitSetupPath(
+      codeGraph,
+      value,
+      (request) => extensionApi.fetchCbm(request),
+      async () => {
+        await loadProjects();
+        await load();
+      },
+    );
+    if (error) codeGraph.current.status.error = error;
   }
 
   function toggleSetup(): void {
@@ -788,22 +794,11 @@
     }
   }
 
-  async function handleIndexed(project: string): Promise<void> {
-    indexOpen = false;
-    codeGraph.setup.source = "cbm";
-    codeGraph.setup.backend = "cbm";
-    codeGraph.setup.project = project;
-    codeGraph.setup.refProject = project;
-    codeGraph.setup.entry = "";
-    codeGraph.current.ui.setupOpen = false;
-    await load();
-  }
-
   function jumpFromNode(node: GraphViewNode): void {
     codeGraph.current.selection.id = node.id;
     codeGraph.current.selection.node = node;
     codeGraph.setup.entry = node.qualifiedName || node.id;
-    codeGraph.setup.path = pathForCandidate(node, codeGraph.setup.workspaceRoot);
+    codeGraph.setup.path = pathForCandidate(node, codeGraph.setup.workspaceRoot, codeGraph.setup.project);
     syncUrl();
     void jumpToLocation(node, codeGraph.setup.project, extensionApi, codeGraph.current.status);
   }
@@ -849,20 +844,19 @@
         nodeRendererPath={codeGraph.setup.nodeRendererPath}
         onsource={setKind}
         onbackend={setBackend}
-        onproject={(value) => setProject(value)}
-        onprojectcommit={(value) => setProject(value, true)}
+        onopensettings={() => void extensionApi.openSettings("@ext:code-graph.code-graph")}
+        ondeleteolder={(days) =>
+          deleteStaleSetup(
+            codeGraph,
+            (request) => extensionApi.fetchCbm(request),
+            days,
+            async () => {
+              await loadProjects(true);
+              await load();
+            },
+          )}
         onopenconfig={openConfigFile}
-        onopenindex={() => (indexOpen = true)}
         onclose={() => (codeGraph.current.ui.setupOpen = false)}
-      />
-    {/if}
-
-    {#if indexOpen}
-      <IndexDialog
-        fetchCbm={(request) => extensionApi.fetchCbm(request)}
-        initialRoot={codeGraph.setup.workspaceRoot}
-        onclose={() => (indexOpen = false)}
-        onindexed={(project) => void handleIndexed(project)}
       />
     {/if}
 
@@ -972,8 +966,8 @@
         searchOpen={codeGraph.current.ui.searchOpen}
         renderer={codeGraph.current.view.renderer}
         graphLoaded={Boolean(codeGraph.current.graph)}
-        roots={codeGraph.setup.roots}
-        rootsLoading={codeGraph.setup.loading.roots}
+        projects={codeGraph.setup.projectRows}
+        fetchCbm={(request) => extensionApi.fetchCbm(request)}
         ontogglesearch={toggleSearch}
         ontogglesetup={toggleSetup}
         ontoggledetails={toggleInspector}
@@ -981,6 +975,7 @@
         oncopy={() => void copyCurrent()}
         onsave={saveCurrent}
         onentrycommit={onEntryCommit}
+        onindex={(folder) => void commitSetupPath(codeGraph, `${folder}//`, (request) => extensionApi.fetchCbm(request), async () => { await loadProjects(); await load(); })}
       />
     </section>
 

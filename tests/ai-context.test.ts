@@ -58,6 +58,13 @@ describe("forAI context", () => {
     });
   });
 
+  test("includes the project field in path identity", () => {
+    const context = buildAiContext(bundle, null, cwd, "demo");
+    expect(context?.path.project).toBe("demo");
+    expect(context?.json.self).toBe("demo//src/lib/MyComponent.svelte#MyClass.myStaticMethod");
+    expect(context?.markdown).toContain("# demo/");
+  });
+
   test("uses the selected graph node when no bundle is loaded", () => {
     const node: GraphViewNode = {
       id: "demo.src.main.main",

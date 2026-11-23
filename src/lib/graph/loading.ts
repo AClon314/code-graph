@@ -14,6 +14,8 @@ export interface LoadProgress {
   completed: number;
   /** null means indeterminate (for example while the root symbol is fetched). */
   total: number | null;
+  /** Current BFS frontier; used for a less jumpy ETA when total is growing. */
+  queued?: number;
   startedAt: number;
   updatedAt: number;
   etaMs: number | null;
@@ -21,11 +23,12 @@ export interface LoadProgress {
 
 /** Estimate remaining time from the average completed-fetch rate. */
 export function estimateEta(
-  progress: Pick<LoadProgress, "completed" | "total" | "startedAt">,
+  progress: Pick<LoadProgress, "completed" | "total" | "startedAt" | "queued">,
   now: number,
 ): number | null {
   if (progress.total === null || progress.completed <= 0) return null;
-  const remaining = Math.max(0, progress.total - progress.completed);
+  const queued = progress.queued ?? 0;
+  const remaining = queued > 0 ? queued : Math.max(0, progress.total - progress.completed);
   if (remaining === 0) return 0;
   const elapsed = Math.max(0, now - progress.startedAt);
   if (elapsed <= 0) return null;

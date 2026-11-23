@@ -7,6 +7,8 @@ import {
   parseSymbolPath,
   resolveGlobalSymbolPath,
   symbolAnchor,
+  toNativePath,
+  toUnixPath,
 } from "../src/lib/symbol-path";
 
 const cwd = "/home/me/gpen-js";
@@ -27,22 +29,44 @@ describe("global symbol paths", () => {
 
   test("accepts compact folders, relative files and a bare cwd", () => {
     expect(parseSymbolPath("gpen-js//src/a.ts#run", cwd)).toEqual({
+      project: "",
       folder: cwd,
       file: "src/a.ts",
       symbol: "run",
     });
+    expect(parseSymbolPath("other//src/a.ts#run", cwd)).toEqual({
+      project: "other",
+      folder: "",
+      file: "src/a.ts",
+      symbol: "run",
+    });
     expect(parseSymbolPath("src/a.ts#run", cwd)).toEqual({
+      project: "",
       folder: cwd,
       file: "src/a.ts",
       symbol: "run",
     });
     expect(parseSymbolPath("//src/a.ts#run", cwd)).toEqual({
+      project: "",
       folder: cwd,
       file: "src/a.ts",
       symbol: "run",
     });
-    expect(parseSymbolPath(cwd, cwd)).toEqual({ folder: cwd, file: "", symbol: "" });
+    expect(parseSymbolPath(cwd, cwd)).toEqual({
+      project: "",
+      folder: cwd,
+      file: "",
+      symbol: "",
+    });
     expect(new GlobalSymbolPath(cwd, cwd).toDisplay()).toBe("gpen-js");
+  });
+
+  test("normalizes Windows drives to the project's Unix form", () => {
+    expect(toUnixPath("C:\\repo\\src\\a.ts")).toBe("/C:/repo/src/a.ts");
+    expect(toNativePath("/C:/repo/src/a.ts")).toBe("C:/repo/src/a.ts");
+    const path = new GlobalSymbolPath("C:\\repo\\src\\a.ts#run", "/C:/repo");
+    expect(path.folder).toBe("/C:/repo/src");
+    expect(path.toDisplay()).toBe("src//a.ts#run");
   });
 
   test("detects path-shaped values without treating a qualified name as one", () => {
@@ -70,6 +94,9 @@ describe("global symbol paths", () => {
     };
     const path = globalSymbolPathFor(candidate, cwd);
     expect(path.toDisplay()).toBe("gpen-js//src/main.ts#main");
+    const projectPath = globalSymbolPathFor(candidate, cwd, "demo");
+    expect(projectPath.toDisplay()).toBe("demo//src/main.ts#main");
+    expect(projectPath.project).toBe("demo");
     expect(resolveGlobalSymbolPath(path, [candidate])).toBe(candidate);
 
     const method = {

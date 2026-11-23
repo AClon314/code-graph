@@ -7,6 +7,8 @@ import type { LoadState } from "./code-graph";
  */
 export class ProgressController {
   private timer: ReturnType<typeof setInterval> | undefined;
+  /** Last completed total per query; keeps the ALL denominator stable. */
+  private hints = new Map<string, number>();
 
   constructor(private readonly load: LoadState) {}
 
@@ -16,6 +18,7 @@ export class ProgressController {
       label,
       completed: 0,
       total,
+      queued: 0,
       startedAt: now,
       updatedAt: now,
       etaMs: null,
@@ -24,14 +27,26 @@ export class ProgressController {
     this.timer = setInterval(() => this.refresh(), 250);
   }
 
-  update(progress: NeighborhoodProgress): void {
+  key(project: string, root: string, depth: number | null, direction: string): string {
+    return [project, root, depth ?? "*", direction].join("|");
+  }
+
+  knownTotal(key: string): number | undefined {
+    return this.hints.get(key);
+  }
+
+  update(progress: NeighborhoodProgress, key?: string): void {
     const now = Date.now();
     const existing = this.load.progress;
     const total = progress.total > 0 ? progress.total : null;
+    if (key && progress.queued === 0 && progress.fetched >= progress.total) {
+      this.hints.set(key, progress.total);
+    }
     this.load.progress = {
       label: existing?.label ?? "Loading graph",
       completed: progress.fetched,
       total,
+      queued: progress.queued,
       startedAt: existing?.startedAt ?? now,
       updatedAt: now,
       etaMs: estimateEta(

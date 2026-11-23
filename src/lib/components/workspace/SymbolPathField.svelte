@@ -1,34 +1,39 @@
 <script lang="ts">
-  import CodeInput, {
-    type CodeInputOption,
-  } from "../CodeInput.svelte";
-  import type { RootCandidate } from "../../graph/roots";
-  import { GlobalSymbolPath, globalSymbolPathFor } from "../../symbol-path";
+  import CodeInput from "../CodeInput.svelte";
+  import { browseCbmPath, symbolPathCompletionSource } from "../symbol-path-complete";
+  import type { CbmFetch, CbmProject } from "../../cbm-projects";
+  import { GlobalSymbolPath, toUnixPath } from "../../symbol-path";
 
   interface Props {
-    /** Canonical full global symbol path (absolute folder + //file#symbol). */
+    /** Canonical current global symbol path. */
     value?: string;
     /** Workspace root used to collapse the folder while the field is idle. */
     cwd?: string;
-    roots: RootCandidate[];
-    loading?: boolean;
+    /** Indexed project names/roots used by the prefix completion. */
+    projects?: readonly CbmProject[];
+    /** cbm transport used for filesystem completion. */
+    fetchCbm?: CbmFetch;
     label?: string;
     placeholder?: string;
     oncommit?: (value: string) => void;
+    /** Start indexing the existing absolute folder before `//`. */
+    onindex?: (folder: string) => void;
   }
 
   let {
     value = $bindable(""),
     cwd = "",
-    roots,
-    loading = false,
+    projects = [],
+    fetchCbm,
     label = "Path bar",
-    placeholder = "cwd//path/to/file#symbol",
+    placeholder = "project//path/to/file#symbol",
     oncommit,
+    onindex,
   }: Props = $props();
 
   let editing = $state(false);
   let draft = $state(value);
+  let lastCommit = "";
 
   // Keep the editable draft in sync with programmatic graph changes, but
   // never overwrite what the user is currently typing.
@@ -39,9 +44,30 @@
   const display = $derived(
     editing ? draft : new GlobalSymbolPath(value, cwd).toDisplay(),
   );
+  const completionSource = $derived(
+    symbolPathCompletionSource({ cwd, projects, fetchCbm }),
+  );
+  let indexPath = $state("");
+  $effect(() => {
+    const text = toUnixPath(editing ? draft : display);
+    const separator = text.indexOf("//");
+    const prefix = separator >= 0 ? text.slice(0, separator) : "";
+    if (!fetchCbm || !prefix.startsWith("/")) {
+      indexPath = "";
+      return;
+    }
+    const timer = setTimeout(() => {
+      const request = browseCbmPath(fetchCbm, prefix);
+      if (request) request.then(() => (indexPath = prefix)).catch(() => (indexPath = ""));
+    }, 250);
+    return () => clearTimeout(timer);
+  });
 
   function commitValue(event: Event): void {
-    oncommit?.((event as CustomEvent<{ value: string }>).detail.value);
+    const next = (event as CustomEvent<{ value: string }>).detail.value;
+    if (next === lastCommit) return;
+    lastCommit = next;
+    oncommit?.(next);
   }
 
   function oninput(event: Event): void {
@@ -56,32 +82,15 @@
   function onblur(): void {
     editing = false;
   }
-
-  /** Completions are suggestions only; the field still accepts any path. */
-  function rootOptions(): CodeInputOption[] {
-    return roots.map((root) => {
-      const path = globalSymbolPathFor(root, cwd);
-      const value = path.hasFile ? path.toDisplay() : root.qualifiedName;
-      return {
-        value,
-        label: value,
-        description: describeRoot(root),
-      };
-    });
-  }
-
-  function describeRoot(root: RootCandidate): string {
-    const location = root.filePath
-      ? `${root.filePath}${root.startLine > 0 ? `:${root.startLine}` : ""}`
-      : "";
-    return [root.kind, root.reason, location].filter(Boolean).join(" · ");
-  }
 </script>
 
 <div class="root-field">
   <CodeInput
     value={display}
-    options={rootOptions}
+    options={[]}
+    showClear={false}
+    completionSources={[completionSource]}
+    activateOnTyping={true}
     debounce={350}
     oninput={oninput}
     onfocus={onfocus}
@@ -91,19 +100,52 @@
     aria-label={label}
     {placeholder}
     spellcheck={false}
-  />
-  {#if loading}<span class="root-status">loading roots…</span>{/if}
+  >
+    {#snippet afterInput()}
+      {#if indexPath && onindex}
+        <button
+          class="index-new-button"
+          type="button"
+          aria-label="New index"
+          title={`Index ${indexPath}`}
+          onpointerdown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          onclick={(event) => {
+            event.stopPropagation();
+            lastCommit = draft;
+            onindex?.(indexPath);
+          }}
+        >+</button>
+      {/if}
+    {/snippet}
+  </CodeInput>
 </div>
 
 <style>
   .root-field {
     display: grid;
     min-width: 0;
-    gap: 0.15lh;
   }
 
-  .root-status {
-    color: var(--vscode-descriptionForeground, var(--muted, #9d9d9d));
-    font-size: 0.68rem;
+  :global(.index-new-button) {
+    flex: none;
+    width: 2.6ch;
+    padding: 0;
+    border: 0;
+    border-left: 1px solid var(--vscode-input-border, var(--cg-line));
+    background: transparent;
+    color: var(--vscode-textLink-foreground, var(--cg-accent));
+    font: inherit;
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  :global(.index-new-button:hover),
+  :global(.index-new-button:focus-visible) {
+    background: var(--vscode-toolbar-hoverBackground, color-mix(in srgb, var(--cg-text) 10%, transparent));
+    outline: none;
   }
 </style>

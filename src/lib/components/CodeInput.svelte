@@ -27,7 +27,7 @@
     placeholder as cmPlaceholder,
     repositionTooltips,
   } from "@codemirror/view";
-  import { onMount, tick } from "svelte";
+  import { onMount, tick, type Snippet } from "svelte";
   import type { HTMLInputAttributes } from "svelte/elements";
 
   import {
@@ -36,6 +36,7 @@
     type NormalizedCodeInputOption,
   } from "./code-input-options";
   import { fuzzyMatch } from "./code-input-filter";
+  import { mapCursor, selectionFor } from "./code-input-cursor";
   import {
     codeInputTheme,
     codeInputTooltips,
@@ -73,6 +74,8 @@
     activateOnTyping?: boolean;
     /** Filter candidates by the current text; false shows all options. */
     filterOptions?: boolean;
+    /** Show the synthetic Clear input row when no option matches. */
+    showClear?: boolean;
     /** Debounce value commits after input, in milliseconds. */
     debounce?: number;
     placeholder?: string;
@@ -96,6 +99,12 @@
     onfocus?: (event: FocusEvent) => void;
     onblur?: (event: FocusEvent) => void;
     oncommit?: (event: CustomEvent<{ value: string }>) => void;
+    /** Optional content before the field. */
+    start?: Snippet;
+    /** Optional content between the input and the chevron. */
+    afterInput?: Snippet;
+    /** Optional content after the field. */
+    end?: Snippet;
   }
 
   let {
@@ -105,6 +114,7 @@
     extensions = [],
     activateOnTyping = false,
     filterOptions = true,
+    showClear = true,
     debounce = 0,
     placeholder = "",
     disabled = false,
@@ -127,6 +137,9 @@
     onfocus,
     onblur,
     oncommit,
+    start,
+    afterInput,
+    end,
     ...rest
   }: Props = $props();
 
@@ -248,11 +261,11 @@
       };
     }
 
-    function buildResult(text: string, docLength: number): CompletionResult {
+    function buildResult(text: string, docLength: number): CompletionResult | null {
       const matched = filterOptions
         ? normalized.filter((option) => fuzzyMatch(option, text))
         : normalized;
-      if (!matched.length) return clearResult(docLength);
+      if (!matched.length) return showClear ? clearResult(docLength) : null;
       return {
         from: 0,
         to: docLength,
@@ -272,7 +285,8 @@
     // Keep an already-open list alive while typing. Without `update`,
     // autocomplete with activateOnTyping=false invalidates the result and
     // closes the list instead of showing the clear fallback.
-    function withUpdate(result: CompletionResult): CompletionResult {
+    function withUpdate(result: CompletionResult | null): CompletionResult | null {
+      if (!result) return null;
       return {
         ...result,
         update: (_result, _from, _to, next) =>
@@ -698,27 +712,6 @@
     unsubscribeViewport = subscribeViewport(onViewportChange);
   }
 
-  /** Map an idle-input selection onto the expanded/edited value. */
-  function selectionFor(
-    selection: { anchor: number; head: number },
-    fromDoc: string,
-    toDoc: string,
-  ): { anchor: number; head: number } {
-    if (fromDoc === toDoc) return selection;
-    const offset = toDoc.endsWith(fromDoc) ? toDoc.length - fromDoc.length : 0;
-    const clamp = (position: number) => Math.max(0, Math.min(toDoc.length, position + offset));
-    return { anchor: clamp(selection.anchor), head: clamp(selection.head) };
-  }
-
-  /** Keep the caret on the same text when an external value update arrives. */
-  function mapCursor(fromDoc: string, toDoc: string, position: number): number {
-    if (fromDoc === toDoc) return position;
-    if (position === fromDoc.length) return toDoc.length;
-    if (toDoc.endsWith(fromDoc)) return position + toDoc.length - fromDoc.length;
-    if (toDoc.startsWith(fromDoc)) return position;
-    return Math.min(position, toDoc.length);
-  }
-
   onMount(() => {
     if (autofocus && !disabled) activate(true);
 
@@ -775,6 +768,7 @@
   bind:this={wrapper}
   {...wrapperRest}
 >
+  {@render start?.()}
   <div
     class="field"
     role="presentation"
@@ -808,6 +802,7 @@
         }}
       />
     {/if}
+    {@render afterInput?.()}
     <button
       type="button"
       class="chevron"
@@ -824,6 +819,7 @@
       onclick={() => (completionOpen ? close() : openList())}
     >v</button>
   </div>
+  {@render end?.()}
 
   {#if name}
     <input

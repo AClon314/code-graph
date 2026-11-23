@@ -21,6 +21,8 @@ export interface NeighborhoodOptions {
   rootBundle?: SymbolBundle;
   /** Called as the BFS discovers/fetches symbols; must not block loading. */
   onProgress?: (progress: NeighborhoodProgress) => void;
+  /** Last completed total for the same query, used as a stable lower bound. */
+  knownTotal?: number;
 }
 
 interface LoadedRecord {
@@ -68,9 +70,10 @@ export async function loadNeighborhood(
   let rootBundle: SymbolBundle;
   if (options.rootBundle) {
     rootBundle = options.rootBundle;
-    report({ phase: "neighbors", fetched: 1, queued: 0, total: rootTotal(rootBundle, direction) });
+    const initial = Math.max(rootTotal(rootBundle, direction), options.knownTotal ?? 0);
+    report({ phase: "neighbors", fetched: 1, queued: 0, total: initial });
   } else {
-    report({ phase: "root", fetched: 0, queued: 0, total: 1 });
+    report({ phase: "root", fetched: 0, queued: 0, total: Math.max(1, options.knownTotal ?? 0) });
     try {
       rootBundle = await source.symbol(project, root);
     } catch (cause) {
@@ -79,12 +82,13 @@ export async function loadNeighborhood(
         { cause },
       );
     }
-    report({ phase: "neighbors", fetched: 1, queued: 0, total: rootTotal(rootBundle, direction) });
+    const initial = Math.max(rootTotal(rootBundle, direction), options.knownTotal ?? 0);
+    report({ phase: "neighbors", fetched: 1, queued: 0, total: initial });
   }
 
   const rootRecord = makeRootRecord(root, rootBundle);
   let fetched = 1;
-  let total = rootTotal(rootBundle, direction);
+  let total = Math.max(rootTotal(rootBundle, direction), options.knownTotal ?? 0);
   const nodes = new Map<string, GraphViewNode>();
   const edges = new Map<string, GraphViewEdge>();
   const records = new Map<string, LoadedRecord>();

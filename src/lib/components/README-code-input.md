@@ -126,3 +126,20 @@ per active field. Native/editor attribute splitting and lazy option resolution
 keep the component's prop surface predictable. Styling hooks:
 `.cm-tooltip.code-input-completions`, `.cm-completionLabel`,
 `.cm-completionDetail`, and the selected `li[aria-selected]`.
+
+
+## Layout snippets
+
+CodeInput exposes three Svelte snippets for layout composition:
+
+```svelte
+<CodeInput>
+  {#snippet start()}<span class="prefix">A</span>{/snippet}
+  {#snippet afterInput()}<button type="button">+</button>{/snippet}
+  {#snippet end()}<span class="suffix">C</span>{/snippet}
+</CodeInput>
+```
+
+`start` is outside the field, `afterInput` sits between the editor and the
+chevron, and `end` is after the field. The path bar uses `afterInput` for its
+new-index button.

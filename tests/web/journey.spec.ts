@@ -18,7 +18,7 @@ test("project → path bar → search → jump", async ({ page }, testInfo) => {
     await page.locator(".brand-pill").click();
     const setup = page.getByRole("complementary", { name: "Setup" });
     await expect(setup).toBeVisible();
-    await expect(page.getByLabel("Project", { exact: true })).toHaveValue("demo");
+    await expect(setup.locator(".field .setup-meta")).toHaveText("demo");
     await page.getByRole("button", { name: "Close setup" }).click();
     await expect(setup).toBeHidden();
   });

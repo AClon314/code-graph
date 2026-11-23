@@ -8,6 +8,7 @@
  */
 import type { GraphBackend, Runtime } from "../../extension/api";
 import type { RootCandidate } from "../graph/roots";
+import type { CbmProject } from "../cbm-projects";
 import type { GraphViewData, GraphViewNode, SymbolBundle } from "../graph/types";
 import type { NeighborhoodDirection } from "../graph/neighborhood";
 import type { Depth, GraphRenderer, LayoutAlgorithm, SourceKind } from "../graph/url-state";
@@ -34,6 +35,8 @@ export interface SetupState {
   nodeRendererPath: string;
   roots: RootCandidate[];
   projects: string[];
+  /** Indexed project metadata used to auto-select by workspace root. */
+  projectRows: CbmProject[];
   loading: {
     roots: boolean;
     projects: boolean;
@@ -143,6 +146,7 @@ export function createGraphUiState(init: GraphUiStateInit = {}): GraphUiState {
       nodeRendererPath: init.nodeRendererPath ?? NODE_RENDERER_FILE,
       roots: [],
       projects: [],
+      projectRows: [],
       loading: { roots: false, projects: false },
     },
     current: {

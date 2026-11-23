@@ -28,11 +28,11 @@ test("formats relative and absolute paths from a POSIX workspace root", () => {
 test("normalizes Windows separators and compares drive paths case-insensitively", () => {
   expect(pathFormats("src\\main.ts", "C:\\repo\\")).toEqual({
     relative: "src/main.ts",
-    absolute: "C:/repo/src/main.ts",
+    absolute: "/C:/repo/src/main.ts",
   });
   expect(pathFormats("c:\\repo\\src\\main.ts", "C:\\repo")).toEqual({
     relative: "src/main.ts",
-    absolute: "c:/repo/src/main.ts",
+    absolute: "/C:/repo/src/main.ts",
   });
 });
 

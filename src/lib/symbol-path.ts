@@ -18,6 +18,8 @@
  */
 
 export interface SymbolPathParts {
+  /** Indexed project name; mutually useful with (not required instead of) folder. */
+  project?: string;
   folder?: string;
   file?: string;
   symbol?: string;
@@ -29,6 +31,8 @@ export interface SymbolCandidate {
   name?: string;
   filePath?: string;
   label?: string;
+  project?: string;
+  rootPath?: string;
   startLine?: number;
   startColumn?: number;
 }
@@ -42,8 +46,39 @@ export function currentCwd(): string {
   }
 }
 
-function toSlash(value: string): string {
+function slash(value: string): string {
   return value.replace(/\\/g, "/");
+}
+
+/**
+ * The project stores every path in Unix form, including Windows drives:
+ * `C:\repo` -> `/C:/repo`. CBM/editor boundaries convert back with
+ * `toNativePath`.
+ */
+export function toUnixPath(value: string): string {
+  const normalized = slash(value).trim();
+  if (/^[A-Za-z]:($|\/)/.test(normalized)) {
+    return `/${normalized[0]!.toUpperCase()}${normalized.slice(1)}${
+      normalized.length === 2 ? "/" : ""
+    }`;
+  }
+  return normalized;
+}
+
+/** Convert the UI's Unix path back to the host/CBM native form. */
+export function toNativePath(value: string): string {
+  const normalized = toUnixPath(value);
+  return normalized.replace(/^\/([A-Za-z]):(\/|$)/, "$1:$2");
+}
+
+/** Compare folder/root identity with the project's Unix normalization. */
+export function sameRootPath(left: string, right: string): boolean {
+  const normalize = (value: string) => toUnixPath(value).replace(/\/+$/, "").toLowerCase();
+  return normalize(left) === normalize(right);
+}
+
+function toSlash(value: string): string {
+  return toUnixPath(value);
 }
 
 function isAbsolute(value: string): boolean {
@@ -105,14 +140,20 @@ function relativeFile(value: string, folder: string): string {
 export function parseSymbolPath(
   value: string | SymbolPathParts | GlobalSymbolPath = "",
   cwd = currentCwd(),
-): { folder: string; file: string; symbol: string } {
+): { project: string; folder: string; file: string; symbol: string } {
   if (value instanceof GlobalSymbolPath) {
-    return { folder: value.folder, file: value.file, symbol: value.symbol };
+    return {
+      project: value.project,
+      folder: value.folder,
+      file: value.file,
+      symbol: value.symbol,
+    };
   }
   if (typeof value !== "string") {
-    const folder = resolveFolder(value.folder ?? "", cwd);
-    const file = relativeFile(value.file ?? "", folder);
-    return { folder, file, symbol: (value.symbol ?? "").trim() };
+    const project = (value.project ?? "").trim();
+    const folder = resolveFolder(value.folder ?? "", project ? "" : cwd);
+    const file = relativeFile(value.file ?? "", folder || cwd);
+    return { project, folder, file, symbol: (value.symbol ?? "").trim() };
   }
 
   const input = toSlash(value).trim();
@@ -122,30 +163,46 @@ export function parseSymbolPath(
   const separator = pathPart.indexOf("//");
 
   if (separator >= 0) {
-    const folder = resolveFolder(pathPart.slice(0, separator), cwd);
-    const file = relativeFile(pathPart.slice(separator + 2), folder);
-    return { folder, file, symbol };
+    const prefix = pathPart.slice(0, separator);
+    const simple = prefix && !prefix.includes("/") && !isAbsolute(prefix);
+    if (simple && prefix !== basenamePath(cwd)) {
+      return {
+        project: prefix,
+        folder: "",
+        file: relativeFile(pathPart.slice(separator + 2), cwd),
+        symbol,
+      };
+    }
+    const folder = resolveFolder(prefix, cwd);
+    return {
+      project: "",
+      folder,
+      file: relativeFile(pathPart.slice(separator + 2), folder || cwd),
+      symbol,
+    };
   }
 
   if (hash >= 0) {
     if (isAbsolute(pathPart)) {
       const folder = dirnamePath(pathPart);
-      return { folder, file: relativeFile(pathPart, folder), symbol };
+      return { project: "", folder, file: relativeFile(pathPart, folder), symbol };
     }
     const folder = resolveFolder("", cwd);
-    return { folder, file: relativeFile(pathPart, folder), symbol };
+    return { project: "", folder, file: relativeFile(pathPart, folder), symbol };
   }
 
   // A bare absolute path is a folder-only selection (the default path bar).
-  if (isAbsolute(pathPart)) return { folder: trimTrailingSlash(pathPart), file: "", symbol };
+  if (isAbsolute(pathPart)) {
+    return { project: "", folder: trimTrailingSlash(pathPart), file: "", symbol };
+  }
 
   if (pathPart.includes("/")) {
     const folder = resolveFolder("", cwd);
-    return { folder, file: relativeFile(pathPart, folder), symbol };
+    return { project: "", folder, file: relativeFile(pathPart, folder), symbol };
   }
 
   // A bare folder/path (including the default cwd) has no file or symbol.
-  return { folder: resolveFolder(pathPart, cwd), file: "", symbol };
+  return { project: "", folder: resolveFolder(pathPart, cwd), file: "", symbol };
 }
 
 /** True for values that should be parsed as a filesystem-based path. */
@@ -155,28 +212,31 @@ export function isGlobalSymbolPath(value: string): boolean {
 }
 
 export class GlobalSymbolPath {
+  readonly project: string;
   readonly folder: string;
   readonly file: string;
   readonly symbol: string;
 
   constructor(value: string | SymbolPathParts | GlobalSymbolPath = "", cwd = currentCwd()) {
     const parsed = parseSymbolPath(value, cwd);
+    this.project = parsed.project;
     this.folder = parsed.folder;
     this.file = parsed.file;
     this.symbol = parsed.symbol;
   }
 
-  /** Full canonical form, including the absolute folder. */
+  /** Canonical form: project name or absolute folder, then //file#symbol. */
   toString(): string {
-    return `${this.folder}${this.file ? `//${this.file}` : ""}${
+    const prefix = this.project || this.folder;
+    return `${prefix}${this.file ? `//${this.file}` : ""}${
       this.symbol ? `#${this.symbol}` : ""
     }`;
   }
 
-  /** Privacy-preserving form shown by the path bar: basename(folder)//file#symbol. */
+  /** Privacy-preserving file form: project name or basename(folder). */
   toDisplay(): string {
-    const folder = basenamePath(this.folder) || this.folder;
-    return `${folder}${this.file ? `//${this.file}` : ""}${
+    const prefix = this.project || basenamePath(this.folder) || this.folder;
+    return `${prefix}${this.file ? `//${this.file}` : ""}${
       this.symbol ? `#${this.symbol}` : ""
     }`;
   }
@@ -246,18 +306,20 @@ export function symbolAnchor(
 export function globalSymbolPathFor(
   candidate: SymbolCandidate,
   cwd = currentCwd(),
+  project = candidate.project ?? "",
 ): GlobalSymbolPath {
   const root = trimTrailingSlash(toSlash(cwd).trim());
   const rawFile = toSlash(candidate.filePath ?? "").trim();
 
   if (!rawFile) {
-    return new GlobalSymbolPath({ folder: root, file: "", symbol: "" }, root);
+    return new GlobalSymbolPath({ project, folder: root, file: "", symbol: "" }, root);
   }
 
   if (isAbsolute(rawFile)) {
     const file = relativeFile(rawFile, root);
     return new GlobalSymbolPath(
       {
+        project,
         folder: root || dirnamePath(rawFile),
         file,
         symbol: symbolAnchor(candidate.qualifiedName, file, candidate.name),
@@ -268,6 +330,7 @@ export function globalSymbolPathFor(
 
   return new GlobalSymbolPath(
     {
+      project,
       folder: root,
       file: trimRelative(rawFile),
       symbol: symbolAnchor(candidate.qualifiedName, rawFile, candidate.name),
@@ -286,7 +349,11 @@ export function resolveGlobalSymbolPath(
   candidates: readonly SymbolCandidate[],
 ): SymbolCandidate | null {
   if (!path.file) return null;
-  const inFile = candidates.filter((candidate) => fileMatches(candidate.filePath, path));
+  const scoped = path.project
+    ? candidates.filter((candidate) => candidate.project === path.project)
+    : candidates;
+  const pool = scoped.length > 0 ? scoped : candidates;
+  const inFile = pool.filter((candidate) => fileMatches(candidate.filePath, path));
   if (inFile.length === 0) return null;
   if (!path.symbol) {
     return (

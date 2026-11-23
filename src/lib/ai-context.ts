@@ -50,15 +50,16 @@ export function buildAiContext(
   bundle: SymbolBundle | null,
   focusNode: GraphViewNode | null,
   cwd: string,
+  project = "",
 ): AiContext | null {
   const target = bundle?.node ?? focusNode;
   if (!target) return null;
 
-  const path = globalSymbolPathFor(target, cwd);
+  const path = globalSymbolPathFor(target, cwd, project);
   const callers = bundle?.callers ?? [];
   const callees = bundle?.callees ?? [];
-  const markdown = markdownFor(path, target, callers, callees);
-  const json = jsonFor(path, target, callers, callees);
+  const markdown = markdownFor(path, target, callers, callees, project);
+  const json = jsonFor(path, target, callers, callees, project);
   return { path, markdown, json };
 }
 
@@ -67,8 +68,9 @@ function markdownFor(
   target: AiTarget,
   callers: readonly SymbolConnection[],
   callees: readonly SymbolConnection[],
+  project: string,
 ): string {
-  const folder = basenamePath(path.folder) || "cwd";
+  const folder = path.project || basenamePath(path.folder) || "cwd";
   const lines: string[] = [`# ${markdownText(folder)}/`];
   if (path.file) {
     lines.push(`## ${markdownText(path.file)}`);
@@ -78,15 +80,19 @@ function markdownFor(
     lines.push(`### \\#${markdownText(target.name)}`);
   }
   lines.push("", "#### Callers");
-  lines.push(...linkLines(callers, path.folder), "", "#### Callees");
-  lines.push(...linkLines(callees, path.folder));
+  lines.push(...linkLines(callers, path.folder, project), "", "#### Callees");
+  lines.push(...linkLines(callees, path.folder, project));
   return `${lines.join("\n")}\n`;
 }
 
-function linkLines(connections: readonly SymbolConnection[], cwd: string): string[] {
+function linkLines(
+  connections: readonly SymbolConnection[],
+  cwd: string,
+  project: string,
+): string[] {
   if (connections.length === 0) return ["- none"];
   return connections.map((connection) => {
-    const path = globalSymbolPathFor(connection as SymbolCandidate, cwd);
+    const path = globalSymbolPathFor(connection as SymbolCandidate, cwd, project);
     const label = `${path.file || connection.filePath || connection.qualifiedName}#${
       connection.name || symbolTail(connection.qualifiedName)
     }`;
@@ -99,22 +105,24 @@ function jsonFor(
   target: AiTarget,
   callers: readonly SymbolConnection[],
   callees: readonly SymbolConnection[],
+  project: string,
 ): AiJson {
   return {
     self: path.toDisplay(),
     location: path.toLocation(target.startLine, target.startColumn),
-    callers: linksJson(callers, path.folder),
-    callees: linksJson(callees, path.folder),
+    callers: linksJson(callers, path.folder, project),
+    callees: linksJson(callees, path.folder, project),
   };
 }
 
 function linksJson(
   connections: readonly SymbolConnection[],
   cwd: string,
+  project: string,
 ): Record<string, AiLink> {
   const links: Record<string, AiLink> = {};
   for (const connection of connections) {
-    const path = globalSymbolPathFor(connection as SymbolCandidate, cwd);
+    const path = globalSymbolPathFor(connection as SymbolCandidate, cwd, project);
     const key = path.toDisplay() || connection.qualifiedName;
     links[key] = {
       label: connection.name || symbolTail(connection.qualifiedName),

@@ -11,7 +11,13 @@ import {
   writeRootsCache,
   refreshRootsCache,
 } from "./lib/roots-cache.ts";
-import { cbmTarget, deleteCbmProject, listCbmProjects } from "./lib/projects.ts";
+import {
+  cbmTarget,
+  deleteCbmProject,
+  listCbmProjects,
+  staleCbmProjectNames,
+  verifyCbmProjectDeleted,
+} from "./lib/projects.ts";
 import { formatRoots, loadProjectRoots } from "../lib/graph/roots-fetch.ts";
 
 /** Build the Commander program and attach @bomb.sh/tab completion. */
@@ -246,27 +252,48 @@ function addRmProjectsCommand(program: Command): void {
     .command("rm-projects [names...]")
     .description("Delete cbm projects so stale indexes can be rebuilt")
     .option("--all", "delete every project returned by list_projects")
+    .option("--older-than <days>", "delete projects whose last index is older than N days", positiveInteger)
     .option("--cbm <url>", "explicit local cbm base URL")
     .option("--root <path>", "workspace root for the local roots cache", process.cwd())
     .option("--yes", "confirm deletion (required)")
     .option("--dry-run", "show targets without deleting")
-    .action(async (names: string[], options: { all?: boolean; cbm?: string; root: string; yes?: boolean; dryRun?: boolean }) => {
+    .action(async (names: string[], options: { all?: boolean; olderThan?: number; cbm?: string; root: string; yes?: boolean; dryRun?: boolean }) => {
       if (options.all && names.length > 0) {
         throw new Error("pass either project names or --all, not both");
+      }
+      if (options.olderThan !== undefined && (options.all || names.length > 0)) {
+        throw new Error("pass --older-than by itself, without names or --all");
       }
       if (!options.yes && !options.dryRun) {
         throw new Error("refusing to delete projects without --yes");
       }
       const targets = [
-        ...new Set(options.all ? await listCbmProjects(options) : names),
+        ...new Set(
+          options.olderThan !== undefined
+            ? await staleCbmProjectNames(options.olderThan, options)
+            : options.all
+              ? await listCbmProjects(options)
+              : names,
+        ),
       ];
-      if (targets.length === 0) throw new Error("no projects selected; pass names or --all");
+      if (targets.length === 0) {
+        const message =
+          options.olderThan !== undefined
+            ? `no projects older than ${options.olderThan} days`
+            : "no projects selected; pass names, --all, or --older-than";
+        if (options.dryRun) {
+          console.error(message);
+          return;
+        }
+        throw new Error(message);
+      }
       for (const name of targets) {
         if (options.dryRun) {
           console.error(`Would delete ${name} at ${await cbmTarget(options)}`);
           continue;
         }
         await deleteCbmProject(name, options);
+        await verifyCbmProjectDeleted(name, options);
         removeRootsCache(resolve(options.root), name);
         console.error(`Deleted ${name}`);
       }
