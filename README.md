@@ -68,16 +68,19 @@ directly. Build output contains only the selected runtime:
   side.
 - File tree: **VS Code Explorer**, not a webview. The old tree panel is removed.
 - Layout: the graph is the full workbench. The bottom dock has two fixed rows:
-  the status bar on top, then the operation bar with the pill-shaped **Code
-  Graph** mark, project name, path bar and action buttons. Search is collapsed
+  the status bar on top, then the operation bar with the outlined **Code
+  Graph** setup toggle, path bar and compact action cluster. Search is collapsed
   by default; the **🔍** toggle adds a third row above the status bar with the
   query, match counter and previous/next buttons. On portrait screens the
   operation bar wraps its actions below the brand/path row. **Setup** and
-  **Details** are edge panels, closed by default and mutually exclusive.
+  **forAI** are edge panels; their title and close button sit at the bottom of
+  the panel, and the panels are closed by default and mutually exclusive.
   Loading is never modal: the graph stays interactive while the status bar
   updates.
-- Graph: D3/SVG or the orchgraph character canvas, with search, fit, and
-  separate **Copy SVG** / **Export SVG** actions. Search only highlights on
+- Graph: D3/SVG or the orchgraph character canvas. The operation bar has
+  `⛶` fit, a copy action with a format menu (**SVG**, **Abs. path**,
+  **Rel. path**, **md for AI**, **json for AI**), and a save action with a
+  format menu (**SVG** for now). Search only highlights on
   input; **Enter** / **›** advances and **Shift+Enter** / **‹** goes back, with
   wrap-around and camera centering on the chosen node. The counter shows the
   current result over the total (0/N until you navigate). The mouse wheel zooms around
@@ -95,21 +98,28 @@ directly. Build output contains only the selected runtime:
   background click (or tap) clears the selection, while a drag beyond 4 px is
   treated as panning, not a click. The **focus** checkbox hides unrelated
   nodes and re-runs layout for the selected call paths.
-- Path bar: the **Path bar** field in the operation bar is a `CodeInput`
-  with completion candidates from cbm's repository map (entry points, source
-  modules, exported classes). The input stays editable, so arbitrary QNs and
-  `#id` values still work; selecting a root fills the field. Valid input is
-  committed after 350 ms of inactivity (no separate **Load** button). Project
-  selection also commits after that delay and retargets the symbol prefix. When
-  the path bar is empty, the canvas shows every project root entry in a compact
+- Path bar: the **Path bar** field is a `CodeInput` whose completion
+  candidates are filesystem symbols. The canonical value is a global symbol
+  path:
+  `<cwd>//<file-relative-to-cwd>#<symbol-unique-in-file>`. The idle field
+  shows the privacy-preserving compact form (`gpen-js//src/main.ts#main`);
+  focusing it expands the absolute folder. The default value is the workspace
+  root, so the field is never empty. Legacy cbm qualified names and `#id`
+  values remain accepted for compatibility, and free-form values are resolved
+  against the current graph/root candidates. See
+  [`docs/global-symbol-path.md`](docs/global-symbol-path.md) for the scheme
+  and resolution rules. Valid input is committed after 350 ms of inactivity
+  (no separate **Load** button). When the path bar points
+  at the workspace root, the canvas shows every project root entry in a compact
   grid.
-- Details: **Details** opens an edge inspector with the symbol bundle;
-  callers/callees are collapsible sections. Selecting a graph node does **not**
-  open the panel; click **Details** when you want it. If the panel is already
-  open, selecting another node refreshes it. **Jump** opens the file at the
-  symbol's line/column through
-  `ExtensionApi.openLocation`. **Copy rel**, **Copy abs** and **Copy both**
-  copy `path:line:column` (absolute paths are resolved from the workspace root).
+- forAI: the `{MD}` button opens the **forAI** panel. Its body is generated
+  from the selected symbol plus callers/callees: raw Markdown (default),
+  rendered Markdown preview, or JSON keyed by compact global symbol paths.
+  Selecting a graph node does not open the panel; click `{MD}` when you want
+  it. If the panel is already open, selecting another node refreshes it.
+  Preview links navigate to the linked symbol. Double-clicking a graph node
+  opens its source location through `ExtensionApi.openLocation`; copy actions
+  live in the operation bar.
 - Progressive disclosure: source/project live under **Setup** instead of the
   main toolbar. The Project field is a `CodeInput` with all indexed names
   fetched from cbm's read-only `list_projects` RPC; free-form names still work.
@@ -123,7 +133,7 @@ directly. Build output contains only the selected runtime:
   `+`/`-` zoom, and `Ctrl+C` copy relative path; `Ctrl+Shift+C` copies the SVG
   when no node is active. With a node active, `w`/`s` jump to the first
   caller/callee, `a`/`d` move to the previous/next sibling, and `d`/`s` no
-  longer toggle Details/Setup. `Esc` closes panels.
+  longer toggle forAI/Setup. `Esc` closes panels.
 - Workspace Trust: declared supported for untrusted and virtual workspaces, so
   the graph viewer is usable in Restricted Mode. cbm requests are made by the
   Node extension host, not the webview.
@@ -226,11 +236,11 @@ missing, the renderer is created on the next load.
 }
 ```
 
-`symbolEntry` is the qualified name of the graph root. Leave it empty (the
-default) to open the all-root-entry overview. It is not a list, filter, or cbm
-entry-point flag; `/api/symbol` calls it `qn` because cbm identifies any node by
-qualified name. GUI, CLI and TUI also expose a finite project-root picker;
-free-form QNs remain valid.
+`symbolEntry` is the backend-qualified name of the graph root. Leave it empty
+(the default) to open the all-root-entry overview. The GUI path bar accepts the
+new global symbol path and legacy QNs; the URL/config still store the backend
+QN for compatibility. GUI, CLI and TUI also expose a finite project-root
+picker; free-form QNs remain valid.
 
 The shared module exports two named functions, one for each output model:
 

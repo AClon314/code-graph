@@ -4,7 +4,7 @@
 
   import GraphView from "./lib/components/GraphView.svelte";
   import OrchgraphView from "./lib/components/OrchgraphView.svelte";
-  import InspectorPanel from "./lib/components/workspace/InspectorPanel.svelte";
+  import ForAiPanel from "./lib/components/workspace/ForAiPanel.svelte";
   import GraphFooter from "./lib/components/workspace/GraphFooter.svelte";
   import OperationBar from "./lib/components/workspace/OperationBar.svelte";
   import SearchBar from "./lib/components/workspace/SearchBar.svelte";
@@ -43,19 +43,18 @@
     type SourceKind,
   } from "./lib/graph/url-state";
   import { resolveShortcut } from "./lib/shortcuts";
-  import type { PathCopyKind } from "./lib/path-location";
-  import { copySymbolPath, jumpToLocation, type JumpRow } from "./lib/actions/symbol";
+  import { activeJumpRow, jumpToLocation } from "./lib/actions/symbol";
   import { openConfigPath } from "./lib/actions/config";
   import {
     fixFor,
     type SettingsFix,
   } from "./lib/settings-fix";
   import { refForProject } from "./lib/graph/ref-project";
-  import { bundleForRef, normalizeEntry } from "./lib/graph/entry";
-  import { fetchProjectsFor, fetchRootsFor } from "./lib/graph/loaders";
+  import { bundleForRef } from "./lib/graph/entry";
+  import { fetchRootsFor, loadProjectNames } from "./lib/graph/loaders";
   import { progressLabel } from "./lib/graph/loading";
   import { rootsOverview } from "./lib/graph/overview";
-  import { adjacentSibling, firstNeighbor } from "./lib/graph/navigation";
+  import { matchLocation, navigationTarget } from "./lib/graph/navigation";
   import { ProgressController } from "./lib/state/progress";
   import {
     loadNodeHtmlRenderer,
@@ -63,7 +62,14 @@
   } from "./lib/node-renderer";
   import { errorMessage } from "./lib/errors";
   import { applySettingsFix } from "./lib/actions/fix";
-  import { copyGraphSvg, copyTerminalArt, exportGraphSvg } from "./lib/actions/graph-export";
+  import { buildAiContext, type CopyMode } from "./lib/ai-context";
+  import { copyToolbar, saveToolbar } from "./lib/actions/toolbar";
+  import {
+    applyEntryPath,
+    pathForCandidate,
+    resolveEntryPath,
+    setPathToWorkspaceRoot,
+  } from "./lib/state/symbol-path-entry";
   import type { GraphViewHandle } from "./lib/graph/view-handle";
   import { applyGraphUrlToState, syncGraphUrl } from "./lib/state/url-sync";
   const computedSource = new ComputedSource();
@@ -95,6 +101,13 @@
 
   const selectedNode = $derived(
     codeGraph.current.graph?.nodes.find((node) => node.id === codeGraph.current.selection.id) ?? codeGraph.current.selection.node,
+  );
+
+  const selectionBundle = $derived(
+    codeGraph.current.graph && selectedNode ? bundleFromGraph(codeGraph.current.graph, selectedNode.id) ?? null : null,
+  );
+  const aiContext = $derived(
+    buildAiContext(codeGraph.current.detail.symbol ?? selectionBundle, selectedNode ?? codeGraph.current.selection.node, codeGraph.setup.workspaceRoot),
   );
 
   const searchHits = $derived(graphSearchHits(codeGraph.current.graph, codeGraph.current.ui.search));
@@ -212,6 +225,7 @@
 
   async function loadOverview(request: number): Promise<void> {
     const id = ++graphRequestId;
+    setPathToWorkspaceRoot(codeGraph);
     codeGraph.current.load.graph = true;
     codeGraph.current.status.graphError = "";
     codeGraph.current.status.graphFix = null;
@@ -260,17 +274,7 @@
   }
 
   async function loadProjects(): Promise<void> {
-    codeGraph.setup.loading.projects = true;
-    try {
-      codeGraph.setup.projects = await fetchProjectsFor(codeGraph.setup.source, (request) =>
-        extensionApi.fetchCbm(request),
-      );
-    } catch (cause) {
-      codeGraph.setup.projects = [];
-      console.warn("[code-graph] could not load cbm projects", cause);
-    } finally {
-      codeGraph.setup.loading.projects = false;
-    }
+    await loadProjectNames(codeGraph, (request) => extensionApi.fetchCbm(request));
   }
 
   async function ensureCbmEndpoint(): Promise<boolean> {
@@ -319,6 +323,8 @@
         codeGraph.current.selection.id = rootNode?.id ?? next.root;
         codeGraph.current.selection.node = null;
       }
+      const chosen = next.nodes.find((node) => node.id === codeGraph.current.selection.id) ?? next.nodes[0];
+      if (chosen) codeGraph.setup.path = pathForCandidate(chosen, codeGraph.setup.workspaceRoot);
       applyPendingLocation(next);
     } catch (cause) {
       if (id !== graphRequestId || request !== requestId) return;
@@ -367,6 +373,8 @@
         codeGraph.current.selection.id = rootNode?.id ?? next.root;
         codeGraph.current.selection.node = null;
       }
+      const chosen = next.nodes.find((node) => node.id === codeGraph.current.selection.id) ?? next.nodes[0];
+      if (chosen) codeGraph.setup.path = pathForCandidate(chosen, codeGraph.setup.workspaceRoot);
     } catch (cause) {
       if (id !== graphRequestId) return;
       codeGraph.current.graph = null;
@@ -393,6 +401,7 @@
         if (config.source === "computed" || config.source === "cbm") codeGraph.setup.source = config.source;
         codeGraph.setup.cbmBaseUrl = config.cbmBaseUrl;
         codeGraph.setup.workspaceRoot = config.workspaceRoot;
+        if (!codeGraph.setup.path) codeGraph.setup.path = config.workspaceRoot;
         codeGraph.setup.configPath = config.configPath;
         codeGraph.setup.nodeRendererPath = config.nodeRendererPath;
         nodeRender = await loadNodeHtmlRenderer(config.nodeRendererUrl);
@@ -436,15 +445,13 @@
   }
 
   function applyPendingLocation(next: GraphViewData): void {
-    if (!codeGraph.current.navigation.pendingLocation) return;
-    const match = next.nodes.find(
-      (node) => node.filePath === codeGraph.current.navigation.pendingLocation?.file && node.startLine === codeGraph.current.navigation.pendingLocation?.line,
-    );
+    const match = matchLocation(next.nodes, codeGraph.current.navigation.pendingLocation);
     if (!match) return;
     codeGraph.current.navigation.pendingLocation = null;
     codeGraph.current.selection.id = match.id;
     codeGraph.current.selection.node = match;
     codeGraph.setup.entry = match.qualifiedName || match.id;
+    codeGraph.setup.path = pathForCandidate(match, codeGraph.setup.workspaceRoot);
     void selectGraphNode(match);
   }
 
@@ -503,8 +510,14 @@
     }
   }
 
-  function openConnection(qualifiedName: string): void {
-    codeGraph.setup.entry = qualifiedName;
+  function openConnection(value: string): void {
+    const resolved = resolveEntryPath(codeGraph, value);
+    if (!resolved?.qualifiedName) {
+      codeGraph.current.status.error = `No symbol matches ${value}`;
+      return;
+    }
+    codeGraph.setup.entry = resolved.qualifiedName;
+    codeGraph.setup.path = pathForCandidate(resolved, codeGraph.setup.workspaceRoot);
     codeGraph.current.ui.inspectorOpen = true;
     codeGraph.current.ui.setupOpen = false;
     syncUrl();
@@ -578,6 +591,7 @@
     codeGraph.current.selection.id = node.id;
     codeGraph.current.selection.node = node;
     codeGraph.setup.entry = node.qualifiedName || node.id;
+    codeGraph.setup.path = pathForCandidate(node, codeGraph.setup.workspaceRoot);
     codeGraph.current.ui.setupOpen = false;
     syncUrl();
     if (codeGraph.current.ui.inspectorOpen) {
@@ -615,10 +629,11 @@
   }
 
   function onEntryCommit(value: string): void {
-    const next = normalizeEntry(value);
-    if (!next && value.trim()) return;
-    codeGraph.setup.entry = next ?? "";
-    codeGraph.setup.refProject = codeGraph.setup.project;
+    const error = applyEntryPath(codeGraph, value);
+    if (error) {
+      codeGraph.current.status.error = error;
+      return;
+    }
     void load();
   }
 
@@ -708,11 +723,10 @@
         navigateGraph("sibling", 1);
         break;
       case "copy-relative":
-        void copyPath("relative");
+        void copyWithMode("relative");
         break;
       case "copy-relative-or-svg":
-        if (jumpRow()) void copyPath("relative");
-        else void copySvg();
+        void copyWithMode(activeJumpRow(codeGraph.current.selection.node, codeGraph.current.detail.symbol) ? "relative" : "svg");
         break;
       case "close-setup":
         codeGraph.current.ui.setupOpen = false;
@@ -727,10 +741,7 @@
     const graph = codeGraph.current.graph;
     const current = selectedNode;
     if (!graph || !current) return;
-    const next =
-      direction === "sibling"
-        ? adjacentSibling(graph, current.id, offset < 0 ? -1 : 1)
-        : firstNeighbor(graph, current.id, direction);
+    const next = navigationTarget(graph, current.id, direction, offset);
     if (!next) return;
     void selectGraphNode(next);
     graphView?.focusNode?.(next.id);
@@ -788,40 +799,40 @@
     await load();
   }
 
-  function jumpRow(): JumpRow | null {
-    return codeGraph.current.selection.node ?? codeGraph.current.detail.symbol?.node ?? null;
-  }
-
-  async function jump(row: JumpRow | null = jumpRow()): Promise<void> {
-    await jumpToLocation(row, codeGraph.setup.project, extensionApi, codeGraph.current.status);
-  }
-
   function jumpFromNode(node: GraphViewNode): void {
     codeGraph.current.selection.id = node.id;
     codeGraph.current.selection.node = node;
-    void jump(node);
+    codeGraph.setup.entry = node.qualifiedName || node.id;
+    codeGraph.setup.path = pathForCandidate(node, codeGraph.setup.workspaceRoot);
+    syncUrl();
+    void jumpToLocation(node, codeGraph.setup.project, extensionApi, codeGraph.current.status);
   }
 
-  async function copyPath(copyKind: PathCopyKind): Promise<void> {
-    await copySymbolPath(
-      copyKind,
-      jumpRow(),
-      codeGraph.setup.workspaceRoot,
-      codeGraph.current.status,
-    );
+  async function copyWithMode(mode: CopyMode): Promise<void> {
+    await copyToolbar({
+      mode,
+      view: graphView,
+      renderer: codeGraph.current.view.renderer,
+      row: activeJumpRow(codeGraph.current.selection.node, codeGraph.current.detail.symbol),
+      workspaceRoot: codeGraph.setup.workspaceRoot,
+      context: aiContext,
+      status: codeGraph.current.status,
+    });
   }
 
-  function copySvg(): void {
-    void copyGraphSvg(graphView, codeGraph.current.status);
+  async function copyCurrent(): Promise<void> {
+    await copyWithMode(codeGraph.current.ui.copyMode);
   }
 
-  function exportSvg(): void {
-    exportGraphSvg(graphView, codeGraph.setup.entry, codeGraph.current.status);
+  function saveCurrent(): void {
+    saveToolbar({
+      mode: codeGraph.current.ui.saveMode,
+      view: graphView,
+      entry: codeGraph.setup.entry,
+      status: codeGraph.current.status,
+    });
   }
 
-  function copyTerminal(): void {
-    void copyTerminalArt(graphView, codeGraph.current.status);
-  }
 </script>
 
 <main class="app">
@@ -923,6 +934,10 @@
         graph={codeGraph.current.graph}
         {selectedNode}
         exportStatus={codeGraph.current.status.export}
+        copyStatus={codeGraph.current.status.copy}
+        copyError={codeGraph.current.status.copyError}
+        jumpStatus={codeGraph.current.status.jump}
+        jumpError={codeGraph.current.status.jumpError}
         runtime={codeGraph.setup.runtime}
         sourceLabel={codeGraph.setup.source === "computed" ? "computed" : codeGraph.setup.backend}
         depth={codeGraph.current.view.depth}
@@ -948,8 +963,10 @@
       />
 
       <OperationBar
-        bind:entry={codeGraph.setup.entry}
-        project={codeGraph.setup.project}
+        bind:entry={codeGraph.setup.path}
+        bind:copyMode={codeGraph.current.ui.copyMode}
+        bind:saveMode={codeGraph.current.ui.saveMode}
+        cwd={codeGraph.setup.workspaceRoot}
         setupOpen={codeGraph.current.ui.setupOpen}
         inspectorOpen={codeGraph.current.ui.inspectorOpen}
         searchOpen={codeGraph.current.ui.searchOpen}
@@ -961,27 +978,20 @@
         ontogglesetup={toggleSetup}
         ontoggledetails={toggleInspector}
         onfit={() => graphView?.fit()}
-        oncopysvg={() => void copySvg()}
-        onexportsvg={exportSvg}
-        oncopyterminal={copyTerminal}
+        oncopy={() => void copyCurrent()}
+        onsave={saveCurrent}
         onentrycommit={onEntryCommit}
       />
     </section>
 
     {#if codeGraph.current.ui.inspectorOpen}
-      <InspectorPanel
-        symbol={codeGraph.current.detail.symbol}
-        focusNode={codeGraph.current.selection.node}
+      <ForAiPanel
+        context={aiContext}
+        mode={codeGraph.current.ui.detailMode}
         loading={codeGraph.current.detail.loading}
         error={codeGraph.current.detail.error}
-        jumpStatus={codeGraph.current.status.jump}
-        jumpError={codeGraph.current.status.jumpError}
-        copyStatus={codeGraph.current.status.copy}
-        copyError={codeGraph.current.status.copyError}
-        workspaceRoot={codeGraph.setup.workspaceRoot}
+        onmode={(mode) => (codeGraph.current.ui.detailMode = mode)}
         onclose={() => (codeGraph.current.ui.inspectorOpen = false)}
-        onjump={() => void jump()}
-        oncopy={(copyKind) => void copyPath(copyKind)}
         onopen={openConnection}
       />
     {/if}

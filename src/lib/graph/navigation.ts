@@ -44,3 +44,24 @@ export function adjacentSibling(
   const index = siblings.findIndex((node) => node.id === nodeId);
   return index < 0 ? undefined : siblings[index + offset];
 }
+
+/** Pure helper behind the callers/callees/sibling keyboard navigation. */
+export function navigationTarget(
+  graph: GraphViewData,
+  currentId: string,
+  direction: "callers" | "callees" | "sibling",
+  offset = 1,
+): GraphViewNode | undefined {
+  return direction === "sibling"
+    ? adjacentSibling(graph, currentId, offset < 0 ? -1 : 1)
+    : firstNeighbor(graph, currentId, direction);
+}
+
+/** Match a pending URL location against the freshly loaded nodes. */
+export function matchLocation<T extends { filePath?: string; startLine?: number }>(
+  nodes: readonly T[],
+  location: { file: string; line: number } | null,
+): T | undefined {
+  if (!location) return undefined;
+  return nodes.find((node) => node.filePath === location.file && node.startLine === location.line);
+}

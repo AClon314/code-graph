@@ -145,6 +145,9 @@
   let detachDocumentListeners: (() => void) | undefined;
   let unsubscribeViewport: (() => void) | undefined;
   let clearByPointer = false;
+  /** Cursor captured from the idle native input before CodeMirror mounts. */
+  let pendingSelection: { anchor: number; head: number } | null = null;
+  let pendingSelectionDoc = "";
 
   const editorOnlyAttributes = new Set([
     "aria-activedescendant",
@@ -440,6 +443,8 @@
     activated = false;
     completionOpen = false;
     pendingOpen = false;
+    pendingSelection = null;
+    pendingSelectionDoc = "";
   }
 
   function scheduleDeactivate(): void {
@@ -449,6 +454,17 @@
       if (completionStatus(view.state) !== null) return;
       deactivate();
     }, 120);
+  }
+
+  function onNativeFocus(event: FocusEvent): void {
+    const input = event.currentTarget as HTMLInputElement;
+    pendingSelection = {
+      anchor: input.selectionStart ?? input.value.length,
+      head: input.selectionEnd ?? input.selectionStart ?? input.value.length,
+    };
+    pendingSelectionDoc = input.value;
+    onfocus?.(event);
+    activate(true);
   }
 
   function onNativeInput(event: Event): void {
@@ -673,8 +689,34 @@
       ],
     });
     view = new EditorView({ state, parent: editorHost });
+    if (pendingSelection) {
+      view.dispatch({ selection: selectionFor(pendingSelection, pendingSelectionDoc, value) });
+      pendingSelection = null;
+      pendingSelectionDoc = "";
+    }
     attachDocumentListeners();
     unsubscribeViewport = subscribeViewport(onViewportChange);
+  }
+
+  /** Map an idle-input selection onto the expanded/edited value. */
+  function selectionFor(
+    selection: { anchor: number; head: number },
+    fromDoc: string,
+    toDoc: string,
+  ): { anchor: number; head: number } {
+    if (fromDoc === toDoc) return selection;
+    const offset = toDoc.endsWith(fromDoc) ? toDoc.length - fromDoc.length : 0;
+    const clamp = (position: number) => Math.max(0, Math.min(toDoc.length, position + offset));
+    return { anchor: clamp(selection.anchor), head: clamp(selection.head) };
+  }
+
+  /** Keep the caret on the same text when an external value update arrives. */
+  function mapCursor(fromDoc: string, toDoc: string, position: number): number {
+    if (fromDoc === toDoc) return position;
+    if (position === fromDoc.length) return toDoc.length;
+    if (toDoc.endsWith(fromDoc)) return position + toDoc.length - fromDoc.length;
+    if (toDoc.startsWith(fromDoc)) return position;
+    return Math.min(position, toDoc.length);
   }
 
   onMount(() => {
@@ -690,10 +732,12 @@
     const next = value;
     if (!view) return;
     if (view.state.doc.toString() === next) return;
+    const fromDoc = view.state.doc.toString();
+    const head = view.state.selection.main.head;
     syncing = true;
     view.dispatch({
-      changes: { from: 0, to: view.state.doc.length, insert: next },
-      selection: { anchor: next.length },
+      changes: { from: 0, to: fromDoc.length, insert: next },
+      selection: { anchor: mapCursor(fromDoc, next, head) },
     });
     syncing = false;
     lastCommitted = next;
@@ -756,7 +800,7 @@
         {...nativeRest}
         oninput={onNativeInput}
         onkeydown={onNativeKeydown}
-        onfocus={() => activate(true)}
+        onfocus={onNativeFocus}
         onblur={(event) => {
           flushCommit();
           emitChange();

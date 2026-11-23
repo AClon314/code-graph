@@ -49,14 +49,6 @@
 </script>
 
 <aside class="edge-panel setup-panel" aria-label="Setup">
-  <div class="panel-head">
-    <div>
-      <h2>Setup</h2>
-      <span class="sub">Source &amp; project</span>
-    </div>
-    <button class="icon-button" type="button" aria-label="Close setup" onclick={onclose}>×</button>
-  </div>
-
   <div class="setup-body">
     <div class="field">
       <span class="field-label">Source</span>
@@ -163,5 +155,13 @@
       Computed works offline. cbm reads a local Codebase Memory listener; the
       project name must already exist in it.
     </p>
+  </div>
+
+  <div class="panel-head">
+    <div>
+      <h2>Setup</h2>
+      <span class="sub">Source &amp; project</span>
+    </div>
+    <button class="icon-button" type="button" aria-label="Close setup" onclick={onclose}>×</button>
   </div>
 </aside>

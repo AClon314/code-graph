@@ -1,68 +1,74 @@
 <script lang="ts">
-  import RootEntryField from "./RootEntryField.svelte";
+  import SymbolPathField from "./SymbolPathField.svelte";
   import type { RootCandidate } from "../../graph/roots";
+  import type { CopyMode, SaveMode } from "../../ai-context";
 
   interface Props {
-    project: string;
     setupOpen: boolean;
     inspectorOpen: boolean;
     searchOpen: boolean;
     renderer: string;
     graphLoaded: boolean;
+    /** Canonical full global symbol path. */
     entry?: string;
+    cwd: string;
     roots: RootCandidate[];
     rootsLoading: boolean;
+    copyMode?: CopyMode;
+    saveMode?: SaveMode;
     ontogglesearch: () => void;
     ontogglesetup: () => void;
     ontoggledetails: () => void;
     onfit: () => void;
-    oncopysvg: () => void;
-    onexportsvg: () => void;
-    oncopyterminal: () => void;
+    oncopy: () => void;
+    onsave: () => void;
     onentrycommit: (value: string) => void;
   }
 
   let {
-    project,
     setupOpen,
     inspectorOpen,
     searchOpen,
     renderer,
     graphLoaded,
     entry = $bindable(""),
+    cwd,
     roots,
     rootsLoading,
+    copyMode = $bindable("svg"),
+    saveMode = $bindable("svg"),
     ontogglesearch,
     ontogglesetup,
     ontoggledetails,
     onfit,
-    oncopysvg,
-    onexportsvg,
-    oncopyterminal,
+    oncopy,
+    onsave,
     onentrycommit,
   }: Props = $props();
 </script>
 
 <div class="operationbar" aria-label="Graph toolbar">
   <div class="brand">
-    <h1 class="brand-pill">Code Graph</h1>
     <button
-      class="context-chip"
+      class="brand-pill"
+      class:active={setupOpen}
       type="button"
-      aria-expanded={setupOpen}
-      title="Project and source setup"
+      aria-pressed={setupOpen}
+      aria-keyshortcuts="S"
+      aria-label="Code Graph setup"
+      title="Source and project setup (S)"
       onclick={ontogglesetup}
-    >{project}</button>
+    >Code Graph</button>
   </div>
 
   <div class="path-bar">
-    <span class="path-label" aria-hidden="true">path</span>
-    <RootEntryField
+    <SymbolPathField
       bind:value={entry}
+      {cwd}
       {roots}
       loading={rootsLoading}
       label="Path bar"
-      placeholder="All entries — type a symbol path"
+      placeholder="cwd//path/to/file#symbol"
       oncommit={onentrycommit}
     />
   </div>
@@ -79,56 +85,67 @@
       title="Toggle search (/)"
       onclick={ontogglesearch}
     >🔍</button>
-    {#if renderer === "d3"}
-      {#if graphLoaded}
-        <button
-          class="vscode-button secondary tool-button"
-          type="button"
-          onclick={onfit}
-          title="Fit graph (F or .)"
-          aria-keyshortcuts="F"
-        >Fit</button>
-      {/if}
+
+    {#if renderer === "d3" && graphLoaded}
       <button
-        class="vscode-button secondary tool-button"
+        class="vscode-button secondary tool-button icon-tool"
         type="button"
-        onclick={oncopysvg}
-        disabled={!graphLoaded}
-        title="Copy SVG to clipboard"
-      >Copy SVG</button>
-      <button
-        class="vscode-button secondary tool-button"
-        type="button"
-        onclick={onexportsvg}
-        disabled={!graphLoaded}
-        title="Download SVG"
-      >Export SVG</button>
-    {:else}
-      <button
-        class="vscode-button secondary tool-button"
-        type="button"
-        onclick={oncopyterminal}
-        disabled={!graphLoaded}
-        title="Copy the character-art graph"
-      >Copy</button>
+        onclick={onfit}
+        title="Fit graph (F or .)"
+        aria-label="Fit graph"
+        aria-keyshortcuts="F"
+      >⛶</button>
     {/if}
+
+    <div class="split-action">
+      <button
+        class="vscode-button secondary tool-button icon-tool"
+        type="button"
+        onclick={oncopy}
+        disabled={!graphLoaded}
+        title="Copy according to the selected format"
+        aria-label="Copy"
+      >📋</button>
+      <select
+        class="mode-select"
+        aria-label="Copy mode"
+        bind:value={copyMode}
+      >
+        <option value="svg">SVG</option>
+        <option value="absolute">Abs. path</option>
+        <option value="relative">Rel. path</option>
+        <option value="markdown">md for AI</option>
+        <option value="json">json for AI</option>
+      </select>
+    </div>
+
+    <div class="split-action">
+      <button
+        class="vscode-button secondary tool-button icon-tool"
+        type="button"
+        onclick={onsave}
+        disabled={!graphLoaded || renderer !== "d3"}
+        title={renderer === "d3" ? "Save the graph" : "SVG saving needs the D3 renderer"}
+        aria-label="Save"
+      >💾</button>
+      <select
+        class="mode-select"
+        aria-label="Save format"
+        bind:value={saveMode}
+      >
+        <option value="svg">SVG</option>
+      </select>
+    </div>
+
     <button
-      class="vscode-button secondary tool-button"
+      class="vscode-button secondary tool-button markdown-toggle"
       class:active={inspectorOpen}
       type="button"
       aria-pressed={inspectorOpen}
       aria-keyshortcuts="D"
-      title="Toggle symbol details (D)"
+      aria-label="forAI panel"
+      title="Toggle forAI panel (D)"
       onclick={ontoggledetails}
-    >Details</button>
-    <button
-      class="vscode-button secondary tool-button"
-      class:active={setupOpen}
-      type="button"
-      aria-pressed={setupOpen}
-      aria-keyshortcuts="S"
-      title="Toggle source and project setup (S)"
-      onclick={ontogglesetup}
-    >Setup</button>
+    >{"{MD}"}</button>
   </div>
 </div>

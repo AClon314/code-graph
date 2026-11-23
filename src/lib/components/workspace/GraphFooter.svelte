@@ -17,6 +17,10 @@
     graph: GraphViewData | null;
     selectedNode: GraphViewNode | null;
     exportStatus: string;
+    copyStatus: string;
+    copyError: string;
+    jumpStatus: string;
+    jumpError: string;
     runtime: string;
     sourceLabel: string;
     depth: Depth;
@@ -46,6 +50,10 @@
     graph,
     selectedNode,
     exportStatus,
+    copyStatus,
+    copyError,
+    jumpStatus,
+    jumpError,
     runtime,
     sourceLabel,
     depth,
@@ -152,6 +160,10 @@
   />
 
   <div class="status-right">
+    {#if jumpStatus}<span class="status-message" title={jumpStatus}>{jumpStatus}</span>{/if}
+    {#if jumpError}<span class="status-message status-error" title={jumpError}>{jumpError}</span>{/if}
+    {#if copyStatus}<span class="status-message" title={copyStatus}>{copyStatus}</span>{/if}
+    {#if copyError}<span class="status-message status-error" title={copyError}>{copyError}</span>{/if}
     {#if exportStatus}<span class="status-message" title={exportStatus}>{exportStatus}</span>{/if}
     <span class="runtime">{runtime} · {sourceLabel}</span>
   </div>

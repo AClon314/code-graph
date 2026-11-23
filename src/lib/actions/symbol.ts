@@ -2,6 +2,7 @@ import type { ExtensionApi } from "../../extension/api";
 import { copyPathText, pathFormats, type PathCopyKind } from "../path-location";
 import { writeClipboard } from "../clipboard";
 import type { StatusState } from "../state/code-graph";
+import type { SymbolBundle } from "../graph/types";
 
 export interface JumpRow {
   filePath?: string;
@@ -81,4 +82,12 @@ export async function copySymbolPath(
 
 function errorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
+}
+
+/** Current selection/detail row shared by jump and copy actions. */
+export function activeJumpRow(
+  node: JumpRow | null,
+  bundle: SymbolBundle | null,
+): JumpRow | null {
+  return node ?? bundle?.node ?? null;
 }

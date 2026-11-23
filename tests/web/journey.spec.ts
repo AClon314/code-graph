@@ -10,12 +10,12 @@ test("project → path bar → search → jump", async ({ page }, testInfo) => {
 
   await timed(testInfo, "load app", 4_000, async () => {
     await page.goto(startUrl);
-    await expect(page.getByRole("heading", { name: "Code Graph" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Code Graph setup" })).toBeVisible();
     await expect(page.getByRole("group", { name: /Call graph for demo\.src\.features\.useAlias/ })).toBeVisible();
   });
 
   await timed(testInfo, "open project setup", 1_500, async () => {
-    await page.locator(".context-chip").click();
+    await page.locator(".brand-pill").click();
     const setup = page.getByRole("complementary", { name: "Setup" });
     await expect(setup).toBeVisible();
     await expect(page.getByLabel("Project", { exact: true })).toHaveValue("demo");
@@ -41,15 +41,15 @@ test("project → path bar → search → jump", async ({ page }, testInfo) => {
     await expect(search.getByText("0/1")).toBeVisible();
     await page.getByLabel("Search graph").press("Enter");
     await expect(search.getByText("1/1")).toBeVisible();
-    const details = page.getByRole("complementary", { name: "Symbol details" });
+    const details = page.getByRole("complementary", { name: "forAI" });
     await expect(details).toBeHidden();
-    await page.getByRole("button", { name: "Details" }).click();
+    await page.getByRole("button", { name: "forAI panel" }).click();
     await expect(details).toBeVisible();
-    await expect(details.getByRole("heading", { name: "UserRepo" })).toBeVisible();
+    await expect(details.locator(".ai-raw")).toContainText("UserRepo");
   });
 
   await timed(testInfo, "jump to source", 3_000, async () => {
-    await page.getByRole("button", { name: "Jump", exact: true }).click();
+    await page.getByRole("button", { name: /UserRepo/ }).first().dblclick();
     await expect(page.getByText("Opened src/lib/user-repo.ts:2:1")).toBeVisible();
   });
 
@@ -61,7 +61,7 @@ test("empty path bar shows the root-entry overview", async ({ page }, testInfo) 
 
   await timed(testInfo, "load entry overview", 4_000, async () => {
     await page.goto("/");
-    await expect(page.getByLabel("Path bar")).toHaveValue("");
+    await expect(page.getByLabel("Path bar")).not.toHaveValue("");
     await expect(page.getByRole("group", { name: /Call graph for all entries/ })).toBeVisible();
     await expect(page.locator(".code-graph-node")).toHaveCount(1);
   });

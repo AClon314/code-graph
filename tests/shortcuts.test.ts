@@ -43,7 +43,7 @@ test("camera and copy shortcuts", () => {
   );
 });
 
-test("Escape closes Setup before Details", () => {
+test("Escape closes Setup before the forAI panel", () => {
   expect(resolveShortcut(event("Escape"), { setupOpen: true, inspectorOpen: true, hasSelection: false })).toBe(
     "close-setup",
   );

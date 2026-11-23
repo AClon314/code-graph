@@ -6,14 +6,16 @@ VS Code webview shells.
 ```ts
 codeGraph.setup.source;       // computed | cbm
 codeGraph.setup.project;
-codeGraph.setup.entry;
+codeGraph.setup.entry;       // backend qualified name
+codeGraph.setup.path;        // canonical global symbol path
 codeGraph.setup.configPath;
 codeGraph.setup.nodeRendererPath;
 codeGraph.current.graph;      // GraphViewData | null
 codeGraph.current.selection;  // { id, node }
 codeGraph.current.view;       // depth, direction, layout, renderer, focusOnly
 codeGraph.current.load;       // progress + symbol/graph/layout flags
-codeGraph.current.ui;         // setupOpen, inspectorOpen, searchOpen, search
+codeGraph.current.ui;         // setupOpen, inspectorOpen, searchOpen, search,
+                              // copyMode, saveMode, detailMode
 ```
 
 ## Contract

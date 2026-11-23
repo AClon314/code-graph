@@ -4,11 +4,11 @@ The same user journey is checked through the three shells that share `App.svelte
 
 | Journey step | Web (`tests/web`) | VS Code webview (`tests/vscode`) | Fresh (`tests/fresh`) |
 | --- | --- | --- | --- |
-| Open a project/graph | context chip + graph root | command palette + webview | `Code Graph: Open (cbm)` |
-| Open setup | Setup panel | Setup panel | `[E] Entry` picker |
+| Open a project/graph | path bar + graph root | command palette + webview | `Code Graph: Open (cbm)` |
+| Open setup | Code Graph toggle | Code Graph toggle | `[E] Entry` picker |
 | Search | 🔍 toggle + field + Enter | 🔍 toggle + field + Enter | terminal node click (no search field) |
-| Inspect | node → details | node → details | node click → status line |
-| Jump | Jump → bridge receipt | Jump → editor tab | node + `o` → file tab |
+| Inspect | node → `{MD}` forAI panel | node → `{MD}` forAI panel | node click → status line |
+| Jump | double-click node → bridge receipt | double-click node → editor tab | node + `o` → file tab |
 
 ## Performance data
 

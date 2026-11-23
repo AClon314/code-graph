@@ -42,7 +42,7 @@ test("opens the computed Code Graph webview", async ({ page }, testInfo) => {
   const app = page.frames().find((frame) => frame.url().includes("source=computed"));
   if (!app) throw new Error("Code Graph webview frame not found");
 
-  await expect(app.getByRole("heading", { name: "Code Graph" })).toBeVisible();
+  await expect(app.getByRole("button", { name: "Code Graph setup" })).toBeVisible();
 
   await expect(app.locator(".code-graph-node-html .node-card").first()).toBeVisible({
     timeout: 30_000,
@@ -50,13 +50,13 @@ test("opens the computed Code Graph webview", async ({ page }, testInfo) => {
   const firstNode = app.getByRole("button", { name: /useAlias/ }).first();
   await expect(firstNode).toBeVisible({ timeout: 30_000 });
   await firstNode.click();
-  const details = app.getByRole("complementary", { name: "Symbol details" });
+  const details = app.getByRole("complementary", { name: "forAI" });
   await expect(details).toBeHidden();
-  await app.getByRole("button", { name: "Details", exact: true }).click();
+  await app.getByRole("button", { name: "forAI panel", exact: true }).click();
   await expect(details).toBeVisible();
-  await app.getByRole("button", { name: "Close details" }).click();
+  await app.getByRole("button", { name: "Close forAI" }).click();
 
-  await app.getByRole("button", { name: "Setup", exact: true }).click();
+  await app.locator(".brand-pill").click();
   await expect(app.getByRole("button", { name: "Computed", exact: true })).toBeVisible();
   await app.getByRole("button", { name: "Close setup" }).click();
 
@@ -64,11 +64,11 @@ test("opens the computed Code Graph webview", async ({ page }, testInfo) => {
   await app.getByLabel("Search graph").fill("UserRepo");
   await app.getByLabel("Search graph").press("Enter");
   await expect(details).toBeHidden();
-  await app.getByRole("button", { name: "Details", exact: true }).click();
+  await app.getByRole("button", { name: "forAI panel", exact: true }).click();
   await expect(details).toBeVisible();
-  await expect(details.getByRole("heading", { name: "UserRepo" })).toBeVisible();
+  await expect(details.locator(".ai-raw")).toContainText("UserRepo");
   await timed(testInfo, "jump to source", 10_000, async () => {
-    await app.getByRole("button", { name: "Jump", exact: true }).click();
+    await app.getByRole("button", { name: /UserRepo/ }).first().dblclick();
     await expect(page.getByRole("tab", { name: /user-repo\.ts/ })).toBeVisible({
       timeout: 30_000,
     });

@@ -14,11 +14,15 @@ import type { Depth, GraphRenderer, LayoutAlgorithm, SourceKind } from "../graph
 import type { SettingsFix } from "../settings-fix";
 import type { LoadProgress } from "../graph/loading";
 import { NODE_RENDERER_FILE } from "../node-renderer";
+import type { CopyMode, DetailMode, SaveMode } from "../ai-context";
 
 export interface SetupState {
   source: SourceKind;
   project: string;
+  /** Qualified name consumed by the graph source. */
   entry: string;
+  /** Editable global symbol path; defaults to the workspace root. */
+  path: string;
   /** Project that produced the current entry; used to rewrite QNs. */
   refProject: string;
   backend: GraphBackend;
@@ -70,6 +74,9 @@ export interface UiState {
   /** The extra search row is opt-in; the bottom bar stays two rows by default. */
   searchOpen: boolean;
   search: string;
+  copyMode: CopyMode;
+  saveMode: SaveMode;
+  detailMode: DetailMode;
 }
 
 export interface StatusState {
@@ -110,6 +117,7 @@ export interface GraphUiStateInit {
   source?: SourceKind;
   project?: string;
   entry?: string;
+  path?: string;
   cbmBaseUrl?: string;
   workspaceRoot?: string;
   configPath?: string;
@@ -125,6 +133,7 @@ export function createGraphUiState(init: GraphUiStateInit = {}): GraphUiState {
       source,
       project,
       entry,
+      path: init.path ?? init.workspaceRoot ?? "",
       refProject: project,
       backend: init.backend ?? "cbm",
       cbmBaseUrl: init.cbmBaseUrl ?? "http://127.0.0.1:9749",
@@ -150,7 +159,15 @@ export function createGraphUiState(init: GraphUiStateInit = {}): GraphUiState {
         focusOnly: false,
       },
       load: { symbol: false, graph: false, layout: false, progress: null },
-      ui: { setupOpen: false, inspectorOpen: false, searchOpen: false, search: "" },
+      ui: {
+        setupOpen: false,
+        inspectorOpen: false,
+        searchOpen: false,
+        search: "",
+        copyMode: "svg",
+        saveMode: "svg",
+        detailMode: "raw",
+      },
       status: {
         error: "",
         errorFix: null,
