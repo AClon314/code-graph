@@ -94,6 +94,7 @@ interface FileSystemContext {
   browsePath: string;
   tokenFrom: number;
   tokenTo: number;
+  query: string;
 }
 
 function filesystemContext(
@@ -119,6 +120,7 @@ function filesystemContext(
       browsePath: root || options.cwd,
       tokenFrom: cursor,
       tokenTo: cursor,
+      query: "",
     };
   }
 
@@ -135,7 +137,7 @@ function filesystemContext(
   const tokenFrom = partStart + Math.max(0, slash + 1);
   const next = text.indexOf("/", cursor);
   const tokenTo = next >= 0 ? next : cursor;
-  return { browsePath, tokenFrom, tokenTo };
+  return { browsePath, tokenFrom, tokenTo, query: text.slice(tokenFrom, cursor) };
 }
 
 async function filesystemCompletions(
@@ -145,8 +147,10 @@ async function filesystemCompletions(
   const request = browseCbmPath(options.fetchCbm, context.browsePath);
   const level = request ? await request.catch(() => null) : null;
   if (!level) return [];
-  const dirs = level.dirs;
-  return dirs.slice(0, 128).map((dir) => {
+  const dirs = level.dirs
+    .filter((dir) => fuzzyMatch({ value: dir, label: dir }, context.query))
+    .slice(0, 128);
+  return dirs.map((dir) => {
     const label = `${dir}/`;
     return {
       label,

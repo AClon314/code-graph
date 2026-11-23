@@ -22,8 +22,8 @@
     onfit: () => void;
     oncopy: () => void;
     onsave: () => void;
-    onentrycommit: (value: string) => void;
-    onindex: (folder: string) => void;
+    onentrycommit: (value: string) => void | Promise<string | null>;
+    onindex: (folder: string) => void | Promise<string | null>;
   }
 
   let {

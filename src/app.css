@@ -95,11 +95,12 @@ h3 {
   display: flex;
   flex-direction: column;
   width: 100%;
-  height: 100%;
   min-height: 0;
   overflow: hidden;
   /* `zoom` resolves percentage boxes in local px, so 100% still fills the
-     visual viewport while every child is scaled by the same factor. */
+     visual viewport while every child is scaled by the same factor. The
+     visual-viewport height shrinks when a software keyboard is open. */
+  height: var(--code-graph-visual-height, 100%);
   zoom: var(--code-graph-zoom, 1);
 }
 
@@ -111,7 +112,7 @@ h3 {
   grid-template-columns: minmax(0, auto) minmax(12ch, 1fr) auto;
   align-items: center;
   gap: 0.8ch;
-  padding: 0.35lh 1ch;
+  padding: 0.45lh 1ch;
   border-top: 1px solid var(--line);
   background: var(--panel);
 }
@@ -126,7 +127,8 @@ h3 {
 
 .brand-pill {
   flex: none;
-  padding: 0.08lh 0.8ch;
+  min-height: var(--cg-touch-target, 3lh);
+  padding: 0.18lh 0.9ch;
   border: 1px solid var(--cg-brand-pill-border, var(--text));
   border-radius: 999px;
   background: var(--cg-brand-pill-bg, transparent);
@@ -173,7 +175,7 @@ h3 {
   grid-area: actions;
   align-items: center;
   justify-content: flex-end;
-  gap: 0.35ch;
+  gap: 0.5ch;
 }
 
 .split-action {
@@ -181,6 +183,7 @@ h3 {
   min-width: 0;
   align-items: stretch;
   overflow: hidden;
+  min-height: var(--cg-touch-target, 3lh);
   border: 1px solid var(--cg-control-border, color-mix(in srgb, var(--cg-muted) 55%, transparent));
   border-radius: 999px;
   background: transparent;
@@ -203,6 +206,7 @@ h3 {
 
 .mode-select {
   max-width: 11ch;
+  min-height: var(--cg-touch-target, 3lh);
   padding: 0.2lh 0.65ch 0.2lh 0.45ch;
   border: 0;
   border-left: 1px solid var(--cg-control-border, color-mix(in srgb, var(--cg-muted) 55%, transparent));
@@ -220,7 +224,7 @@ h3 {
 }
 
 .icon-tool {
-  min-width: 3.2ch;
+  min-width: var(--cg-touch-target, 3lh);
   padding-inline: 0.45ch;
   font-size: 0.9rem;
   line-height: 1.2;
@@ -253,8 +257,8 @@ h3 {
 
 .search-step {
   flex: none;
-  min-width: 2.8ch;
-  min-height: 2.1lh;
+  min-width: var(--cg-touch-target, 3lh);
+  min-height: var(--cg-touch-target, 3lh);
   padding-inline: 0;
   font-size: 1rem;
   line-height: 1.1;
@@ -264,6 +268,7 @@ h3 {
   display: block;
   width: 100%;
   min-width: 0;
+  min-height: var(--cg-touch-target, 3lh);
   padding: 0.3lh 0.8ch;
   border: 1px solid var(--vscode-input-border, var(--line));
   border-radius: 0.35rem;
@@ -285,9 +290,10 @@ h3 {
 /* ---- controls ---------------------------------------------------------- */
 
 .vscode-button {
+  min-height: var(--cg-touch-target, 3lh);
   border: 1px solid var(--vscode-button-border, transparent);
   border-radius: 0.35rem;
-  padding: 0.3lh 0.8ch;
+  padding: 0.35lh 0.8ch;
   background: var(--vscode-button-background, #0e639c);
   color: var(--vscode-button-foreground, #ffffff);
   font-size: 0.78rem;
@@ -324,15 +330,16 @@ h3 {
 }
 
 .tool-button {
-  padding: 0.28lh 0.65ch;
-  font-size: 0.74rem;
+  min-width: var(--cg-touch-target, 3lh);
+  padding: 0.35lh 0.7ch;
+  font-size: 0.78rem;
 }
 
 .icon-button {
   display: grid;
   flex: none;
-  width: 2ch;
-  height: 2lh;
+  width: var(--cg-touch-target, 3lh);
+  height: var(--cg-touch-target, 3lh);
   place-items: center;
   padding: 0;
   border: 0;
@@ -354,6 +361,7 @@ h3 {
 .view-control select,
 .view-control input[type="number"] {
   min-width: 10ch;
+  min-height: var(--cg-touch-target, 3lh);
   padding: 0.2lh 0.45ch;
   border: 1px solid var(--vscode-dropdown-border, var(--line));
   border-radius: 0.25rem;
@@ -461,7 +469,8 @@ h3 {
 
 .segmented-button {
   min-width: 6ch;
-  padding: 0.3lh 0.65ch;
+  min-height: var(--cg-touch-target, 3lh);
+  padding: 0.35lh 0.7ch;
   border: 0;
   border-right: 1px solid var(--vscode-input-border, var(--line));
   background: transparent;
@@ -621,8 +630,8 @@ h3 {
 
 .alert-close {
   flex: none;
-  width: 2.2ch;
-  height: 2.2ch;
+  width: var(--cg-touch-target, 3lh);
+  height: var(--cg-touch-target, 3lh);
   padding: 0;
   border: 0;
   border-radius: 0.25rem;
@@ -780,9 +789,15 @@ h3 {
   min-width: 7ch;
 }
 
+.toggle-control {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--cg-touch-target, 3lh);
+}
+
 .toggle-control input[type="checkbox"] {
-  width: 1.3ch;
-  height: 1.3lh;
+  width: 1.8ch;
+  height: 1.8lh;
   margin: 0;
   accent-color: var(--cg-selection, var(--accent));
   cursor: pointer;
@@ -857,7 +872,9 @@ h3 {
 }
 
 .link {
-  display: block;
+  display: flex;
+  align-items: center;
+  min-height: var(--cg-touch-target, 3lh);
   margin: 0;
   padding: 0.1lh 0.2ch;
   border: 0;
@@ -942,7 +959,7 @@ h3 {
   }
 
   .bar-actions .tool-button {
-    min-height: 2.2lh;
+    min-height: var(--cg-touch-target, 3lh);
   }
 
   .mode-select {

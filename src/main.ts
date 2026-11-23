@@ -5,6 +5,11 @@ import "./theme.css";
 import "./styles/graph.css";
 import "./app.css";
 import { installFontFallback } from "./lib/fonts";
+import { subscribeViewport } from "./lib/components/code-input-runtime";
+
+// Keep `--code-graph-visual-height` live even when no CodeInput is mounted:
+// native search/depth inputs can also open the software keyboard.
+subscribeViewport(() => {});
 
 // Client-side choice: the installed family wins with zero network requests,
 // otherwise the CDN stylesheet is appended in the background. Starting it

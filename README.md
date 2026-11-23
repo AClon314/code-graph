@@ -103,10 +103,13 @@ directly. Build output contains only the selected runtime:
   project/cwd form; focusing expands the absolute folder. The default value is
   the workspace root, so the field is never empty. Before `//`, project names
   are fuzzy-completed first; once a `/` is present, filesystem directories are
-  added below them. Accepting a project replaces the prefix up to `//`;
-  accepting a directory replaces the token between slashes. Typing a folder
-  path with `//` indexes it through cbm and switches to the new project; the
-  old index-folder dialog is gone. Legacy cbm qualified names and `#id` values
+  filtered by the text after the last slash. Accepting a project replaces the
+  prefix up to `//`; accepting a directory replaces the token between slashes.
+  A folder path with `//` can be indexed with the `+` action (or via the normal
+  350 ms commit); the old index-folder dialog is gone. The `+`, undo (`↶`) and
+  redo (`↷`) actions collapse into `…` for valid paths; rejected text stays
+  visible after blur and exposes the actions directly. The field scrolls
+  horizontally on narrow screens. Legacy cbm qualified names and `#id` values
   remain accepted. See [`docs/global-symbol-path.md`](docs/global-symbol-path.md)
   for the scheme and resolution rules. Input is committed after 350 ms of
   inactivity.
@@ -124,8 +127,9 @@ directly. Build output contains only the selected runtime:
   typing `project//` in the path bar. A separate **Config** section opens
   `code-graph.config.jsonc` / `renderNode.config.mjs` (new tab on web, existing
   editor tab in VS Code/Fresh). **Actions** holds cbm maintenance: delete
-  projects whose last index is older than N days (default 30), with an explicit
-  confirm. VS Code also exposes “Open extension settings…”. The indexing
+  projects whose last index is older than N days (default 30; `0` deletes every
+  project), with an explicit confirm. VS Code also exposes “Open extension
+  settings…”. The indexing
   dialogs are removed; a folder path in the path bar starts `POST /api/index`,
   polls `/api/index-status`, and switches to the derived project. TUI keeps its
   `i` / `[I] Index` prompt.
@@ -141,7 +145,9 @@ directly. Build output contains only the selected runtime:
   tokens; dark fallbacks use an OLED black canvas with high-contrast text and
   bright selection accents. Graph nodes/edges expose stable `code-graph-*`
   classes and opacity/geometry variables; see [`docs/theme.md`](docs/theme.md).
-  Controls are native
+  Default type is 16px and primary controls use a ~48dp touch target
+  (`--cg-touch-target: 3lh`) with the default 1.04 shell scale; both are theme
+  tokens, not hard-coded in components. Controls are native
   `<button>`, `<input>`, and `<select>` elements using the same
   `--vscode-*` tokens. Node renderer HTML can use the same `--cg-*` variables
   and the built-in `.node-card-*` classes. `@vscode-elements/elements` is no longer a dependency;
@@ -387,16 +393,18 @@ code-graph rm-projects --all --dry-run
 code-graph rm-projects --all --yes
 code-graph rm-projects --older-than 30 --dry-run
 code-graph rm-projects --older-than 30 --yes
+code-graph rm-projects --older-than 0 --yes
 ```
 
 `rm-projects` removes one or more cbm graph databases, every project with
-`--all`, or projects whose last index is older than `--older-than N` days. It
-removes the workspace roots-cache entry and verifies both `list_projects` and
-the project-health/on-disk DB after deletion (graph DB, WAL/SHM and ADR
-sidecar). With the default local daemon deletion uses the MCP path; an explicit
-`--cbm` URL uses the `/rpc` `<delete_project>` tool, which also removes the ADR
-sidecar. It requires `--yes`; `--dry-run` prints targets without deleting.
-Deletion is limited to loopback cbm endpoints.
+`--all`, or projects whose last index is older than `--older-than N` days
+(`0` means all). It removes the workspace roots-cache entry and verifies both
+`list_projects` and the project-health/on-disk DB after deletion (graph DB,
+WAL/SHM and ADR sidecar). With the default local daemon deletion uses the MCP
+path; an explicit `--cbm` URL uses the UI's `DELETE /api/project` mutation
+route and cleans the ADR sidecar locally. It requires `--yes`; `--dry-run`
+prints targets without deleting. Deletion is limited to loopback cbm
+endpoints.
 
 The Commander entry point exposes the GUI/TUI inputs without a source
 checkout around a script:

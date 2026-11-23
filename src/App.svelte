@@ -630,7 +630,7 @@
     }
   }
 
-  async function onEntryCommit(value: string): Promise<void> {
+  async function onEntryCommit(value: string): Promise<string | null> {
     const error = await commitSetupPath(
       codeGraph,
       value,
@@ -641,6 +641,7 @@
       },
     );
     if (error) codeGraph.current.status.error = error;
+    return error;
   }
 
   function toggleSetup(): void {
@@ -930,6 +931,7 @@
         exportStatus={codeGraph.current.status.export}
         copyStatus={codeGraph.current.status.copy}
         copyError={codeGraph.current.status.copyError}
+        actionStatus={codeGraph.current.status.action}
         jumpStatus={codeGraph.current.status.jump}
         jumpError={codeGraph.current.status.jumpError}
         runtime={codeGraph.setup.runtime}
@@ -975,7 +977,7 @@
         oncopy={() => void copyCurrent()}
         onsave={saveCurrent}
         onentrycommit={onEntryCommit}
-        onindex={(folder) => void commitSetupPath(codeGraph, `${folder}//`, (request) => extensionApi.fetchCbm(request), async () => { await loadProjects(); await load(); })}
+        onindex={(folder) => commitSetupPath(codeGraph, `${folder}//`, (request) => extensionApi.fetchCbm(request), async () => { await loadProjects(); await load(); })}
       />
     </section>
 

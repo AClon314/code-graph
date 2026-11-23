@@ -43,7 +43,7 @@ describe("cbm request URL", () => {
 });
 
 describe("cbm request transport", () => {
-  test("returns status and body and only sends a body for POST", async () => {
+  test("returns status and body and forwards explicit request bodies", async () => {
     const calls: Array<{ url: string; init?: RequestInit }> = [];
     const fetchImpl: FetchLike = async (input, init) => {
       calls.push({ url: String(input), init });
@@ -69,5 +69,13 @@ describe("cbm request transport", () => {
     expect(calls[1]?.init?.headers).toMatchObject({
       "content-type": "application/json",
     });
+
+    await requestCbm(
+      base,
+      { path: "/api/project", query: { name: "p" }, method: "DELETE" },
+      { fetchImpl },
+    );
+    expect(calls[2]?.init?.method).toBe("DELETE");
+    expect(calls[2]?.init?.body).toBeUndefined();
   });
 });

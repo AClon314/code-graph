@@ -10,7 +10,8 @@ export function createHostFetch(
     const response = await fetchCbm({
       path: url.pathname,
       query: Object.fromEntries(url.searchParams),
-      method: init?.method === "POST" ? "POST" : "GET",
+      method:
+        init?.method === "POST" ? "POST" : init?.method === "DELETE" ? "DELETE" : "GET",
       body: typeof init?.body === "string" ? init.body : undefined,
     });
     const body =

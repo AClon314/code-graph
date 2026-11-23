@@ -16,7 +16,7 @@ import {
 export interface CbmHttpRequest {
   path: string;
   query?: Record<string, string>;
-  method?: "GET" | "POST";
+  method?: "GET" | "POST" | "DELETE";
   body?: string;
 }
 
@@ -65,8 +65,8 @@ export async function requestCbm(
 ): Promise<CbmHttpResponse> {
   const url = cbmRequestUrl(baseUrl, request);
   const method = request.method ?? "GET";
-  if (method !== "GET" && method !== "POST") {
-    throw new Error(`cbm proxy only accepts GET or POST, got ${String(method)}`);
+  if (method !== "GET" && method !== "POST" && method !== "DELETE") {
+    throw new Error(`cbm proxy only accepts GET, POST, or DELETE, got ${String(method)}`);
   }
 
   const controller =
@@ -81,10 +81,10 @@ export async function requestCbm(
       method,
       headers: {
         accept: "application/json",
-        ...(method === "POST" ? { "content-type": "application/json" } : {}),
+        ...(request.body ? { "content-type": "application/json" } : {}),
       },
       // GET/HEAD requests cannot carry a body in fetch().
-      body: method === "POST" ? request.body : undefined,
+      body: request.body,
       signal: controller?.signal,
     });
     return { status: response.status, body: await response.text() };

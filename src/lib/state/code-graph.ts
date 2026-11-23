@@ -92,6 +92,8 @@ export interface StatusState {
   copy: string;
   copyError: string;
   export: string;
+  /** Setup/index/delete progress; not cleared by ordinary graph loads. */
+  action: string;
 }
 
 export interface NavigationState {
@@ -182,6 +184,7 @@ export function createGraphUiState(init: GraphUiStateInit = {}): GraphUiState {
         copy: "",
         copyError: "",
         export: "",
+        action: "",
       },
       navigation: { pendingLocation: null },
     },

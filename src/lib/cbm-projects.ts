@@ -134,41 +134,18 @@ export async function fetchCbmProjectHealth(
   };
 }
 
-/** Delete through the MCP RPC path so the graph DB and ADR sidecar both go. */
-export async function deleteCbmProjectViaRpc(
+/** Delete through the UI's mutation route; `/rpc` only exposes read tools. */
+export async function deleteCbmProjectViaApi(
   fetchCbm: CbmFetch,
   project: string,
 ): Promise<void> {
   const response = await fetchCbm({
-    path: "/rpc",
-    method: "POST",
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "tools/call",
-      params: { name: "delete_project", arguments: { project } },
-    }),
+    path: "/api/project",
+    query: { name: project },
+    method: "DELETE",
   });
   if (response.status !== 200) {
     throw new Error(`delete ${project}: HTTP ${response.status} ${response.body.slice(0, 300)}`);
-  }
-  let payload: unknown;
-  try {
-    payload = JSON.parse(response.body);
-  } catch {
-    throw new Error(`delete ${project}: invalid RPC response`);
-  }
-  if (!isRecord(payload)) throw new Error(`delete ${project}: invalid RPC response`);
-  if (isRecord(payload.error)) {
-    throw new Error(`delete ${project}: ${String(payload.error.message ?? "RPC error")}`);
-  }
-  const result = isRecord(payload.result) ? payload.result : null;
-  if (result?.isError === true) {
-    const content: unknown = result.content;
-    const text = Array.isArray(content) ? content[0] : null;
-    throw new Error(
-      `delete ${project}: ${isRecord(text) && typeof text.text === "string" ? text.text : "delete failed"}`,
-    );
   }
 }
 
@@ -178,9 +155,10 @@ export async function staleCbmProjects(
   days: number,
   now = Date.now(),
 ): Promise<CbmProject[]> {
-  if (!Number.isInteger(days) || days < 1) throw new Error("days must be a positive integer");
-  const cutoff = now - days * 24 * 60 * 60 * 1000;
+  if (!Number.isInteger(days) || days < 0) throw new Error("days must be zero or a positive integer");
   const rows = await fetchCbmProjectRows(fetchCbm);
+  if (days === 0) return rows;
+  const cutoff = now - days * 24 * 60 * 60 * 1000;
   const stale: CbmProject[] = [];
   for (const row of rows) {
     const health = await fetchCbmProjectHealth(fetchCbm, row.name);

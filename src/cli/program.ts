@@ -252,7 +252,7 @@ function addRmProjectsCommand(program: Command): void {
     .command("rm-projects [names...]")
     .description("Delete cbm projects so stale indexes can be rebuilt")
     .option("--all", "delete every project returned by list_projects")
-    .option("--older-than <days>", "delete projects whose last index is older than N days", positiveInteger)
+    .option("--older-than <days>", "delete projects whose last index is older than N days; 0 deletes all", nonNegativeInteger)
     .option("--cbm <url>", "explicit local cbm base URL")
     .option("--root <path>", "workspace root for the local roots cache", process.cwd())
     .option("--yes", "confirm deletion (required)")
@@ -372,6 +372,12 @@ function integer(value: string): number {
 function positiveInteger(value: string): number {
   const parsed = integer(value);
   if (parsed < 1) throw new Error(`expected a positive integer, got ${value}`);
+  return parsed;
+}
+
+function nonNegativeInteger(value: string): number {
+  const parsed = integer(value);
+  if (parsed < 0) throw new Error(`expected zero or a positive integer, got ${value}`);
   return parsed;
 }
 

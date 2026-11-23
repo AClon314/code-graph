@@ -29,21 +29,22 @@ export async function commitSetupPath(
       state.setup.refProject = indexed.name;
       state.setup.entry = "";
       state.setup.path = `${indexed.name}//`;
+      state.current.status.action = `Switched to ${indexed.name}`;
       await refresh();
       return null;
     }
-    state.current.status.copy = `Indexing ${folder}…`;
+    state.current.status.action = `Indexing ${folder}…`;
     try {
       const project = await indexCbmFolder(fetchCbm, folder);
       state.setup.project = project;
       state.setup.refProject = project;
       state.setup.entry = "";
       state.setup.path = `${project}//`;
-      state.current.status.copy = `Indexed ${project}`;
+      state.current.status.action = `Indexed ${project}`;
       await refresh();
       return null;
     } catch (cause) {
-      state.current.status.copy = "";
+      state.current.status.action = "";
       return `Index failed: ${cause instanceof Error ? cause.message : String(cause)}`;
     }
   }
@@ -68,7 +69,7 @@ export async function deleteStaleProjects(
     state.setup.entry = "";
     state.setup.path = state.setup.workspaceRoot;
   }
-  state.current.status.copy = deleted.length
+  state.current.status.action = deleted.length
     ? `Deleted ${deleted.length} stale project${deleted.length === 1 ? "" : "s"}`
     : "No projects older than the cutoff";
   await refresh();

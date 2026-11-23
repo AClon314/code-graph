@@ -19,12 +19,13 @@
 :host {
   color-scheme: light dark;
 
-  --code-graph-scale: 1;
+  --code-graph-scale: 1.04;
   --code-graph-zoom: clamp(0.25, var(--code-graph-scale), 4);
 
   --cg-font-sans: var(--vscode-font-family, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif);
   --cg-font-mono: "Maple Mono NF CN", var(--vscode-editor-font-family, "UbuntuMono Nerd Font", monospace);
-  --cg-font-size: calc(var(--vscode-font-size, 13px) + 2px);
+  --cg-font-size: calc(var(--vscode-font-size, 13px) + 3px);
+  --cg-touch-target: 3lh;
 
   /* OLED-first dark fallbacks: pure black canvas, slightly lifted panels. */
   --cg-bg: var(--vscode-editor-background, light-dark(#ffffff, #000000));
@@ -70,8 +71,8 @@
  */
 :root[data-code-graph-standalone] {
   --vscode-font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --vscode-font-size: 15px;
-  --cg-font-size: 15px;
+  --vscode-font-size: 16px;
+  --cg-font-size: 16px;
   --vscode-editor-background: light-dark(#ffffff, #000000);
   --vscode-sideBar-background: light-dark(#f3f3f3, #050505);
   --vscode-editorWidget-background: light-dark(#ffffff, #0a0a0a);

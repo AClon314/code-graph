@@ -47,7 +47,7 @@
   }
 
   async function deleteOlder(): Promise<void> {
-    if (!Number.isInteger(staleDays) || staleDays < 1 || staleBusy) return;
+    if (!Number.isInteger(staleDays) || staleDays < 0 || staleBusy) return;
     staleBusy = true;
     staleError = "";
     try {
@@ -167,7 +167,7 @@
                 id="stale-days"
                 class="search-input stale-days"
                 type="number"
-                min="1"
+                min="0"
                 step="1"
                 bind:value={staleDays}
                 aria-label="Delete projects older than days"
@@ -175,7 +175,7 @@
               <button
                 class="vscode-button"
                 type="button"
-                disabled={staleBusy || !Number.isInteger(staleDays) || staleDays < 1}
+                disabled={staleBusy || !Number.isInteger(staleDays) || staleDays < 0}
                 onclick={() => void deleteOlder()}
               >{staleBusy ? "Deleting…" : "Delete"}</button>
               <button
@@ -185,7 +185,7 @@
                 onclick={() => (staleOpen = false)}
               >Cancel</button>
             </div>
-            <span class="hint">Deletes cbm projects whose last index is older than this.</span>
+            <span class="hint">0 deletes every project; larger values keep recent indexes.</span>
           </div>
         {/if}
         {#if staleError}<p class="error compact" role="alert">{staleError}</p>{/if}
@@ -200,10 +200,10 @@
   </div>
 
   <div class="panel-head">
+    <button class="icon-button" type="button" aria-label="Close setup" onclick={onclose}>×</button>
     <div>
       <h2>Setup</h2>
       <span class="sub">Source, config &amp; actions</span>
     </div>
-    <button class="icon-button" type="button" aria-label="Close setup" onclick={onclose}>×</button>
   </div>
 </aside>

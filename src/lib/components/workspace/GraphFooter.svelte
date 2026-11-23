@@ -19,6 +19,7 @@
     exportStatus: string;
     copyStatus: string;
     copyError: string;
+    actionStatus: string;
     jumpStatus: string;
     jumpError: string;
     runtime: string;
@@ -52,6 +53,7 @@
     exportStatus,
     copyStatus,
     copyError,
+    actionStatus,
     jumpStatus,
     jumpError,
     runtime,
@@ -164,6 +166,7 @@
     {#if jumpError}<span class="status-message status-error" title={jumpError}>{jumpError}</span>{/if}
     {#if copyStatus}<span class="status-message" title={copyStatus}>{copyStatus}</span>{/if}
     {#if copyError}<span class="status-message status-error" title={copyError}>{copyError}</span>{/if}
+    {#if actionStatus}<span class="status-message" title={actionStatus}>{actionStatus}</span>{/if}
     {#if exportStatus}<span class="status-message" title={exportStatus}>{exportStatus}</span>{/if}
     <span class="runtime">{runtime} · {sourceLabel}</span>
   </div>

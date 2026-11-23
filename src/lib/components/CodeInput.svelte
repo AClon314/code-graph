@@ -19,7 +19,6 @@
     Compartment,
     EditorState,
     type Extension,
-    type Transaction,
   } from "@codemirror/state";
   import {
     EditorView,
@@ -37,6 +36,7 @@
   } from "./code-input-options";
   import { fuzzyMatch } from "./code-input-filter";
   import { mapCursor, selectionFor } from "./code-input-cursor";
+  import { singleLineAndLimit } from "./code-input-transaction";
   import {
     codeInputTheme,
     codeInputTooltips,
@@ -341,29 +341,6 @@
     return [EditorState.readOnly.of(locked), EditorView.editable.of(!disabled)];
   }
 
-  function singleLineAndLimit(transaction: Transaction) {
-    if (!transaction.docChanged) return transaction;
-    let text = transaction.newDoc.toString();
-    let changed = false;
-    if (/[\r\n]/.test(text)) {
-      text = text.replace(/[\r\n]+/g, " ");
-      changed = true;
-    }
-    if (maxlength !== undefined && text.length > maxlength) {
-      text = text.slice(0, maxlength);
-      changed = true;
-    }
-    if (!changed) return transaction;
-    return transaction.startState.update({
-      changes: {
-        from: 0,
-        to: transaction.startState.doc.length,
-        insert: text,
-      },
-      selection: { anchor: text.length },
-    });
-  }
-
   function emit(name: "input" | "change", text: string): void {
     const event = new CustomEvent(name, {
       detail: { value: text },
@@ -621,7 +598,7 @@
     const state = EditorState.create({
       doc: value,
       extensions: [
-        EditorState.transactionFilter.of(singleLineAndLimit),
+        EditorState.transactionFilter.of((transaction) => singleLineAndLimit(transaction, maxlength)),
         completionLanguageData,
         autocompletion({
           activateOnTyping,
@@ -853,7 +830,8 @@
     display: flex;
     align-items: stretch;
     min-width: 0;
-    min-height: 2lh;
+    min-height: var(--cg-touch-target, 3lh);
+    overflow: hidden;
     border: 1px solid var(--vscode-input-border, var(--cg-line));
     border-radius: 0.25rem;
     background: var(--vscode-input-background, var(--cg-bg));
@@ -875,7 +853,10 @@
     flex: 1;
     width: 100%;
     min-width: 0;
+    min-height: var(--cg-touch-target, 3lh);
     padding: 0.45lh 0.75ch;
+    overflow-x: auto;
+    white-space: nowrap;
     border: 0;
     outline: none;
     background: transparent;
@@ -895,6 +876,14 @@
 
   .editor :global(.cm-scroller) {
     padding: 0.45lh 0.75ch;
+    overflow-x: auto;
+    overflow-y: hidden;
+    touch-action: pan-x;
+  }
+
+  .editor :global(.cm-content) {
+    min-width: max-content;
+    white-space: pre;
   }
 
   .editor :global(.cm-content) {
@@ -906,7 +895,7 @@
   .chevron {
     display: grid;
     place-items: center;
-    width: 3ch;
+    width: var(--cg-touch-target, 3lh);
     padding: 0;
     border: 0;
     border-left: 1px solid var(--vscode-input-border, var(--cg-line));

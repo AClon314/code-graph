@@ -44,6 +44,10 @@ pays the CodeMirror/tooltip cost.
   viewport. `tooltipSpace` is bound to `window.visualViewport` when available,
   and `repositionTooltips` is called on visualViewport resize/scroll, so mobile
   pinch zoom, URL-bar changes, and the software keyboard are accounted for.
+  The shell also consumes `visualViewport.height` through
+  `--code-graph-visual-height`, shrinking the bottom dock above the on-screen
+  keyboard. The single-line editor keeps `white-space: pre` and scrolls
+  horizontally (`touch-action: pan-x`).
 - The list width is capped to the visual viewport width so pinch zoom cannot
   push it off-screen. There is no separate pinned chevron: after focusing a
   field, a second click/tap on the field toggles the list.
@@ -142,4 +146,4 @@ CodeInput exposes three Svelte snippets for layout composition:
 
 `start` is outside the field, `afterInput` sits between the editor and the
 chevron, and `end` is after the field. The path bar uses `afterInput` for its
-new-index button.
+new-index/undo/redo cluster.

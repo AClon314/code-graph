@@ -16,13 +16,16 @@ export const codeInputTheme = EditorView.theme({
     outline: "none",
   },
   ".cm-scroller": {
-    overflow: "hidden",
+    overflowX: "auto",
+    overflowY: "hidden",
     fontFamily: "inherit",
     lineHeight: "inherit",
+    touchAction: "pan-x",
   },
   ".cm-content": {
     minHeight: "1lh",
     padding: "0",
+    whiteSpace: "pre",
     caretColor: "currentColor",
   },
   ".cm-line": {
@@ -63,8 +66,19 @@ let viewportListening = false;
 function syncVisualWidth(): void {
   const root = document.documentElement;
   const vv = window.visualViewport;
-  if (vv) root.style.setProperty("--code-input-visual-width", `${vv.width}px`);
-  else root.style.removeProperty("--code-input-visual-width");
+  if (vv) {
+    root.style.setProperty("--code-input-visual-width", `${vv.width}px`);
+    // Shrink the app to the visible viewport so the software keyboard cannot
+    // cover the operation bar. Use a percentage because `.app` is zoomed.
+    const ratio = window.innerHeight > 0 ? vv.height / window.innerHeight : 1;
+    root.style.setProperty(
+      "--code-graph-visual-height",
+      `${Math.max(0.25, Math.min(1, ratio)) * 100}%`,
+    );
+  } else {
+    root.style.removeProperty("--code-input-visual-width");
+    root.style.removeProperty("--code-graph-visual-height");
+  }
 }
 
 function notifyViewport(): void {
@@ -105,6 +119,7 @@ export function subscribeViewport(subscriber: () => void): () => void {
     if (!viewportSubscribers.size) {
       stopViewportListeners();
       document.documentElement.style.removeProperty("--code-input-visual-width");
+      document.documentElement.style.removeProperty("--code-graph-visual-height");
     }
   };
 }

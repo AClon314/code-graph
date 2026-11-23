@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   cbmProjectNameFromPath,
+  deleteCbmProjectViaApi,
   fetchCbmProjects,
   parseCbmProjects,
   staleCbmProjects,
@@ -80,6 +81,21 @@ describe("cbm project discovery", () => {
     await expect(
       staleCbmProjects(fetchCbm, 30, Date.parse("2026-11-23T00:00:00Z")),
     ).resolves.toEqual([{ name: "project-a", rootPath: "@0+app", branch: "main" }]);
+    await expect(staleCbmProjects(fetchCbm, 0)).resolves.toEqual([
+      { name: "project-a", rootPath: "@0+app", branch: "main" },
+      { name: "project-b", rootPath: "/srv/b", branch: "-" },
+    ]);
+  });
+
+  test("deletes through the UI mutation route instead of /rpc", async () => {
+    const calls: Array<{ path: string; method?: string; query?: Record<string, string> }> = [];
+    await deleteCbmProjectViaApi(async (request) => {
+      calls.push({ path: request.path, method: request.method, query: request.query });
+      return { status: 200, body: '{"deleted":true}' };
+    }, "my project");
+    expect(calls).toEqual([
+      { path: "/api/project", method: "DELETE", query: { name: "my project" } },
+    ]);
   });
 
   test("does not throw on malformed RPC responses", async () => {

@@ -1,10 +1,10 @@
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, unlinkSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
 import {
-  deleteCbmProjectViaRpc,
+  deleteCbmProjectViaApi,
   fetchCbmProjectHealth,
   fetchCbmProjectRows,
   fetchCbmProjects,
@@ -66,8 +66,8 @@ export async function deleteCbmProject(
   if (!name.trim()) throw new Error("project name is required");
 
   // The cbm MCP delete path also removes the ADR sidecar; use it for the
-  // default local daemon. An explicit --cbm URL uses /rpc so it still runs
-  // through the HTTP listener and still removes the sidecar.
+  // default local daemon. An explicit --cbm URL uses the UI's HTTP mutation
+  // route, then removes the sidecar locally when the daemon predates that fix.
   if (!options.cbm) {
     const bin = process.env.CBM_BIN || "codebase-memory-mcp";
     try {
@@ -86,7 +86,35 @@ export async function deleteCbmProject(
     }
   }
 
-  await deleteCbmProjectViaRpc(await cbmFetch(options), name);
+  await deleteCbmProjectViaApi(await cbmFetch(options), name);
+  removeLocalAdrSidecar(name);
+}
+
+function cbmCacheDir(): string {
+  return (
+    process.env.CBM_CACHE_DIR ||
+    (process.platform === "darwin"
+      ? join(homedir(), "Library", "Caches", "codebase-memory-mcp")
+      : join(process.env.XDG_CACHE_HOME || join(homedir(), ".cache"), "codebase-memory-mcp"))
+  );
+}
+
+function removeLocalAdrSidecar(name: string): void {
+  for (const suffix of [
+    ".db.adr.db",
+    ".db.adr.db-wal",
+    ".db.adr.db-shm",
+    ".db.adr.db-journal",
+  ]) {
+    const path = join(cbmCacheDir(), `${name}${suffix}`);
+    if (existsSync(path)) {
+      try {
+        unlinkSync(path);
+      } catch (cause) {
+        console.warn(`ADR sidecar cleanup skipped for ${path}: ${String(cause)}`);
+      }
+    }
+  }
 }
 
 /** Return names whose last index is older than the cutoff. */
@@ -111,11 +139,7 @@ export async function verifyCbmProjectDeleted(
     throw new Error(`project ${name} health is ${health.status} after delete`);
   }
 
-  const cacheDir =
-    process.env.CBM_CACHE_DIR ||
-    (process.platform === "darwin"
-      ? join(homedir(), "Library", "Caches", "codebase-memory-mcp")
-      : join(process.env.XDG_CACHE_HOME || join(homedir(), ".cache"), "codebase-memory-mcp"));
+  const cacheDir = cbmCacheDir();
   for (const suffix of [
     ".db",
     ".db-wal",
