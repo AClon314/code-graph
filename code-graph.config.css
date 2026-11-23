@@ -1,0 +1,15 @@
+/*
+ * Global/project style overrides for Code Graph.
+ *
+ * Precedence (lowest to highest):
+ *   ~/.config/code-graph/code-graph.config.css
+ *   <workspace>/code-graph.config.css
+ *   <workspace>/.code-graph.config.css
+ *
+ * One scale controls the whole shell chrome. Set it here instead of editing
+ * component styles:
+ *
+ * :root {
+ *   --code-graph-ui-scale: 0.9;
+ * }
+ */

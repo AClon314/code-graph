@@ -14,6 +14,7 @@
   let host = $state<HTMLDivElement | null>(null);
   let editor: EditorView | null = null;
   let filePath = $state("");
+  let isGlobal = $state(false);
   let content = $state("");
   let status = $state("Loading…");
   let error = $state("");
@@ -24,6 +25,7 @@
   onMount(() => {
     const params = new URLSearchParams(window.location.search);
     const requested = params.get("path") || "code-graph.config.jsonc";
+    isGlobal = params.get("global") === "1";
     filePath = requested;
     document.title = `${fileName} · Code Graph`;
     void load(requested);
@@ -42,11 +44,12 @@
       return;
     }
     try {
+      const globalQuery = isGlobal ? "global=1&" : "";
       let response = await fetch(
-        `/api/config-file?path=${encodeURIComponent(path)}`,
+        `/api/config-file?${globalQuery}path=${encodeURIComponent(path)}`,
         { cache: "no-store" },
       );
-      if (!response.ok) {
+      if (!response.ok && !isGlobal) {
         // Static hosting may not provide the dev/preview endpoint.
         response = await fetch(`/${path.replace(/^\/+/, "")}`, { cache: "no-store" });
       }
@@ -76,7 +79,11 @@
           lineNumbers(),
           history(),
           highlightActiveLine(),
-          keymap.of([...defaultKeymap, ...historyKeymap]),
+          keymap.of([
+            ...defaultKeymap,
+            ...historyKeymap,
+            { key: "Mod-s", run: () => { void saveContent(); return true; } },
+          ]),
           EditorView.lineWrapping,
           EditorView.theme({
             "&": {
@@ -87,7 +94,11 @@
               fontSize: "0.86rem",
             },
             ".cm-scroller": { overflow: "auto", lineHeight: "1.45" },
-            ".cm-content": { padding: "1lh 0" },
+            ".cm-content": {
+              padding: "1lh 0",
+              caretColor: "var(--cg-text)",
+            },
+            ".cm-cursor": { borderLeftColor: "var(--cg-text)" },
             ".cm-line": { padding: "0 1ch" },
             ".cm-gutters": {
               backgroundColor: "var(--cg-panel)",
@@ -103,6 +114,30 @@
       parent: host,
     });
     editor.focus();
+  }
+
+  async function saveContent(): Promise<void> {
+    if (!editor) return;
+    status = "Saving…";
+    error = "";
+    const next = editor.state.doc.toString();
+    try {
+      const globalQuery = isGlobal ? "?global=1" : "";
+      const response = await fetch(`/api/config-file${globalQuery}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ path: filePath, global: isGlobal, content: next }),
+      });
+      if (!response.ok) {
+        const detail = await response.text().catch(() => "");
+        throw new Error(detail || `HTTP ${response.status}`);
+      }
+      content = next;
+      status = `Saved ${fileName} on the code-graph host`;
+    } catch (cause) {
+      error = `Save failed: ${cause instanceof Error ? cause.message : String(cause)}`;
+      status = "Could not save file";
+    }
   }
 
   async function copyContent(): Promise<void> {
@@ -136,6 +171,7 @@
       <p class="config-path">{filePath}</p>
     </div>
     <div class="config-actions">
+      <button class="vscode-button secondary" type="button" onclick={() => void saveContent()}>Save</button>
       <button class="vscode-button secondary" type="button" onclick={() => void copyContent()}>Copy</button>
       <button class="vscode-button secondary" type="button" onclick={downloadContent}>Download</button>
       <a class="vscode-button secondary" href="/" target="_self">Back to graph</a>

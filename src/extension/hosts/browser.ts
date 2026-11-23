@@ -6,8 +6,13 @@ import {
 } from "../api";
 import { requestCbm } from "../../lib/cbm-request";
 import { JumpClient } from "../../lib/jump/client";
-import { NODE_RENDERER_FILE } from "../../lib/node-renderer";
-import { TEAM_CONFIG_FILE, loadProjectConfig } from "../../lib/config";
+import {
+  CSS_CONFIG_FILE,
+  TEAM_CONFIG_FILE,
+  configPaths,
+  loadProjectConfig,
+  resolveNodeRendererPath,
+} from "../../lib/config";
 
 /**
  * Standalone `vite dev` host. It keeps the previous behaviour: jump through
@@ -29,24 +34,43 @@ export function createExtensionApi(): ExtensionApi {
           ? env.VITE_SCIP_PROJECT ??
             (baseProject.endsWith("-scip") ? baseProject : `${baseProject}-scip`)
           : baseProject;
-      let configuredRenderer = env.VITE_NODE_RENDERER;
-      if (!configuredRenderer) {
-        try {
-          const loaded = await loadProjectConfig("/", async (path) => {
-            const response = await fetch(
-              `/api/config-file?path=${encodeURIComponent(path.replace(/^\/+/, ""))}&optional=1`,
-              { cache: "no-store" },
-            );
-            return response.ok ? response.text() : null;
-          });
-          configuredRenderer = loaded.config.node?.renderer?.trim();
-        } catch {
-          // Static hosting may not expose the config endpoint.
-        }
-      }
-      const nodeRendererPath = configuredRenderer || NODE_RENDERER_FILE;
-      const nodeRendererUrl =
-        `/api/config-file?path=${encodeURIComponent(nodeRendererPath)}`;
+      const globalRoot =
+        typeof __CODE_GRAPH_GLOBAL_CONFIG__ === "string"
+          ? __CODE_GRAPH_GLOBAL_CONFIG__
+          : "__global";
+      const readConfigFile = async (path: string): Promise<string | null> => {
+        const globalFile = path.startsWith(`${globalRoot}/`);
+        const relative = globalFile
+          ? path.slice(globalRoot.length + 1)
+          : path.replace(/^\/+/, "");
+        const query = new URLSearchParams({ path: relative, optional: "1" });
+        if (globalFile) query.set("global", "1");
+        const response = await fetch(`/api/config-file?${query}`, {
+          cache: "no-store",
+        });
+        return response.ok ? response.text() : null;
+      };
+      const loaded = await loadProjectConfig("/", readConfigFile, globalRoot).catch(
+        () => ({ config: {}, sources: [], layers: [] }),
+      );
+      const nodeRendererPath = env.VITE_NODE_RENDERER || (await resolveNodeRendererPath("/", loaded, readConfigFile, globalRoot));
+      const paths = configPaths("/", globalRoot);
+      const fileUrl = (path: string, optional = false) => {
+        const globalFile = path.startsWith(`${globalRoot}/`);
+        const relative = globalFile ? path.slice(globalRoot.length + 1) : path.replace(/^\/+/, "");
+        const query = new URLSearchParams({ path: relative });
+        if (globalFile) query.set("global", "1");
+        if (optional) query.set("optional", "1");
+        return `/api/config-file?${query}`;
+      };
+      const nodeRendererUrl = fileUrl(nodeRendererPath);
+      const styleUrls = [
+        paths.global?.css,
+        paths.project.css,
+        paths.personal.css,
+      ]
+        .filter((path): path is string => Boolean(path))
+        .map((path) => fileUrl(path, true));
       return {
         backend,
         source,
@@ -61,7 +85,12 @@ export function createExtensionApi(): ExtensionApi {
             ? __CODE_GRAPH_WORKSPACE_ROOT__
             : ""),
         configPath: env.VITE_CONFIG_PATH ?? TEAM_CONFIG_FILE,
+        cssPath: env.VITE_CSS_PATH ?? CSS_CONFIG_FILE,
         nodeRendererPath,
+        globalConfigPath: paths.global?.jsonc ?? "",
+        globalCssPath: paths.global?.css ?? "",
+        globalRendererPath: paths.global?.renderer ?? "",
+        styleUrls,
         nodeRendererUrl,
       } satisfies ExtensionConfig;
     },

@@ -32,7 +32,11 @@ export interface SetupState {
   runtime: Runtime;
   /** Workspace-relative file paths used by the Setup links. */
   configPath: string;
+  cssPath: string;
   nodeRendererPath: string;
+  globalConfigPath: string;
+  globalCssPath: string;
+  globalRendererPath: string;
   roots: RootCandidate[];
   projects: string[];
   /** Indexed project metadata used to auto-select by workspace root. */
@@ -126,7 +130,11 @@ export interface GraphUiStateInit {
   cbmBaseUrl?: string;
   workspaceRoot?: string;
   configPath?: string;
+  cssPath?: string;
   nodeRendererPath?: string;
+  globalConfigPath?: string;
+  globalCssPath?: string;
+  globalRendererPath?: string;
 }
 
 export function createGraphUiState(init: GraphUiStateInit = {}): GraphUiState {
@@ -145,7 +153,11 @@ export function createGraphUiState(init: GraphUiStateInit = {}): GraphUiState {
       workspaceRoot: init.workspaceRoot ?? "",
       runtime: init.runtime ?? "browser",
       configPath: init.configPath ?? "code-graph.config.jsonc",
+      cssPath: init.cssPath ?? "code-graph.config.css",
       nodeRendererPath: init.nodeRendererPath ?? NODE_RENDERER_FILE,
+      globalConfigPath: init.globalConfigPath ?? "",
+      globalCssPath: init.globalCssPath ?? "",
+      globalRendererPath: init.globalRendererPath ?? "",
       roots: [],
       projects: [],
       projectRows: [],

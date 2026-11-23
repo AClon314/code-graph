@@ -44,6 +44,7 @@
   import { resolveShortcut } from "./lib/shortcuts";
   import { activeJumpRow, jumpToLocation } from "./lib/actions/symbol";
   import { openConfigPath } from "./lib/actions/config";
+  import { applyConfigStyles } from "./lib/config-css";
   import {
     fixFor,
     type SettingsFix,
@@ -62,8 +63,10 @@
   import { errorMessage } from "./lib/errors";
   import { applySettingsFix } from "./lib/actions/fix";
   import { buildAiContext, type CopyMode } from "./lib/ai-context";
-  import { copyToolbar, saveToolbar } from "./lib/actions/toolbar";
+  import { copyGraphMode, copyTargetFor, createCopyFlash } from "./lib/actions/copy";
+  import { saveToolbar } from "./lib/actions/toolbar";
   import {
+    applyExtensionConfig,
     commitSetupPath,
     deleteStaleProjects as deleteStaleSetup,
   } from "./lib/actions/setup";
@@ -99,6 +102,8 @@
   let graphView = $state<GraphViewHandle>();
   let nodeRender = $state<NodeHtmlRenderer | null>(null);
   let searchCursor = $state(-1);
+  let copyFlash = $state(false);
+  const copyFlashController = createCopyFlash((active) => (copyFlash = active));
   const progress = new ProgressController(codeGraph.current.load);
 
   const selectedNode = $derived(
@@ -111,6 +116,13 @@
   const aiContext = $derived(
     buildAiContext(codeGraph.current.detail.symbol ?? selectionBundle, selectedNode ?? codeGraph.current.selection.node, codeGraph.setup.workspaceRoot, codeGraph.setup.project),
   );
+  const copyTarget = $derived(copyTargetFor(
+    codeGraph.current.graph,
+    selectedNode,
+    selectionBundle,
+    codeGraph.setup.workspaceRoot,
+    codeGraph.setup.project,
+  ));
 
   const searchHits = $derived(graphSearchHits(codeGraph.current.graph, codeGraph.current.ui.search));
   const searchResults = $derived(graphSearchResultNodes(codeGraph.current.graph, searchHits));
@@ -403,13 +415,8 @@
         const config = await extensionApi.getConfig();
         if (disposed) return;
         codeGraph.setup.runtime = extensionApi.runtime;
-        codeGraph.setup.backend = config.backend;
-        if (config.source === "computed" || config.source === "cbm") codeGraph.setup.source = config.source;
-        codeGraph.setup.cbmBaseUrl = config.cbmBaseUrl;
-        codeGraph.setup.workspaceRoot = config.workspaceRoot;
-        if (!codeGraph.setup.path) codeGraph.setup.path = config.workspaceRoot;
-        codeGraph.setup.configPath = config.configPath;
-        codeGraph.setup.nodeRendererPath = config.nodeRendererPath;
+        applyExtensionConfig(codeGraph, config);
+        applyConfigStyles(config.styleUrls);
         nodeRender = await loadNodeHtmlRenderer(config.nodeRendererUrl);
         if (disposed) return;
         if (config.project) codeGraph.setup.project = config.project;
@@ -521,7 +528,6 @@
     codeGraph.setup.entry = resolved.qualifiedName;
     codeGraph.setup.path = pathForCandidate(resolved, codeGraph.setup.workspaceRoot, codeGraph.setup.project);
     codeGraph.current.ui.inspectorOpen = true;
-    codeGraph.current.ui.setupOpen = false;
     syncUrl();
     void load();
   }
@@ -570,12 +576,13 @@
     void reloadGraph(reuseRootBundle);
   }
 
-  function openConfigFile(path: string): void {
+  function openConfigFile(path: string, global = false): void {
     openConfigPath(
       path,
       codeGraph.setup.runtime,
       extensionApi,
       codeGraph.current.status,
+      global,
     );
   }
 
@@ -594,7 +601,6 @@
     codeGraph.current.selection.node = node;
     codeGraph.setup.entry = node.qualifiedName || node.id;
     codeGraph.setup.path = pathForCandidate(node, codeGraph.setup.workspaceRoot, codeGraph.setup.project);
-    codeGraph.current.ui.setupOpen = false;
     syncUrl();
     if (codeGraph.current.ui.inspectorOpen) {
       await loadDetail(node);
@@ -647,7 +653,6 @@
   function toggleSetup(): void {
     codeGraph.current.ui.setupOpen = !codeGraph.current.ui.setupOpen;
     if (codeGraph.current.ui.setupOpen) {
-      codeGraph.current.ui.inspectorOpen = false;
       if (codeGraph.setup.source === "cbm" && codeGraph.setup.projects.length === 0) {
         void loadProjects();
       }
@@ -657,7 +662,6 @@
   function toggleInspector(): void {
     codeGraph.current.ui.inspectorOpen = !codeGraph.current.ui.inspectorOpen;
     if (codeGraph.current.ui.inspectorOpen) {
-      codeGraph.current.ui.setupOpen = false;
       const node = selectedNode;
       if (
         node &&
@@ -732,6 +736,9 @@
       case "copy-relative":
         void copyWithMode("relative");
         break;
+      case "copy-mode":
+        void copyWithMode(codeGraph.current.ui.copyMode);
+        break;
       case "copy-relative-or-svg":
         void copyWithMode(activeJumpRow(codeGraph.current.selection.node, codeGraph.current.detail.symbol) ? "relative" : "svg");
         break;
@@ -804,28 +811,15 @@
     void jumpToLocation(node, codeGraph.setup.project, extensionApi, codeGraph.current.status);
   }
 
-  async function copyWithMode(mode: CopyMode): Promise<void> {
-    await copyToolbar({
+  async function copyWithMode(mode: CopyMode): Promise<boolean> {
+    return copyGraphMode({
       mode,
       view: graphView,
       renderer: codeGraph.current.view.renderer,
-      row: activeJumpRow(codeGraph.current.selection.node, codeGraph.current.detail.symbol),
+      target: copyTarget,
       workspaceRoot: codeGraph.setup.workspaceRoot,
-      context: aiContext,
       status: codeGraph.current.status,
-    });
-  }
-
-  async function copyCurrent(): Promise<void> {
-    await copyWithMode(codeGraph.current.ui.copyMode);
-  }
-
-  function saveCurrent(): void {
-    saveToolbar({
-      mode: codeGraph.current.ui.saveMode,
-      view: graphView,
-      entry: codeGraph.setup.entry,
-      status: codeGraph.current.status,
+      flash: copyFlashController,
     });
   }
 
@@ -842,7 +836,11 @@
         runtime={codeGraph.setup.runtime}
         backend={codeGraph.setup.backend}
         configPath={codeGraph.setup.configPath}
+        cssPath={codeGraph.setup.cssPath}
         nodeRendererPath={codeGraph.setup.nodeRendererPath}
+        globalConfigPath={codeGraph.setup.globalConfigPath}
+        globalCssPath={codeGraph.setup.globalCssPath}
+        globalRendererPath={codeGraph.setup.globalRendererPath}
         onsource={setKind}
         onbackend={setBackend}
         onopensettings={() => void extensionApi.openSettings("@ext:code-graph.code-graph")}
@@ -974,8 +972,9 @@
         ontogglesetup={toggleSetup}
         ontoggledetails={toggleInspector}
         onfit={() => graphView?.fit()}
-        oncopy={() => void copyCurrent()}
-        onsave={saveCurrent}
+        copyFlash={copyFlash}
+        oncopy={() => void copyWithMode(codeGraph.current.ui.copyMode)}
+        onsave={() => saveToolbar({ mode: codeGraph.current.ui.saveMode, view: graphView, entry: codeGraph.setup.entry, status: codeGraph.current.status })}
         onentrycommit={onEntryCommit}
         onindex={(folder) => commitSetupPath(codeGraph, `${folder}//`, (request) => extensionApi.fetchCbm(request), async () => { await loadProjects(); await load(); })}
       />

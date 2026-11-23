@@ -1,7 +1,7 @@
 import { shortFilePath, shortQualifiedName } from "./graph/node-label";
 import type { GraphViewData, GraphViewNode } from "./graph/types";
 
-export const NODE_RENDERER_FILE = "renderNode.config.mjs";
+export const NODE_RENDERER_FILE = "code-graph.config.mjs";
 
 /** JSON-safe context passed to both renderer functions. */
 export interface NodeRenderNode extends GraphViewNode {
@@ -135,7 +135,7 @@ export async function loadNodeHtmlRenderer(
       : null;
   } catch (cause) {
     console.warn(
-      `[code-graph] renderNode.config.mjs: ${
+      `[code-graph] code-graph.config.mjs: ${
         cause instanceof Error ? cause.message : String(cause)
       }`,
     );

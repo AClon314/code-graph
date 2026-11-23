@@ -9,8 +9,12 @@ codeGraph.setup.project;     // internal index handle; auto-selected from cwd
 codeGraph.setup.projectRows; // name + root_path + branch for path-bar completion
 codeGraph.setup.entry;       // backend qualified name
 codeGraph.setup.path;        // canonical global symbol path
-codeGraph.setup.configPath;
-codeGraph.setup.nodeRendererPath;
+codeGraph.setup.configPath;         // project code-graph.config.jsonc
+codeGraph.setup.cssPath;            // project code-graph.config.css
+codeGraph.setup.nodeRendererPath;   // nearest project/global renderer
+codeGraph.setup.globalConfigPath;   // ~/.config/code-graph/...
+codeGraph.setup.globalCssPath;
+codeGraph.setup.globalRendererPath;
 codeGraph.current.graph;      // GraphViewData | null
 codeGraph.current.selection;  // { id, node }
 codeGraph.current.view;       // depth, direction, layout, renderer, focusOnly

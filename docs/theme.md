@@ -23,11 +23,14 @@ Third-party hosts control the entire shell with one CSS variable:
 
 ```css
 :root {
-  --code-graph-scale: 1.5;
+  --code-graph-ui-scale: 1.2;
 }
 ```
 
-`--code-graph-zoom` clamps it to `0.25..4` and is applied as CSS `zoom` on the
+Set this in `code-graph.config.css` (global or project) to keep the preference
+with the rest of the layered config. `--code-graph-scale` remains an alias for
+older embeds. `--code-graph-zoom` clamps the value to `0.25..4` and applies it
+as CSS `zoom` on the
 app shell. Percentage sizes resolve in local pixels, so the app still fills the
 visual viewport. The graph fit logic deliberately uses `clientWidth` /
 `clientHeight` (local px), not `getBoundingClientRect()` (visual px), so DPI

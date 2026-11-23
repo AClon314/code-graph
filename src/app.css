@@ -223,6 +223,33 @@ h3 {
   outline-offset: -2px;
 }
 
+.split-action.copy-flash {
+  animation: copy-success 1.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes copy-success {
+  0% {
+    background: transparent;
+    border-color: var(--cg-control-border);
+    box-shadow: 0 0 0 0 transparent;
+  }
+  16% {
+    background: var(--cg-copy-flash-bg);
+    border-color: var(--cg-copy-flash-border);
+    box-shadow: 0 0 0 0.28lh var(--cg-copy-flash-glow);
+  }
+  52% {
+    background: color-mix(in srgb, var(--cg-copy-flash-bg) 72%, transparent);
+    border-color: var(--cg-copy-flash-border);
+    box-shadow: 0 0 0 0.12lh var(--cg-copy-flash-glow);
+  }
+  100% {
+    background: transparent;
+    border-color: var(--cg-control-border);
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
 .icon-tool {
   min-width: var(--cg-touch-target, 3lh);
   padding-inline: 0.45ch;
@@ -437,6 +464,11 @@ h3 {
   font-size: 0.7rem;
 }
 
+.setup-panel .panel-head {
+  justify-content: flex-start;
+  text-align: left;
+}
+
 .setup-body,
 .inspector-body {
   display: flex;
@@ -496,6 +528,18 @@ h3 {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35lh 1ch;
+}
+
+.config-group {
+  display: grid;
+  gap: 0.2lh;
+}
+
+.config-group-title {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 600;
 }
 
 .config-links .link:disabled {

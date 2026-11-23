@@ -6,7 +6,7 @@ import {
 } from "../api";
 import { requestCbm } from "../../lib/cbm-request";
 import { NODE_RENDERER_FILE } from "../../lib/node-renderer";
-import { TEAM_CONFIG_FILE } from "../../lib/config";
+import { CSS_CONFIG_FILE, TEAM_CONFIG_FILE } from "../../lib/config";
 
 interface FreshEditor {
   openFile(path: string, line: number, column: number): void;
@@ -24,6 +24,9 @@ type FreshGlobals = {
   CODE_NAV_SOURCE?: ExtensionConfig["source"];
   CODE_NAV_CONFIG?: string;
   CODE_NAV_NODE_RENDERER?: string;
+  CODE_NAV_GLOBAL_CONFIG?: string;
+  CODE_NAV_GLOBAL_CSS?: string;
+  CODE_NAV_GLOBAL_RENDERER?: string;
   CODE_NAV_CBM_BASE?: string;
 };
 
@@ -46,7 +49,12 @@ export function createExtensionApi(): ExtensionApi {
         symbolEntry: globals.CODE_NAV_SYMBOL_ENTRY ?? DEFAULT_CONFIG.symbolEntry,
         workspaceRoot: globals.CODE_NAV_ROOT ?? "",
         configPath: globals.CODE_NAV_CONFIG ?? TEAM_CONFIG_FILE,
+        cssPath: CSS_CONFIG_FILE,
         nodeRendererPath,
+        globalConfigPath: globals.CODE_NAV_GLOBAL_CONFIG ?? "",
+        globalCssPath: globals.CODE_NAV_GLOBAL_CSS ?? "",
+        globalRendererPath: globals.CODE_NAV_GLOBAL_RENDERER ?? "",
+        styleUrls: [],
         nodeRendererUrl: "",
       };
     },

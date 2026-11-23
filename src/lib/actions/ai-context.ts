@@ -7,17 +7,19 @@ export async function copyAiContext(
   context: AiContext | null,
   mode: "markdown" | "json",
   status: StatusState,
-): Promise<void> {
+): Promise<boolean> {
   status.copy = "";
   status.copyError = "";
   if (!context) {
     status.copyError = "Select a symbol before copying AI context.";
-    return;
+    return false;
   }
   try {
     await writeClipboard(mode === "json" ? JSON.stringify(context.json, null, 2) : context.markdown);
     status.copy = mode === "json" ? "Copied JSON for AI" : "Copied Markdown for AI";
+    return true;
   } catch (cause) {
     status.copyError = `Copy failed: ${cause instanceof Error ? cause.message : String(cause)}`;
+    return false;
   }
 }

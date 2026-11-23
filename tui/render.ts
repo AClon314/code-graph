@@ -58,7 +58,7 @@ options:
   --layout-direction <d>  DOWN | UP | LEFT | RIGHT (default DOWN)
   --spacing <n>           ELK spacing (default 3)
   --max-node-width <n>    node width cap in cells (default 32)
-  --node-renderer <path>  Shared renderer module (default ./renderNode.config.mjs)
+  --node-renderer <path>  Shared renderer module (default ./code-graph.config.mjs)
   --help                  show this help`;
 
 function takeValue(argv: string[], index: number, flag: string): string {

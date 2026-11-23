@@ -28,9 +28,17 @@ export interface ExtensionConfig {
   symbolEntry: string;
   /** Absolute workspace root used to format copied absolute paths. */
   workspaceRoot: string;
-  /** Workspace-relative config/renderer paths for Setup links. */
+  /** Project JSONC path; global paths are supplied separately. */
   configPath: string;
+  /** Project CSS overrides. */
+  cssPath: string;
+  /** Nearest existing renderer (project or global). */
   nodeRendererPath: string;
+  globalConfigPath: string;
+  globalCssPath: string;
+  globalRendererPath: string;
+  /** Ordered stylesheet URLs: global, project, hidden personal. */
+  styleUrls: string[];
   /** URL the webview/browser can import; empty when no renderer is available. */
   nodeRendererUrl: string;
 }
@@ -58,6 +66,11 @@ export const DEFAULT_CONFIG: ExtensionConfig = {
   symbolEntry: "",
   workspaceRoot: "",
   configPath: "code-graph.config.jsonc",
+  cssPath: "code-graph.config.css",
   nodeRendererPath: NODE_RENDERER_FILE,
+  globalConfigPath: "",
+  globalCssPath: "",
+  globalRendererPath: "",
+  styleUrls: [],
   nodeRendererUrl: "",
 };

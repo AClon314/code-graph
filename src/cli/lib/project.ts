@@ -3,6 +3,7 @@ import { basename, resolve } from "node:path";
 
 import {
   backendConfig,
+  globalConfigRoot,
   loadProjectConfig,
   type ProjectConfig,
 } from "../../lib/config.ts";
@@ -17,8 +18,10 @@ export interface ResolvedProject {
 
 /** Load the team/personal project config without creating a file. */
 export async function readProjectConfig(root: string): Promise<ProjectConfig> {
-  const loaded = await loadProjectConfig(root, (path) =>
-    existsSync(path) ? readFileSync(path, "utf8") : null,
+  const loaded = await loadProjectConfig(
+    root,
+    (path) => (existsSync(path) ? readFileSync(path, "utf8") : null),
+    globalConfigRoot(process.env, process.platform),
   );
   return loaded.config;
 }

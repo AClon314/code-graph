@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 import type { ExtensionApi } from "./api";
 import type { HostRequest, HostResponse } from "./protocol";
 import { setActiveGraphWebview } from "./hosts/vscode";
+import { globalConfigRoot } from "../lib/config";
 
 const FONT_CDN = "https://fontsapi.zeoseven.com";
 
@@ -21,6 +22,7 @@ export function createGraphPanel(
       retainContextWhenHidden: true,
       localResourceRoots: [
         vscode.Uri.joinPath(context.extensionUri, "out", "dist", "webview"),
+        vscode.Uri.file(globalConfigRoot(process.env, process.platform)),
         ...(vscode.workspace.workspaceFolders ?? []).map((folder) => folder.uri),
       ],
     },

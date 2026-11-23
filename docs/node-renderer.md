@@ -1,6 +1,6 @@
 # Node renderer
 
-`renderNode.config.mjs` is a workspace module shared by the web, VS Code and
+`code-graph.config.mjs` is a workspace module shared by the web, VS Code and
 Fresh shells. It exports two named functions; there is no default export:
 
 ```js
@@ -66,7 +66,7 @@ VS Code; the shared runtime format is `.mjs`.
 ## Host loading
 
 - **Web**: the browser host exposes the file through
-  `/api/config-file?path=renderNode.config.mjs` with a JavaScript MIME type.
+  `/api/config-file?path=code-graph.config.mjs` with a JavaScript MIME type.
   `App.svelte` dynamically imports that URL and calls `renderNodeHtml`.
 - **VS Code**: the extension host turns the workspace file into a
   `vscode-webview-resource:` URI with
@@ -89,9 +89,10 @@ result in `<template>`: template content is inert and will not be painted.
 ## Type hints
 
 The renderer file contains its own JSDoc typedefs, so it does not depend on the
-package being installed. The standalone `/input?path=renderNode.config.mjs`
-route provides JavaScript highlighting, copy/download and a read-only view of
-the same file. VSCode and Fresh open it with their native editor.
+package being installed. The standalone `/input?path=code-graph.config.mjs`
+route provides JavaScript highlighting, **Save** to the machine running the
+code-graph HTTP server, copy and download. VSCode and Fresh open it with their
+native editor.
 
 ## Security
 
@@ -101,13 +102,14 @@ The module executes with the host's privileges:
 - VS Code webview: webview sandbox privileges;
 - Fresh: Bun process privileges.
 
-Treat `renderNode.config.mjs` as trusted workspace code. The HTML return value
+Treat `code-graph.config.mjs` as trusted workspace code. The HTML return value
 is inserted with Svelte `{@html}`, so escape dynamic values yourself.
 
 ## Config links
 
-Setup contains links to `code-graph.config.jsonc` and
-`renderNode.config.mjs`:
+Setup contains separate **Project Config** and **Global Config** links for
+`code-graph.config.jsonc`, `code-graph.config.css` and
+`code-graph.config.mjs`:
 
 - VSCode: opens the file in the active workspace editor.
 - Fresh: `Config` opens JSONC; `Render` opens the renderer and creates it from

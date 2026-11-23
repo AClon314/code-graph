@@ -42,7 +42,7 @@ interface ConnectionEntry {
 const DEFAULT_DEPTH = 2;
 const DEFAULT_MAX_NODES = 200;
 /** Safety ceiling for an empty depth field; the graph badge reports overflow. */
-export const MAX_UNBOUNDED_NODES = 2000;
+export const MAX_UNBOUNDED_NODES = 500;
 
 /**
  * Breadth-first local call graph around `root`.

@@ -1,12 +1,19 @@
 import { expect, test } from "bun:test";
 
-import { loadNeighborhood } from "../src/lib/graph/neighborhood";
+import {
+  MAX_UNBOUNDED_NODES,
+  loadNeighborhood,
+} from "../src/lib/graph/neighborhood";
 import { ComputedSource } from "../src/lib/graph/computed";
 import type {
   GraphSource,
   SymbolBundle,
   SymbolConnection,
 } from "../src/lib/graph/types";
+
+test("keeps the unbounded safety budget small enough for the browser", () => {
+  expect(MAX_UNBOUNDED_NODES).toBe(500);
+});
 
 test("ComputedSource neighborhood renders root, callers and callees", async () => {
   const data = await loadNeighborhood(

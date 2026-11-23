@@ -1,8 +1,6 @@
 {
-  "priority": 100,
-  "backend": "cbm",
   // Optional: customize node rendering.
-  "node": { "renderer": "renderNode.config.mjs" },
+  "node": { "renderer": "code-graph.config.mjs" },
   "backends": {
     "cbm": {
       "project": "graph-ui-svelte"

@@ -74,13 +74,15 @@ directly. Build output contains only the selected runtime:
   query, match counter and previous/next buttons. On portrait screens the
   operation bar wraps its actions below the brand/path row. **Setup** and
   **forAI** are edge panels; their title and close button sit at the bottom of
-  the panel, and the panels are closed by default and mutually exclusive.
+  the panel. They are closed by default and may be open at the same time.
   Loading is never modal: the graph stays interactive while the status bar
   updates.
 - Graph: D3/SVG or the orchgraph character canvas. The operation bar has
   `⛶` fit, a copy action with a format menu (**SVG**, **Abs. path**,
   **Rel. path**, **md for AI**, **json for AI**), and a save action with a
-  format menu (**SVG** for now). Search only highlights on
+  format menu (**SVG** for now). A successful copy pulses the copy capsule
+  green for 1.5s. With no selection, copy uses the current graph root for path
+  and forAI formats. Search only highlights on
   input; **Enter** / **›** advances and **Shift+Enter** / **‹** goes back, with
   wrap-around and camera centering on the chosen node. The counter shows the
   current result over the total (0/N until you navigate). The mouse wheel zooms around
@@ -92,7 +94,9 @@ directly. Build output contains only the selected runtime:
   overlapping stress/mrtree/radial variants were removed); depth is any
   positive integer, and an empty
   depth field (the default) expands the full reachable graph (up to the
-  2000-node safety budget, which shows the `truncated` badge).
+  500-node safety budget, which shows the `truncated` badge). Use a finite
+  depth to keep large entries responsive; an unbounded `#main` can still reach
+  the safety ceiling.
 - Selection: selecting a node gives it a soft spotlight glow, keeps connected
   nodes and edges at full opacity, and fades unrelated items to 33%. A
   background click (or tap) clears the selection, while a drag beyond 4 px is
@@ -124,8 +128,9 @@ directly. Build output contains only the selected runtime:
 - Progressive disclosure: source and backend live under **Setup**. There is
   no editable Project field: the only indexed project whose `root_path`
   matches the workspace is auto-selected, and other projects are selected by
-  typing `project//` in the path bar. A separate **Config** section opens
-  `code-graph.config.jsonc` / `renderNode.config.mjs` (new tab on web, existing
+  typing `project//` in the path bar. **Setup → Config** splits into
+  **Project Config** and **Global Config** links for
+  `code-graph.config.jsonc`, `.css` and `.mjs` (new tab on web, existing
   editor tab in VS Code/Fresh). **Actions** holds cbm maintenance: delete
   projects whose last index is older than N days (default 30; `0` deletes every
   project), with an explicit confirm. VS Code also exposes “Open extension
@@ -134,7 +139,9 @@ directly. Build output contains only the selected runtime:
   polls `/api/index-status`, and switches to the derived project. TUI keeps its
   `i` / `[I] Index` prompt.
   Keyboard shortcuts: `/` search, `f` or `.` fit, `r` reload, `←/↑/→/↓` pan,
-  `+`/`-` zoom, and `Ctrl+C` copy relative path; `Ctrl+Shift+C` copies the SVG
+  `+`/`-` zoom, and `Ctrl+C` copies the current copy mode when nothing is
+  selected (or the relative path when a node is active); `Ctrl+Shift+C` copies
+  the SVG
   when no node is active. With a node active, `w`/`s` jump to the first
   caller/callee, `a`/`d` move to the previous/next sibling, and `d`/`s` no
   longer toggle forAI/Setup. `Esc` closes panels.
@@ -145,16 +152,17 @@ directly. Build output contains only the selected runtime:
   tokens; dark fallbacks use an OLED black canvas with high-contrast text and
   bright selection accents. Graph nodes/edges expose stable `code-graph-*`
   classes and opacity/geometry variables; see [`docs/theme.md`](docs/theme.md).
-  Default type is 16px and primary controls use a ~48dp touch target
-  (`--cg-touch-target: 3lh`) with the default 1.04 shell scale; both are theme
-  tokens, not hard-coded in components. Controls are native
+  Default type is 15px and primary controls use a ~48dp touch target
+  (`--cg-touch-target: 2.8lh`) with the default 0.95 shell scale; both are
+  theme tokens, not hard-coded in components. Controls are native
   `<button>`, `<input>`, and `<select>` elements using the same
   `--vscode-*` tokens. Node renderer HTML can use the same `--cg-*` variables
   and the built-in `.node-card-*` classes. `@vscode-elements/elements` is no longer a dependency;
   the archived `@vscode/webview-ui-toolkit` is not used.
-- DPI: `--code-graph-scale` (or `?scale=`) scales the whole shell for
-  third-party embeds. `?theme=light|dark` sets the manual theme without
-  touching the page CSS.
+- DPI: `--code-graph-ui-scale` in `code-graph.config.css` (or `?scale=`)
+  scales the whole shell for third-party embeds. `--code-graph-scale` remains
+  an alias. `?theme=light|dark` sets the manual theme without touching the page
+  CSS.
 - State: low-frequency UI state lives in one JSON-safe object
   (`codeGraph.setup.*`, `codeGraph.current.*`). In the web/dev shell,
   `copy(JSON.stringify(codeGraph))` from DevTools snapshots it; zoom/pan gesture
@@ -206,29 +214,49 @@ cbm-http service?** (web restarts the Vite-owned listener; VS Code restarts the
 local process). Error banners can be dismissed without hiding the raw exception
 from the browser/devtools console.
 
-### Project config
+### Configuration
 
-Team and personal workspace config live next to each other, with an optional
-node renderer:
+Configuration is layered. The lowest layer is global, then the committed
+project files, then hidden personal project files:
 
 ```text
-code-graph.config.jsonc        # team defaults, typically committed
-.code-graph.config.jsonc       # personal overrides, typically ignored
-renderNode.config.mjs          # optional shared HTML + TUI renderer
+$XDG_CONFIG_HOME/code-graph/code-graph.config.jsonc   # global (Linux default: ~/.config/code-graph)
+$XDG_CONFIG_HOME/code-graph/code-graph.config.css
+$XDG_CONFIG_HOME/code-graph/code-graph.config.mjs
+
+code-graph.config.jsonc        # project defaults, typically committed
+code-graph.config.css
+code-graph.config.mjs
+
+.code-graph.config.jsonc       # hidden personal overrides, typically ignored
+.code-graph.config.css
+.code-graph.config.mjs
 ```
 
-Both JSONC files are merged at runtime by `priority` (larger wins). Equal
-priorities keep canonical order: team first, personal last, so personal wins a
-tie. The files are never written back; when neither exists, the team config and
-`renderNode.config.mjs` are created. If a config exists but the renderer is
-missing, the renderer is created on the next load.
+Precedence is always `global < project < .code-graph.config.*`. Neither the
+per-file `priority` field nor the project-level `backend` key is read anymore
+(old files still load; those keys are ignored). The backend is chosen from the
+runtime UI/CLI, not from project config. JSONC is deep-merged, stylesheets are
+loaded as separate links in order (using the browser's normal cascade), and the
+nearest existing renderer wins. To
+replace a team config wholesale, link
+your global file into the hidden path:
+
+```bash
+ln -sf ~/.config/code-graph/code-graph.config.jsonc .code-graph.config.jsonc
+ln -sf ~/.config/code-graph/code-graph.config.css  .code-graph.config.css
+ln -sf ~/.config/code-graph/code-graph.config.mjs  .code-graph.config.mjs
+```
+
+The files are never written back. When no JSONC exists, the project config,
+`code-graph.config.css` and `code-graph.config.mjs` are created. A missing
+renderer is created on the next load. Setup shows separate **Project Config**
+and **Global Config** links.
 
 ```jsonc
 // code-graph.config.jsonc
 {
-  "priority": 100,
-  "backend": "cbm",
-  "node": { "renderer": "renderNode.config.mjs" },
+  "node": { "renderer": "code-graph.config.mjs" },
   "backends": {
     "cbm": { "project": "gpen-js" },
     "scip": { "project": "gpen-js-scip" }
@@ -239,8 +267,17 @@ missing, the renderer is created on the next load.
 ```jsonc
 // .code-graph.config.jsonc
 {
-  "priority": 200,
   "symbolEntry": "gpen.src.main.main"
+}
+```
+
+Style preferences live in `code-graph.config.css`; the whole shell is scaled
+with one variable:
+
+```css
+/* ~/.config/code-graph/code-graph.config.css */
+:root {
+  --code-graph-ui-scale: 0.9;
 }
 ```
 
@@ -264,7 +301,7 @@ node/graph context, and the file carries its own JSDoc typedefs. See
 
 ### Node renderer
 
-The D3 renderer imports `renderNode.config.mjs` (or `node.renderer` from JSONC)
+The D3 renderer imports `code-graph.config.mjs` (or `node.renderer` from JSONC)
 and calls `renderNodeHtml` for each card. The returned HTML is placed inside an
 SVG `foreignObject`; the card border, selection glow and pointer handling stay
 in the graph shell.
@@ -277,7 +314,8 @@ compiler in the browser or VS Code webview.
 Config and renderer links live under **Setup**. In VSCode/Fresh they open the
 file in the editor. In the standalone web shell they open
 `/input?path=<relative_path>` in a new tab: a full-screen CodeMirror 6 editor
-with JavaScript/JSON highlighting and copy/download.
+with JavaScript/JSON highlighting, **Save** (writes on the machine running the
+code-graph HTTP server), copy and download.
 
 ### Root symbols and roots.json
 
@@ -422,7 +460,7 @@ available as `bun run cli entries` and in shell completion.
 `graph` indexes first, then renders; `render` expects an existing project.
 Both accept `--depth`, `--direction`, `--max-nodes`, `--cbm`,
 `--layout-direction`, `--spacing`, `--max-node-width`, and `--node-renderer`
-(shared module; defaults to `./renderNode.config.mjs`). On a TTY the default
+(shared module; defaults to `./code-graph.config.mjs`). On a TTY the default
 is both formats, written to `code-graph.<project>.svg` and
 `code-graph.<project>.txt`. When stdout is piped, the command streams one
 format to stdout instead (default `orchgraph`) and writes no files; pass

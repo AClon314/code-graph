@@ -10,22 +10,24 @@
  * the extension keeps the user's editor theme. The light-dark fallbacks make
  * the standalone web shell usable without any editor tokens.
  *
- * Third-party embedding: set `--code-graph-scale` on the root/host element.
- * `--code-graph-zoom` clamps it to a safe range and is the only value consumed
- * by layout. The shell applies it as CSS `zoom`; percentage boxes resolve in
- * local px, so the app still fills the visual viewport.
+ * Set `--code-graph-ui-scale` in `code-graph.config.css` (global or project)
+ * to scale the whole UI like CSS `zoom`. `--code-graph-scale` remains an alias
+ * for older embeddings. `--code-graph-zoom` clamps the value and is the only
+ * value consumed by layout. The shell applies it as CSS `zoom`; percentage
+ * boxes resolve in local px, so the app still fills the visual viewport.
  */
 :root,
 :host {
   color-scheme: light dark;
 
-  --code-graph-scale: 1.04;
+  --code-graph-ui-scale: 0.95;
+  --code-graph-scale: var(--code-graph-ui-scale);
   --code-graph-zoom: clamp(0.25, var(--code-graph-scale), 4);
 
   --cg-font-sans: var(--vscode-font-family, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif);
   --cg-font-mono: "Maple Mono NF CN", var(--vscode-editor-font-family, "UbuntuMono Nerd Font", monospace);
-  --cg-font-size: calc(var(--vscode-font-size, 13px) + 3px);
-  --cg-touch-target: 3lh;
+  --cg-font-size: calc(var(--vscode-font-size, 13px) + 2px);
+  --cg-touch-target: 2.8lh;
 
   /* OLED-first dark fallbacks: pure black canvas, slightly lifted panels. */
   --cg-bg: var(--vscode-editor-background, light-dark(#ffffff, #000000));
@@ -42,6 +44,9 @@
   --cg-brand-pill-active-bg: var(--cg-text);
   --cg-brand-pill-active-fg: var(--cg-bg);
   --cg-control-border: color-mix(in srgb, var(--cg-muted) 55%, transparent);
+  --cg-copy-flash-bg: light-dark(#bbf7d0, #14532d);
+  --cg-copy-flash-border: light-dark(#22c55e, #4ade80);
+  --cg-copy-flash-glow: light-dark(#22c55e55, #4ade8033);
   --cg-graph-bg: var(--vscode-editor-background, light-dark(#ffffff, #000000));
   --cg-node-bg: var(--vscode-editorWidget-background, light-dark(#ffffff, #0a0a0a));
   --cg-node-line: var(--vscode-input-border, light-dark(#c8c8c8, #3a3f45));
@@ -71,8 +76,8 @@
  */
 :root[data-code-graph-standalone] {
   --vscode-font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --vscode-font-size: 16px;
-  --cg-font-size: 16px;
+  --vscode-font-size: 15px;
+  --cg-font-size: 15px;
   --vscode-editor-background: light-dark(#ffffff, #000000);
   --vscode-sideBar-background: light-dark(#f3f3f3, #050505);
   --vscode-editorWidget-background: light-dark(#ffffff, #0a0a0a);

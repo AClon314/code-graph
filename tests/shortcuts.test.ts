@@ -37,7 +37,7 @@ test("camera and copy shortcuts", () => {
   expect(resolveShortcut(event("="), active)).toBe("zoom-in");
   expect(resolveShortcut(event("-", { repeat: true }), active)).toBe("zoom-out");
   expect(resolveShortcut(event("c", { ctrlKey: true }), active)).toBe("copy-relative");
-  expect(resolveShortcut(event("c", { ctrlKey: true }), closed)).toBeNull();
+  expect(resolveShortcut(event("c", { ctrlKey: true }), closed)).toBe("copy-mode");
   expect(resolveShortcut(event("c", { ctrlKey: true, shiftKey: true }), closed)).toBe(
     "copy-relative-or-svg",
   );

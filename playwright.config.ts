@@ -18,7 +18,7 @@ mkdirSync(join(e2eWorkspace, "src", "lib"), { recursive: true });
 writeFileSync(join(e2eWorkspace, "README.md"), "# fixture\n");
 // Generated workspaces persist between runs; refresh the shared renderer so
 // the smoke test always exercises the current classes.
-writeFileSync(join(e2eWorkspace, "renderNode.config.mjs"), DEFAULT_NODE_RENDERER);
+writeFileSync(join(e2eWorkspace, "code-graph.config.mjs"), DEFAULT_NODE_RENDERER);
 writeFileSync(
   join(e2eWorkspace, "src", "lib", "user-repo.ts"),
   "export class UserRepo {}\n",

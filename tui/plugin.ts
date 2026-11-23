@@ -17,7 +17,9 @@ import { extensionApi } from "../src/extension/host.ts";
 import { frameCachePath, panelName as sharedPanelName } from "../src/lib/graph/cache";
 import {
   backendConfig,
+  globalConfigRoot,
   loadOrCreateProjectConfig,
+  resolveNodeRendererPath,
   nodeRendererPath,
   projectConfigPaths,
   type ProjectConfig,
@@ -118,6 +120,7 @@ interface PanelState {
   renderSeq: number;
   opening: boolean;
   config: ProjectConfig;
+  rendererPath: string;
   entry: string;
   helpVisible: boolean;
   headerRows: number;
@@ -200,8 +203,20 @@ async function loadPanelConfig(panel: PanelState): Promise<boolean> {
         }
       },
       writeFile: (path, content) => editor.writeFile(path, content),
-    });
+    }, typeof process !== "undefined" ? globalConfigRoot(process.env, process.platform) : undefined);
     panel.config = loaded.config;
+    panel.rendererPath = await resolveNodeRendererPath(
+      panel.root,
+      loaded,
+      (path) => {
+        try {
+          return editor.readFile(path);
+        } catch {
+          return null;
+        }
+      },
+      typeof process !== "undefined" ? globalConfigRoot(process.env, process.platform) : undefined,
+    );
     const resolved = backendConfig(panel.config, panel.backend);
     // Config wins on every reload; otherwise keep a prompt/session selection.
     if (resolved.symbolEntry) panel.entry = resolved.symbolEntry;
@@ -270,6 +285,7 @@ function stateFor(
     renderSeq: 0,
     opening: false,
     config: {},
+    rendererPath: "",
     entry: CONFIG_ENTRY,
     helpVisible: false,
     headerRows: 0,
@@ -333,7 +349,7 @@ function openConfigFile(panel: PanelState, kind: "config" | "renderer"): void {
   const path =
     kind === "config"
       ? projectConfigPaths(panel.root).team
-      : nodeRendererPath(panel.root, panel.config);
+      : panel.rendererPath || nodeRendererPath(panel.root, panel.config);
   if (kind === "renderer") {
     try {
       if (editor.readFile(path) === null) {
@@ -750,7 +766,7 @@ async function reloadFrame(panel: PanelState): Promise<void> {
     "--out",
     panel.framePath,
     "--node-renderer",
-    nodeRendererPath(panel.root, panel.config),
+    panel.rendererPath || nodeRendererPath(panel.root, panel.config),
   ];
 
   let result: { exit_code?: number; stderr?: string } | null = null;

@@ -1,20 +1,23 @@
 /**
- * Project-level configuration shared by the VS Code host, Fresh plugin, and
+ * Layered configuration shared by the VS Code host, Fresh plugin, web host and
  * Bun-side scripts.
  *
- * Files:
- *   code-graph.config.jsonc       team defaults, normally committed
- *   .code-graph.config.jsonc      personal overrides, normally ignored
- *   renderNode.config.mjs         optional node renderer (path configurable)
+ * Layer order (lowest to highest):
+ *   global config dir        `$XDG_CONFIG_HOME/code-graph/` (Linux default)
+ *   project config           `<workspace>/code-graph.config.*`
+ *   project hidden config    `<workspace>/.code-graph.config.*`
  *
- * JSONC files are optional and merged at runtime by `priority` (larger wins);
- * the result is never written back. When neither exists, hosts create the team
- * file plus the default node renderer. Missing renderers are also backfilled.
+ * JSONC files are deep-merged at runtime; CSS layers are loaded as separate
+ * stylesheet links in the same order (browser cascade); the node renderer uses
+ * the highest layer that supplies an existing module. The result is never
+ * written back. When no JSONC exists, the project config, CSS and default
+ * renderer are created.
  */
 
 import { DEFAULT_NODE_RENDERER, NODE_RENDERER_FILE } from "./node-renderer";
 
 export type ConfigBackend = "cbm" | "scip";
+export type ConfigLayer = "global" | "project" | "personal";
 
 export interface BackendConfig {
   project?: string;
@@ -22,16 +25,13 @@ export interface BackendConfig {
 }
 
 export interface NodeConfig {
-  /** Workspace-relative path to renderNode.config.mjs. */
+  /** Workspace-relative renderer; default `code-graph.config.mjs`. */
   renderer?: string;
 }
 
 export interface ProjectConfig {
-  /** Higher wins. Defaults: team 100, personal 200. */
-  priority?: number;
   /** Optional node renderer module. */
   node?: NodeConfig;
-  backend?: ConfigBackend;
   /** Fallback project for both backends. */
   project?: string;
   /** Fallback graph root for both backends. */
@@ -41,30 +41,54 @@ export interface ProjectConfig {
 
 export interface ConfigSource {
   path: string;
-  priority: number;
+  layer: ConfigLayer;
   found: boolean;
 }
 
 export interface LoadedProjectConfig {
   config: ProjectConfig;
   sources: ConfigSource[];
+  /** Per-layer configs, including empty missing layers (for renderer lookup). */
+  layers: Array<{ layer: ConfigLayer; config: ProjectConfig }>;
 }
 
-export const TEAM_CONFIG_FILE = "code-graph.config.jsonc";
-export const PERSONAL_CONFIG_FILE = ".code-graph.config.jsonc";
-export const TEAM_DEFAULT_PRIORITY = 100;
-export const PERSONAL_DEFAULT_PRIORITY = 200;
+export interface ConfigPathSet {
+  jsonc: string;
+  css: string;
+  renderer: string;
+}
+
+export interface ConfigPaths {
+  global: ConfigPathSet | null;
+  project: ConfigPathSet;
+  personal: ConfigPathSet;
+}
+
+export const CONFIG_BASENAME = "code-graph.config";
+export const TEAM_CONFIG_FILE = `${CONFIG_BASENAME}.jsonc`;
+export const PERSONAL_CONFIG_FILE = `.${CONFIG_BASENAME}.jsonc`;
+export const CSS_CONFIG_FILE = `${CONFIG_BASENAME}.css`;
+export const PERSONAL_CSS_CONFIG_FILE = `.${CONFIG_BASENAME}.css`;
+export const PERSONAL_RENDERER_FILE = `.${CONFIG_BASENAME}.mjs`;
+export const GLOBAL_CONFIG_DIR_NAME = "code-graph";
 
 export const TEAM_CONFIG_TEMPLATE = `{
-  "priority": ${TEAM_DEFAULT_PRIORITY},
-  "backend": "cbm",
   // Optional: customize node rendering with a shared renderer module.
-  "node": { "renderer": "renderNode.config.mjs" },
+  "node": { "renderer": "code-graph.config.mjs" },
   "backends": {
     // "cbm": { "project": "my-cbm-project" },
     // "scip": { "project": "my-scip-project" }
   }
 }
+`;
+
+export const CSS_CONFIG_TEMPLATE = `/*
+ * Code Graph style overrides. Set one scale for the whole shell:
+ *
+ * :root {
+ *   --code-graph-ui-scale: 0.95;
+ * }
+ */
 `;
 
 export class ProjectConfigError extends Error {
@@ -77,35 +101,127 @@ export class ProjectConfigError extends Error {
   }
 }
 
-/** Return the two workspace config paths in canonical load order. */
-export function projectConfigPaths(root: string): { team: string; personal: string } {
+function joinPath(root: string, name: string): string {
   const base = root.replace(/[/\\]+$/, "");
+  return `${base}/${name}`;
+}
+
+function pathSet(root: string): ConfigPathSet {
   return {
-    team: `${base}/${TEAM_CONFIG_FILE}`,
-    personal: `${base}/${PERSONAL_CONFIG_FILE}`,
+    jsonc: joinPath(root, TEAM_CONFIG_FILE),
+    css: joinPath(root, CSS_CONFIG_FILE),
+    renderer: joinPath(root, NODE_RENDERER_FILE),
   };
 }
 
-/** Absolute path of the configured node renderer (default renderNode.config.mjs). */
-export function nodeRendererPath(root: string, config: ProjectConfig): string {
-  const base = root.replace(/[/\\]+$/, "");
-  const relative = config.node?.renderer?.trim() || NODE_RENDERER_FILE;
-  return relative.startsWith("/") ? relative : `${base}/${relative.replace(/^[/\\]+/, "")}`;
+function personalPathSet(root: string): ConfigPathSet {
+  return {
+    jsonc: joinPath(root, PERSONAL_CONFIG_FILE),
+    css: joinPath(root, PERSONAL_CSS_CONFIG_FILE),
+    renderer: joinPath(root, PERSONAL_RENDERER_FILE),
+  };
 }
 
-/** Load and merge both files. Missing files are reported in `sources`. */
+/** Global config directory, without touching `node:os` in the browser bundle. */
+export function globalConfigRoot(
+  env: Record<string, string | undefined>,
+  platform = "linux",
+): string {
+  const home = env.HOME || env.USERPROFILE || "";
+  let base: string;
+  if (platform === "darwin") {
+    base = joinPath(home, "Library/Application Support");
+  } else if (platform === "win32") {
+    base = env.APPDATA || joinPath(home, "AppData/Roaming");
+  } else {
+    base = env.XDG_CONFIG_HOME || joinPath(home, ".config");
+  }
+  return joinPath(base, GLOBAL_CONFIG_DIR_NAME);
+}
+
+/** Canonical paths for all three config layers. */
+export function configPaths(root: string, globalRoot?: string): ConfigPaths {
+  return {
+    global: globalRoot ? pathSet(globalRoot) : null,
+    project: pathSet(root),
+    personal: personalPathSet(root),
+  };
+}
+
+/** Project-only paths, kept for callers that only need the workspace pair. */
+export function projectConfigPaths(root: string): { team: string; personal: string } {
+  const paths = configPaths(root);
+  return { team: paths.project.jsonc, personal: paths.personal.jsonc };
+}
+
+/** Absolute path of the configured node renderer (default project file). */
+export function nodeRendererPath(root: string, config: ProjectConfig): string {
+  const relative = config.node?.renderer?.trim() || NODE_RENDERER_FILE;
+  return relative.startsWith("/") ? relative : joinPath(root, relative);
+}
+
+/** Pick the highest layer that supplies an existing renderer module. */
+export async function resolveNodeRendererPath(
+  root: string,
+  loaded: LoadedProjectConfig,
+  readFile: (path: string) => string | null | Promise<string | null>,
+  globalRoot?: string,
+): Promise<string> {
+  const paths = configPaths(root, globalRoot);
+  const byLayer = new Map(loaded.layers.map((entry) => [entry.layer, entry.config]));
+  const candidates = [
+    {
+      base: root,
+      config: byLayer.get("personal") ?? {},
+      fallback: paths.personal.renderer,
+    },
+    {
+      base: root,
+      config: byLayer.get("project") ?? {},
+      fallback: paths.project.renderer,
+    },
+    {
+      base: globalRoot ?? root,
+      config: byLayer.get("global") ?? {},
+      fallback: paths.global?.renderer,
+    },
+  ];
+
+  for (const entry of candidates) {
+    const explicit = entry.config.node?.renderer?.trim();
+    const path = explicit
+      ? explicit.startsWith("/")
+        ? explicit
+        : joinPath(entry.base, explicit)
+      : entry.fallback;
+    if (!path) continue;
+    try {
+      const text = await readFile(path);
+      if (text !== null && text.trim() !== "") return path;
+    } catch {
+      // An unreadable candidate behaves like a missing one.
+    }
+  }
+  return paths.project.renderer;
+}
+
+/** Load and merge all JSONC layers. Missing files are reported in `sources`. */
 export async function loadProjectConfig(
   root: string,
   readFile: (path: string) => string | null | Promise<string | null>,
+  globalRoot?: string,
 ): Promise<LoadedProjectConfig> {
-  const paths = projectConfigPaths(root);
+  const paths = configPaths(root, globalRoot);
+  const layers: Array<{ path: string; layer: ConfigLayer }> = [
+    ...(paths.global ? [{ path: paths.global.jsonc, layer: "global" as const }] : []),
+    { path: paths.project.jsonc, layer: "project" },
+    { path: paths.personal.jsonc, layer: "personal" },
+  ];
   const sources: ConfigSource[] = [];
-  const configs: Array<{ config: ProjectConfig; order: number }> = [];
+  const perLayer: Array<{ layer: ConfigLayer; config: ProjectConfig }> = [];
+  let merged: ProjectConfig = {};
 
-  for (const entry of [
-    { path: paths.team, fallback: TEAM_DEFAULT_PRIORITY },
-    { path: paths.personal, fallback: PERSONAL_DEFAULT_PRIORITY },
-  ]) {
+  for (const entry of layers) {
     let text: string | null;
     try {
       text = await readFile(entry.path);
@@ -113,7 +229,8 @@ export async function loadProjectConfig(
       throw new ProjectConfigError(entry.path, "cannot read config", cause);
     }
     if (text === null || text.trim() === "") {
-      sources.push({ path: entry.path, priority: entry.fallback, found: false });
+      sources.push({ path: entry.path, layer: entry.layer, found: false });
+      perLayer.push({ layer: entry.layer, config: {} });
       continue;
     }
     let parsed: unknown;
@@ -125,29 +242,14 @@ export async function loadProjectConfig(
     if (!isRecord(parsed)) {
       throw new ProjectConfigError(entry.path, "top-level value must be an object");
     }
-    const config = parsed as ProjectConfig;
-    const priority = readPriority(config.priority, entry.path, entry.fallback);
-    sources.push({ path: entry.path, priority, found: true });
-    configs.push({
-      config: { ...config, priority },
-      order: configs.length,
-    });
+    sources.push({ path: entry.path, layer: entry.layer, found: true });
+    perLayer.push({ layer: entry.layer, config: parsed as ProjectConfig });
+    merged = mergeValue(merged, parsed) as ProjectConfig;
   }
-
-  // Only `priority` decides order. Equal priorities fall back to canonical
-  // order (team first, personal last), so personal wins on a tie. The explicit
-  // index keeps that guarantee even if a JS engine's sort is not stable.
-  configs.sort(
-    (left, right) =>
-      (left.config.priority ?? 0) - (right.config.priority ?? 0) ||
-      left.order - right.order,
-  );
-  let merged: ProjectConfig = {};
-  for (const entry of configs) merged = mergeValue(merged, entry.config) as ProjectConfig;
-  return { config: merged, sources };
+  return { config: merged, sources, layers: perLayer };
 }
 
-/** Read/merge both files, creating only the team config when neither exists. */
+/** Read/merge all layers, creating project defaults only when no JSONC exists. */
 export async function loadOrCreateProjectConfig(
   root: string,
   io: {
@@ -157,34 +259,38 @@ export async function loadOrCreateProjectConfig(
       content: string,
     ) => void | boolean | Promise<void | boolean>;
   },
+  globalRoot?: string,
 ): Promise<LoadedProjectConfig> {
-  const loaded = await loadProjectConfig(root, io.readFile);
+  const loaded = await loadProjectConfig(root, io.readFile, globalRoot);
   if (loaded.sources.some((source) => source.found)) {
-    await ensureNodeRenderer(root, loaded.config, io);
+    await ensureNodeRenderer(root, loaded, io, globalRoot);
     return loaded;
   }
 
   try {
-    await io.writeFile(projectConfigPaths(root).team, TEAM_CONFIG_TEMPLATE);
+    const paths = configPaths(root, globalRoot);
+    await io.writeFile(paths.project.jsonc, TEAM_CONFIG_TEMPLATE);
+    await io.writeFile(paths.project.css, CSS_CONFIG_TEMPLATE);
   } catch {
     // Read-only or trusted-mode restrictions: use defaults rather than
     // failing the whole graph panel.
     return loaded;
   }
-  await ensureNodeRenderer(root, loaded.config, io);
-  return loadProjectConfig(root, io.readFile);
+  await ensureNodeRenderer(root, loaded, io, globalRoot);
+  return loadProjectConfig(root, io.readFile, globalRoot);
 }
 
 async function ensureNodeRenderer(
   root: string,
-  config: ProjectConfig,
+  loaded: LoadedProjectConfig,
   io: {
     readFile: (path: string) => string | null | Promise<string | null>;
     writeFile: (path: string, content: string) => void | boolean | Promise<void | boolean>;
   },
+  globalRoot?: string,
 ): Promise<void> {
   try {
-    const path = nodeRendererPath(root, config);
+    const path = await resolveNodeRendererPath(root, loaded, io.readFile, globalRoot);
     const existing = await io.readFile(path);
     if (!existing || !existing.trim()) await io.writeFile(path, DEFAULT_NODE_RENDERER);
   } catch {
@@ -233,14 +339,6 @@ function cloneValue(value: unknown): unknown {
     const output: Record<string, unknown> = {};
     for (const [key, item] of Object.entries(value)) output[key] = cloneValue(item);
     return output;
-  }
-  return value;
-}
-
-function readPriority(value: unknown, path: string, fallback: number): number {
-  if (value === undefined) return fallback;
-  if (typeof value !== "number" || !Number.isFinite(value) || !Number.isInteger(value)) {
-    throw new ProjectConfigError(path, "priority must be an integer");
   }
   return value;
 }

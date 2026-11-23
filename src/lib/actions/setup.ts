@@ -1,4 +1,5 @@
 /** Setup/path-bar actions that mutate the central UI state. */
+import type { ExtensionConfig } from "../../extension/api";
 import type { CbmFetch } from "../cbm-projects";
 import type { GraphUiState } from "../state/code-graph";
 import {
@@ -10,6 +11,26 @@ import {
   deleteStaleProjects as deleteStaleProjectsAction,
   indexCbmFolder,
 } from "./projects";
+
+/** Copy host config into the JSON-safe setup state. */
+export function applyExtensionConfig(
+  state: GraphUiState,
+  config: ExtensionConfig,
+): void {
+  state.setup.backend = config.backend;
+  if (config.source === "computed" || config.source === "cbm") {
+    state.setup.source = config.source;
+  }
+  state.setup.cbmBaseUrl = config.cbmBaseUrl;
+  state.setup.workspaceRoot = config.workspaceRoot;
+  if (!state.setup.path) state.setup.path = config.workspaceRoot;
+  state.setup.configPath = config.configPath;
+  state.setup.cssPath = config.cssPath;
+  state.setup.nodeRendererPath = config.nodeRendererPath;
+  state.setup.globalConfigPath = config.globalConfigPath;
+  state.setup.globalCssPath = config.globalCssPath;
+  state.setup.globalRendererPath = config.globalRendererPath;
+}
 
 /** Commit path-bar text to a project/folder or symbol; returns an error text. */
 export async function commitSetupPath(

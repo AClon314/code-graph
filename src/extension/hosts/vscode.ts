@@ -10,10 +10,13 @@ import {
   type SourceLocation,
 } from "../api";
 import {
+  CSS_CONFIG_FILE,
   backendConfig,
+  configPaths,
+  globalConfigRoot,
   loadOrCreateProjectConfig,
-  nodeRendererPath,
   projectConfigPaths,
+  resolveNodeRendererPath,
   type ProjectConfig,
 } from "../../lib/config";
 import { NODE_RENDERER_FILE } from "../../lib/node-renderer";
@@ -82,7 +85,12 @@ export function createExtensionApi(backend: GraphBackend = "cbm"): ExtensionApi 
           configuration.get<string>("symbolEntry", DEFAULT_CONFIG.symbolEntry),
         workspaceRoot: activeWorkspaceFolder()?.uri.fsPath ?? "",
         configPath: projectConfig.configPath,
+        cssPath: projectConfig.cssPath,
         nodeRendererPath: projectConfig.nodeRendererPath,
+        globalConfigPath: projectConfig.globalConfigPath,
+        globalCssPath: projectConfig.globalCssPath,
+        globalRendererPath: projectConfig.globalRendererPath,
+        styleUrls: projectConfig.styleUrls,
         nodeRendererUrl: projectConfig.nodeRendererUrl,
       };
     },
@@ -143,7 +151,12 @@ export function createExtensionApi(backend: GraphBackend = "cbm"): ExtensionApi 
 interface HostProjectConfig {
   config: ProjectConfig;
   configPath: string;
+  cssPath: string;
   nodeRendererPath: string;
+  globalConfigPath: string;
+  globalCssPath: string;
+  globalRendererPath: string;
+  styleUrls: string[];
   nodeRendererUrl: string;
 }
 
@@ -153,11 +166,17 @@ async function readProjectConfig(): Promise<HostProjectConfig> {
     return {
       config: {},
       configPath: projectConfigPaths("").team.replace(/^\//, ""),
+      cssPath: CSS_CONFIG_FILE,
       nodeRendererPath: NODE_RENDERER_FILE,
+      globalConfigPath: "",
+      globalCssPath: "",
+      globalRendererPath: "",
+      styleUrls: [],
       nodeRendererUrl: "",
     };
   }
   const root = folder.uri.fsPath;
+  const globalRoot = globalConfigRoot(process.env, process.platform);
   const relative = (path: string): string => {
     const base = root.replace(/[/\\]+$/, "");
     return path.startsWith(base) ? path.slice(base.length).replace(/^[/\\]+/, "") : path;
@@ -166,7 +185,8 @@ async function readProjectConfig(): Promise<HostProjectConfig> {
     vscode.Uri.joinPath(folder.uri, relative(path));
   const readFile = async (path: string): Promise<string | null> => {
     try {
-      const data = await vscode.workspace.fs.readFile(uriFor(path));
+      const uri = isAbsolute(path) ? vscode.Uri.file(path) : uriFor(path);
+      const data = await vscode.workspace.fs.readFile(uri);
       return new TextDecoder().decode(data);
     } catch (error) {
       if (error instanceof vscode.FileSystemError && error.code === "FileNotFound") {
@@ -176,23 +196,40 @@ async function readProjectConfig(): Promise<HostProjectConfig> {
     }
   };
 
-  const loaded = await loadOrCreateProjectConfig(root, {
-    readFile,
-    writeFile: async (path, content) => {
-      await vscode.workspace.fs.writeFile(
-        uriFor(path),
-        new TextEncoder().encode(content),
-      );
+  const loaded = await loadOrCreateProjectConfig(
+    root,
+    {
+      readFile,
+      writeFile: async (path, content) => {
+        await vscode.workspace.fs.writeFile(
+          isAbsolute(path) ? vscode.Uri.file(path) : uriFor(path),
+          new TextEncoder().encode(content),
+        );
+      },
     },
-  });
-  const renderer = nodeRendererPath(root, loaded.config);
-  const rendererUri = activeWebview
-    ? activeWebview.webview.asWebviewUri(vscode.Uri.file(renderer)).toString()
+    globalRoot,
+  );
+  const paths = configPaths(root, globalRoot);
+  const renderer = await resolveNodeRendererPath(root, loaded, readFile, globalRoot);
+  const webview = activeWebview?.webview;
+  const rendererUri = webview
+    ? webview.asWebviewUri(vscode.Uri.file(renderer)).toString()
     : "";
+  const styleUrls: string[] = [];
+  for (const path of [paths.global?.css, paths.project.css, paths.personal.css]) {
+    if (!path || !webview) continue;
+    if ((await readFile(path)) === null) continue;
+    styleUrls.push(webview.asWebviewUri(vscode.Uri.file(path)).toString());
+  }
   return {
     config: loaded.config,
-    configPath: relative(projectConfigPaths(root).team),
+    configPath: relative(paths.project.jsonc),
+    cssPath: relative(paths.project.css),
     nodeRendererPath: relative(renderer),
+    globalConfigPath: paths.global?.jsonc ?? "",
+    globalCssPath: paths.global?.css ?? "",
+    globalRendererPath: paths.global?.renderer ?? "",
+    styleUrls,
     nodeRendererUrl: rendererUri,
   };
 }
@@ -212,11 +249,7 @@ function resolveUri(location: SourceLocation): vscode.Uri | undefined {
       ? folders.find((candidate) => candidate.name === location.project)
       : undefined) ?? folders[0];
 
-  if (isAbsolute(location.path)) {
-    const uri = vscode.Uri.file(location.path);
-    if (folders.length === 0) return uri;
-    return vscode.workspace.getWorkspaceFolder(uri) ? uri : undefined;
-  }
+  if (isAbsolute(location.path)) return vscode.Uri.file(location.path);
 
   if (!folder) return undefined;
   return vscode.Uri.joinPath(

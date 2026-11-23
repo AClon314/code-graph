@@ -35,7 +35,7 @@ export const HELP_LINES = [
   "  Esc           cancel the root picker",
   "  r / [Reload]  reload config and graph",
   "  [Config]      open code-graph.config.jsonc",
-  "  [Render]      open renderNode.config.mjs",
+  "  [Render]      open code-graph.config.mjs",
   "  o / Enter     open the selected node",
   "  q / [Close]   close this panel",
   "",

@@ -109,8 +109,8 @@ test("input route opens the node renderer editor", async ({ page }, testInfo) =>
   const issues = watchPage(page, testInfo);
 
   await timed(testInfo, "load input route", 4_000, async () => {
-    await page.goto("/input?path=renderNode.config.mjs&theme=dark");
-    await expect(page.getByRole("heading", { name: "renderNode.config.mjs" })).toBeVisible();
+    await page.goto("/input?path=code-graph.config.mjs&theme=dark");
+    await expect(page.getByRole("heading", { name: "code-graph.config.mjs" })).toBeVisible();
     await expect(page.locator(".cm-content")).toContainText("renderNodeHtml");
   });
 

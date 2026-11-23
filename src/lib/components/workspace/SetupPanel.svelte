@@ -10,10 +10,14 @@
     runtime: string;
     backend: GraphBackend;
     configPath: string;
+    cssPath: string;
     nodeRendererPath: string;
+    globalConfigPath: string;
+    globalCssPath: string;
+    globalRendererPath: string;
     onsource: (kind: SourceKind) => void;
     onbackend: (backend: GraphBackend) => void;
-    onopenconfig: (path: string) => void;
+    onopenconfig: (path: string, global?: boolean) => void;
     onopensettings: () => void;
     ondeleteolder: (days: number) => Promise<void>;
     onclose: () => void;
@@ -27,7 +31,11 @@
     runtime,
     backend,
     configPath,
+    cssPath,
     nodeRendererPath,
+    globalConfigPath,
+    globalCssPath,
+    globalRendererPath,
     onsource,
     onbackend,
     onopenconfig,
@@ -121,29 +129,74 @@
 
     <section class="setup-section" aria-labelledby="setup-config-title">
       <h3 id="setup-config-title" class="setup-section-title">Config</h3>
-      <div class="config-links">
-        <button
-          class="link"
-          type="button"
-          disabled={!configPath}
-          title={configPath || "Config file unavailable"}
-          onclick={() => onopenconfig(configPath)}
-        >{basename(configPath) || "config"}</button>
-        <button
-          class="link"
-          type="button"
-          disabled={!nodeRendererPath}
-          title={nodeRendererPath || "Node renderer unavailable"}
-          onclick={() => onopenconfig(nodeRendererPath)}
-        >{basename(nodeRendererPath) || "renderNode.config.mjs"}</button>
+      <div class="config-group">
+        <h4 class="config-group-title">Project Config</h4>
+        <div class="config-links">
+          <button
+            class="link"
+            type="button"
+            disabled={!configPath}
+            title={configPath || "Config file unavailable"}
+            onclick={() => onopenconfig(configPath)}
+          >{basename(configPath) || "code-graph.config.jsonc"}</button>
+          <button
+            class="link"
+            type="button"
+            disabled={!cssPath}
+            title={cssPath || "Style config unavailable"}
+            onclick={() => onopenconfig(cssPath)}
+          >{basename(cssPath) || "code-graph.config.css"}</button>
+          <button
+            class="link"
+            type="button"
+            disabled={!nodeRendererPath}
+            title={nodeRendererPath || "Node renderer unavailable"}
+            onclick={() => onopenconfig(nodeRendererPath)}
+          >{basename(nodeRendererPath) || "code-graph.config.mjs"}</button>
+        </div>
       </div>
+      {#if globalConfigPath || globalCssPath || globalRendererPath}
+        <div class="config-group">
+          <h4 class="config-group-title">Global Config</h4>
+          <div class="config-links">
+            {#if globalConfigPath}
+              <button
+                class="link"
+                type="button"
+                title={globalConfigPath}
+                onclick={() => onopenconfig(globalConfigPath, true)}
+              >{basename(globalConfigPath)}</button>
+            {/if}
+            {#if globalCssPath}
+              <button
+                class="link"
+                type="button"
+                title={globalCssPath}
+                onclick={() => onopenconfig(globalCssPath, true)}
+              >{basename(globalCssPath)}</button>
+            {/if}
+            {#if globalRendererPath}
+              <button
+                class="link"
+                type="button"
+                title={globalRendererPath}
+                onclick={() => onopenconfig(globalRendererPath, true)}
+              >{basename(globalRendererPath)}</button>
+            {/if}
+          </div>
+          <span class="hint">
+            Global &lt; Project &lt; .code-graph.config.*. Symlink the global files
+            to hidden project files to override the team config completely.
+          </span>
+        </div>
+      {/if}
       {#if canOpenSettings}
         <button class="link" type="button" onclick={onopensettings}>
           Open extension settings…
         </button>
       {/if}
       <span class="hint">
-        Web opens these in a new tab; VS Code and Fresh open the workspace file.
+        Web opens these in a new tab; VS Code and Fresh open the file.
       </span>
     </section>
 

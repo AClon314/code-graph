@@ -8,17 +8,19 @@ import { errorMessage } from "../errors";
 export async function copyGraphSvg(
   view: GraphViewHandle | undefined,
   status: StatusState,
-): Promise<void> {
+): Promise<boolean> {
   const svg = view?.snapshotSvg?.() ?? null;
   if (!svg) {
     status.export = "Nothing to copy as SVG";
-    return;
+    return false;
   }
   try {
     await writeClipboard(svgMarkup(svg));
     status.export = "Copied SVG";
+    return true;
   } catch (cause) {
     status.export = `Copy SVG failed: ${errorMessage(cause)}`;
+    return false;
   }
 }
 
@@ -43,11 +45,13 @@ export function exportGraphSvg(
 export async function copyTerminalArt(
   view: GraphViewHandle | undefined,
   status: StatusState,
-): Promise<void> {
+): Promise<boolean> {
   try {
     await view?.copy?.();
     status.export = "Copied character art";
+    return true;
   } catch (cause) {
     status.export = `Copy failed: ${errorMessage(cause)}`;
+    return false;
   }
 }

@@ -14,8 +14,10 @@ tui/frame.json
 # Code Graph per-workspace frame cache (also cbm output dir)
 .codebase-memory/
 
-# Personal code-graph overrides (team file is tracked)
+# Personal code-graph overrides (team files are tracked)
 .code-graph.config.jsonc
+.code-graph.config.css
+.code-graph.config.mjs
 
 # test runners
 test-results/

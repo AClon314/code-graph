@@ -15,6 +15,7 @@
     projects: readonly CbmProject[];
     fetchCbm?: CbmFetch;
     copyMode?: CopyMode;
+    copyFlash?: boolean;
     saveMode?: SaveMode;
     ontogglesearch: () => void;
     ontogglesetup: () => void;
@@ -37,6 +38,7 @@
     projects,
     fetchCbm,
     copyMode = $bindable("svg"),
+    copyFlash = false,
     saveMode = $bindable("svg"),
     ontogglesearch,
     ontogglesetup,
@@ -100,7 +102,7 @@
       >⛶</button>
     {/if}
 
-    <div class="split-action">
+    <div class="split-action" class:copy-flash={copyFlash}>
       <button
         class="vscode-button secondary tool-button icon-tool"
         type="button"

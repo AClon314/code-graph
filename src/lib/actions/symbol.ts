@@ -51,12 +51,12 @@ export async function copySymbolPath(
   row: JumpRow | null,
   workspaceRoot: string,
   status: StatusState,
-): Promise<void> {
+): Promise<boolean> {
   status.copy = "";
   status.copyError = "";
   if (!row?.filePath) {
     status.copyError = "This symbol has no file path to copy.";
-    return;
+    return false;
   }
 
   const text = copyPathText(
@@ -70,14 +70,16 @@ export async function copySymbolPath(
       kind === "absolute" || kind === "both"
         ? "Absolute path unavailable: no workspace root."
         : "Relative path unavailable for this file.";
-    return;
+    return false;
   }
 
   try {
     await writeClipboard(text);
     status.copy = kind === "both" ? "Copied relative + absolute paths" : `Copied ${kind} path`;
+    return true;
   } catch (cause) {
     status.copyError = `Copy failed: ${errorMessage(cause)}`;
+    return false;
   }
 }
 

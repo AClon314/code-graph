@@ -15,6 +15,7 @@ export type ShortcutAction =
   | "nav-prev-sibling"
   | "nav-next-sibling"
   | "copy-relative"
+  | "copy-mode"
   | "copy-relative-or-svg"
   | "close-setup"
   | "close-details";
@@ -90,7 +91,7 @@ export function resolveShortcut(
       ? "copy-relative-or-svg"
       : context.hasSelection
         ? "copy-relative"
-        : null;
+        : "copy-mode";
   }
 
   if (key === ".") return "fit";

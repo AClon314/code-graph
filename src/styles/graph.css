@@ -228,7 +228,7 @@
   stroke-width: var(--cg-edge-strong-width, 2.5px);
 }
 
-/* ---- renderNode.config.mjs (foreignObject) -------------------------- */
+/* ---- code-graph.config.mjs (foreignObject) -------------------------- */
 
 .code-graph-node-html {
   box-sizing: border-box;

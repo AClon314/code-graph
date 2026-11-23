@@ -25,17 +25,16 @@ export async function copyToolbar({
   workspaceRoot,
   context,
   status,
-}: CopyOptions): Promise<void> {
+}: CopyOptions): Promise<boolean> {
   if (mode === "svg") {
-    if (renderer === "orchgraph") await copyTerminalArt(view, status);
-    else await copyGraphSvg(view, status);
-    return;
+    return renderer === "orchgraph"
+      ? copyTerminalArt(view, status)
+      : copyGraphSvg(view, status);
   }
   if (mode === "markdown" || mode === "json") {
-    await copyAiContext(context, mode, status);
-    return;
+    return copyAiContext(context, mode, status);
   }
-  await copySymbolPath(mode, row, workspaceRoot, status);
+  return copySymbolPath(mode, row, workspaceRoot, status);
 }
 
 interface SaveOptions {
